@@ -101,9 +101,14 @@ function priceFromReference(reference: number): Pick<GoldPriceState, 'buyPricePe
   };
 }
 
+/** Has altın karşılığı: karat 24 üzerinden orantılanmış gram. */
+function equivalentGrams(grams: number, karat: number): number {
+  return grams * (karat / 24);
+}
+
 /** Has altın karşılığı: karat 24 üzerinden orantılanmış birim gram. */
 export function hasEquivalentGrams(item: InventoryItem): number {
-  return item.grams * (item.karat / 24);
+  return equivalentGrams(item.grams, item.karat);
 }
 
 /** Bir pozisyonun güncel toplam değeri (tüm adet dahil, canlı kurdan). */
@@ -166,6 +171,20 @@ interface GameState {
   ) => { success: true; borrowedTl: number } | { success: false; borrowedTl: 0 };
   /** Bir yatırım pozisyonunun tamamını güncel kurdan nakde çevirir; alış-satış makasından gerçekleşen kârı döner. */
   sellInventoryItem: (itemId: string) => { saleValueTl: number; profitTl: number; quantity: number } | null;
+  /**
+   * Bölüm 4.5: Yatırımlar — basılı yatırım altını (gram/çeyrek/vb.) için
+   * pazarlıksız, her an açık borsa masası. Güncel SATIŞ kurundan, sadece
+   * nakit yettiği kadar (borç/kredi yok) anında satın alır.
+   */
+  buyInvestmentUnits: (
+    spec: { name: string; karat: number; grams: number },
+    quantity: number,
+  ) => { success: true } | { success: false; reason: 'insufficient_cash' };
+  /** Bir yatırım pozisyonundan istenen adedi (kısmi olabilir) güncel ALIŞ kurundan anında nakde çevirir. */
+  sellInvestmentUnits: (
+    itemId: string,
+    quantity: number,
+  ) => { saleValueTl: number; profitTl: number; quantity: number } | null;
   /** Nakitten borcu (kısmen ya da tamamen) kapatır. */
   repayDebt: (amountTl: number) => void;
   /** Satın alınan bir Piyasa fırsatını listeden kaldırır. */
@@ -465,6 +484,85 @@ export const useGameStore = create<GameState>((set, get) => ({
       },
     });
     return { saleValueTl, profitTl, quantity: item.quantity };
+  },
+
+  buyInvestmentUnits: (spec, quantity) => {
+    const state = get();
+    if (quantity <= 0) return { success: false, reason: 'insufficient_cash' };
+
+    const unitPriceTl = equivalentGrams(spec.grams, spec.karat) * state.goldPrice.sellPricePerGram;
+    const totalCostTl = unitPriceTl * quantity;
+    if (totalCostTl > state.capital.cashTl) {
+      return { success: false, reason: 'insufficient_cash' };
+    }
+
+    const existingIndex = state.inventory.findIndex(
+      (i) => i.category === 'yatirim' && i.name === spec.name && i.karat === spec.karat && i.grams === spec.grams,
+    );
+    const inventory =
+      existingIndex >= 0
+        ? state.inventory.map((i, idx) =>
+            idx === existingIndex
+              ? { ...i, quantity: i.quantity + quantity, costBasisTl: i.costBasisTl + totalCostTl }
+              : i,
+          )
+        : [
+            ...state.inventory,
+            {
+              id: String(nextInventoryId++),
+              name: spec.name,
+              category: 'yatirim',
+              karat: spec.karat,
+              grams: spec.grams,
+              quantity,
+              costBasisTl: totalCostTl,
+              acquiredDay: state.day,
+            } satisfies InventoryItem,
+          ];
+
+    set({
+      inventory,
+      capital: {
+        ...state.capital,
+        cashTl: state.capital.cashTl - totalCostTl,
+        stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
+      },
+    });
+    return { success: true };
+  },
+
+  sellInvestmentUnits: (itemId, quantity) => {
+    const state = get();
+    const item = state.inventory.find((i) => i.id === itemId);
+    if (!item || item.category !== 'yatirim') return null;
+    const sellQuantity = Math.min(quantity, item.quantity);
+    if (sellQuantity <= 0) return null;
+
+    const unitPriceTl = equivalentGrams(item.grams, item.karat) * state.goldPrice.buyPricePerGram;
+    const saleValueTl = unitPriceTl * sellQuantity;
+    const soldCostBasisTl = (item.costBasisTl / item.quantity) * sellQuantity;
+    const profitTl = saleValueTl - soldCostBasisTl;
+    const remainingQuantity = item.quantity - sellQuantity;
+
+    const inventory =
+      remainingQuantity > 0
+        ? state.inventory.map((i) =>
+            i.id === itemId
+              ? { ...i, quantity: remainingQuantity, costBasisTl: i.costBasisTl - soldCostBasisTl }
+              : i,
+          )
+        : state.inventory.filter((i) => i.id !== itemId);
+
+    set({
+      inventory,
+      realizedTradingProfitTl: state.realizedTradingProfitTl + profitTl,
+      capital: {
+        ...state.capital,
+        cashTl: state.capital.cashTl + saleValueTl,
+        stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
+      },
+    });
+    return { saleValueTl, profitTl, quantity: sellQuantity };
   },
 
   repayDebt: (amountTl) => {
