@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import type { Opportunity } from '../components/OpportunityCard';
+import { marketOpportunities } from '../data/mockMarket';
 import type {
   CapitalState,
   GoldPriceState,
@@ -87,6 +89,8 @@ interface GameState {
   goldPrice: GoldPriceState;
   reputation: ReputationState;
   inventory: InventoryItem[];
+  /** Piyasa'daki satın alınabilir fırsatlar; satın alınan bir fırsat listeden kalkar. */
+  marketListings: Opportunity[];
   day: number;
   minuteOfDay: number;
   speed: ClockSpeed;
@@ -112,6 +116,8 @@ interface GameState {
   sellInventoryItem: (itemId: string) => void;
   /** Nakitten borcu (kısmen ya da tamamen) kapatır. */
   repayDebt: (amountTl: number) => void;
+  /** Satın alınan bir Piyasa fırsatını listeden kaldırır. */
+  removeMarketListing: (id: string) => void;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -129,6 +135,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     score: 50,
   },
   inventory: [],
+  marketListings: marketOpportunities,
   day: 1,
   minuteOfDay: 0,
   speed: 1,
@@ -278,5 +285,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       },
       loanDueDay: debtTl <= 0 ? null : state.loanDueDay,
     });
+  },
+
+  removeMarketListing: (id) => {
+    set((state) => ({
+      marketListings: state.marketListings.filter((listing) => listing.id !== id),
+    }));
   },
 }));

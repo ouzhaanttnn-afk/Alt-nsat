@@ -9,6 +9,8 @@ export interface PazarlikParams {
   customer: NegotiationCustomer;
   product: NegotiationProduct;
   scaleReading: ScaleReading;
+  /** Kabul edilirse Piyasa listesinden kaldırılacak fırsatın kimliği. */
+  listingId?: string;
 }
 
 export type RootStackParamList = {

@@ -6,11 +6,12 @@ import { Card } from '../components/Card';
 import { FilterTabs } from '../components/FilterTabs';
 import { OpportunityCard, type OpportunitySource } from '../components/OpportunityCard';
 import { bulkLotCustomer, bulkLotProduct, bulkLotScaleReading } from '../data/mockBulkLot';
-import { marketOpportunities } from '../data/mockMarket';
 import type { RootStackParamList } from '../navigation/types';
+import { useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes, radius } from '../theme';
 import { formatTl } from '../utils/format';
 import { calculateOpportunityScore } from '../utils/opportunityScore';
+import { opportunityToNegotiation } from '../utils/opportunityToNegotiation';
 
 type SourceFilter = OpportunitySource | 'hepsi';
 
@@ -21,22 +22,22 @@ const FILTER_OPTIONS: { label: string; value: SourceFilter }[] = [
 ];
 
 // Bölüm 4.2: Piyasa — toptancı + müşteri bozdurma fırsatları birleşik
-// tek liste, Fırsat Skoru'na göre sıralı (yüksekten düşüğe). Ayrıca
-// nakit yetersizliği/borç mekaniğini gösteren tek seferlik büyük parti
-// fırsatı en üstte sabit gösteriliyor.
+// tek liste, Fırsat Skoru'na göre sıralı (yüksekten düşüğe). Her karta
+// dokunmak Pazarlık Ekranı'nı açar; kabul edilen fırsat listeden kalkar.
 export function PiyasaScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const marketListings = useGameStore((s) => s.marketListings);
   const [filter, setFilter] = useState<SourceFilter>('hepsi');
 
   const sortedOpportunities = useMemo(() => {
-    return [...marketOpportunities]
+    return [...marketListings]
       .filter((item) => filter === 'hepsi' || item.sourceType === filter)
       .sort((a, b) => {
         const scoreA = calculateOpportunityScore(a.buyPriceTl, a.estimatedSellPriceTl, a.expertiseRisk.tone);
         const scoreB = calculateOpportunityScore(b.buyPriceTl, b.estimatedSellPriceTl, b.expertiseRisk.tone);
         return scoreB - scoreA;
       });
-  }, [filter]);
+  }, [marketListings, filter]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -71,8 +72,21 @@ export function PiyasaScreen() {
 
         <FilterTabs options={FILTER_OPTIONS} value={filter} onChange={setFilter} />
 
+        {sortedOpportunities.length === 0 && (
+          <Text style={styles.emptyHint}>
+            Şu an piyasada başka fırsat yok — mevcutları satın aldın.
+          </Text>
+        )}
+
         {sortedOpportunities.map((opportunity) => (
-          <OpportunityCard key={opportunity.productName + opportunity.source} opportunity={opportunity} />
+          <OpportunityCard
+            key={opportunity.id}
+            opportunity={opportunity}
+            onPress={() => {
+              const negotiation = opportunityToNegotiation(opportunity);
+              navigation.navigate('Pazarlik', { ...negotiation, listingId: opportunity.id });
+            }}
+          />
         ))}
       </ScrollView>
     </SafeAreaView>
@@ -101,6 +115,11 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.inkMuted,
     marginTop: 2,
+  },
+  emptyHint: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.inkMuted,
   },
   bulkCard: {
     borderColor: colors.accent,

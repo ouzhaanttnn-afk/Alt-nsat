@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { InventoryCategory } from '../types/game';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatTl } from '../utils/format';
@@ -11,6 +11,7 @@ import { SealIcon } from './icons/SealIcon';
 export type OpportunitySource = 'toptanci' | 'bozdurma';
 
 export interface Opportunity {
+  id: string;
   productName: string;
   source: string;
   sourceType: OpportunitySource;
@@ -24,8 +25,15 @@ export interface Opportunity {
 }
 
 // Bölüm 4.2: Piyasa fırsat kartı — Ana Ekran'da "günün fırsatı" olarak
-// tekil gösterim, Piyasa ekranında (Adım 4) liste halinde yeniden kullanılıyor.
-export function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
+// tekil gösterim, Piyasa ekranında liste halinde yeniden kullanılıyor.
+// onPress verilirse dokunulabilir olur (Piyasa'da Pazarlık'ı açar).
+export function OpportunityCard({
+  opportunity,
+  onPress,
+}: {
+  opportunity: Opportunity;
+  onPress?: () => void;
+}) {
   const profit = opportunity.estimatedSellPriceTl - opportunity.buyPriceTl;
   const score = calculateOpportunityScore(
     opportunity.buyPriceTl,
@@ -33,7 +41,7 @@ export function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
     opportunity.expertiseRisk.tone,
   );
 
-  return (
+  const content = (
     <Card style={styles.card}>
       {opportunity.sealVerified && (
         <View style={styles.seal}>
@@ -67,6 +75,9 @@ export function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
       </View>
     </Card>
   );
+
+  if (!onPress) return content;
+  return <Pressable onPress={onPress}>{content}</Pressable>;
 }
 
 const styles = StyleSheet.create({

@@ -12,6 +12,7 @@ import type { Opportunity } from '../components/OpportunityCard';
 // üretiyor (bkz. Kasam), yatırım altını ise doğrudan alınıp satılıyor.
 export const marketOpportunities: Opportunity[] = [
   {
+    id: 'gram-altin',
     productName: 'Gram Altın (Has)',
     source: 'Toptancı',
     sourceType: 'toptanci',
@@ -24,6 +25,7 @@ export const marketOpportunities: Opportunity[] = [
     sealVerified: true,
   },
   {
+    id: 'ceyrek-altin',
     productName: 'Çeyrek Altın',
     source: 'Toptancı',
     sourceType: 'toptanci',
@@ -36,6 +38,7 @@ export const marketOpportunities: Opportunity[] = [
     sealVerified: true,
   },
   {
+    id: 'yarim-altin',
     productName: 'Yarım Altın',
     source: 'Toptancı',
     sourceType: 'toptanci',
@@ -48,6 +51,7 @@ export const marketOpportunities: Opportunity[] = [
     sealVerified: true,
   },
   {
+    id: 'tam-altin',
     productName: 'Tam Altın (Cumhuriyet)',
     source: 'Kemal Bey getirdi',
     sourceType: 'bozdurma',
@@ -59,6 +63,7 @@ export const marketOpportunities: Opportunity[] = [
     expertiseRisk: { tone: 'warning', label: 'Ekspertiz riski: Orta' },
   },
   {
+    id: 'ata-lira',
     productName: 'Ata Lira',
     source: 'Toptancı',
     sourceType: 'toptanci',
@@ -71,6 +76,7 @@ export const marketOpportunities: Opportunity[] = [
     sealVerified: true,
   },
   {
+    id: 'burma-bilezik',
     productName: 'Burma Bilezik',
     source: 'Toptancı',
     sourceType: 'toptanci',
@@ -83,6 +89,7 @@ export const marketOpportunities: Opportunity[] = [
     sealVerified: true,
   },
   {
+    id: 'tektas-yuzuk',
     productName: 'Tektaş Yüzük',
     source: 'Ayşe Hanım getirdi',
     sourceType: 'bozdurma',
@@ -94,6 +101,7 @@ export const marketOpportunities: Opportunity[] = [
     expertiseRisk: { tone: 'positive', label: 'Ekspertiz riski: Düşük' },
   },
   {
+    id: 'set-kolye-kupe',
     productName: 'Set (Kolye + Küpe)',
     source: 'Toptancı',
     sourceType: 'toptanci',
@@ -106,6 +114,7 @@ export const marketOpportunities: Opportunity[] = [
     sealVerified: true,
   },
   {
+    id: 'zincir-kolye',
     productName: 'Zincir Kolye',
     source: 'Hasan Bey getirdi',
     sourceType: 'bozdurma',
@@ -117,6 +126,7 @@ export const marketOpportunities: Opportunity[] = [
     expertiseRisk: { tone: 'negative', label: 'Ekspertiz riski: Yüksek' },
   },
   {
+    id: 'alyans-cifti',
     productName: 'Alyans Çifti',
     source: 'Toptancı',
     sourceType: 'toptanci',
@@ -128,6 +138,7 @@ export const marketOpportunities: Opportunity[] = [
     expertiseRisk: { tone: 'positive', label: 'Ekspertiz riski: Düşük' },
   },
   {
+    id: 'besibiryerde',
     productName: 'Beşibiryerde',
     source: 'Fatma Hanım getirdi',
     sourceType: 'bozdurma',

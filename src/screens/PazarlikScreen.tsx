@@ -28,9 +28,11 @@ export function PazarlikScreen() {
   const customer = route.params?.customer ?? negotiationCustomer;
   const product = route.params?.product ?? negotiationProduct;
   const reading = route.params?.scaleReading ?? scaleReading;
+  const listingId = route.params?.listingId;
 
   const cashTl = useGameStore((s) => s.capital.cashTl);
   const settleDeal = useGameStore((s) => s.settleDeal);
+  const removeMarketListing = useGameStore((s) => s.removeMarketListing);
 
   const [tested, setTested] = useState(false);
   const [measuring, setMeasuring] = useState(false);
@@ -81,6 +83,7 @@ export function PazarlikScreen() {
     }
     setBorrowedTl(outcome.borrowedTl);
     setResult('accepted');
+    if (listingId) removeMarketListing(listingId);
   };
 
   const resolveOffer = (amount: number) => {

@@ -11,6 +11,7 @@ export const dailyGoalSteps: DailyGoalStep[] = [
 ];
 
 export const todaysOpportunity: Opportunity = {
+  id: 'ana-ekran-gunun-firsati',
   productName: 'Burma Bilezik',
   source: 'Toptancı',
   sourceType: 'toptanci',
