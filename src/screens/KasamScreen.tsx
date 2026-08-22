@@ -6,9 +6,11 @@ import { InventoryItemCard } from '../components/InventoryItemCard';
 import { PirlantaCard } from '../components/PirlantaCard';
 import { SectionLabel } from '../components/SectionLabel';
 import { TradingPositionCard } from '../components/TradingPositionCard';
+import { VitrinInquiryCard } from '../components/VitrinInquiryCard';
 import { pirlantaCatalog } from '../data/mockPirlanta';
 import {
   currentPositionValueTl,
+  MINUTES_PER_DAY,
   useGameStore,
   VITRIN_TERM_DAYS,
   type VitrinMaturityEvent,
@@ -17,6 +19,14 @@ import { colors, fonts, fontSizes } from '../theme';
 import { formatTl } from '../utils/format';
 
 const BANNER_VISIBLE_MS = 4000;
+
+function formatInquiryRemaining(remainingMinutes: number): string {
+  const clamped = Math.max(0, Math.ceil(remainingMinutes));
+  const hours = Math.floor(clamped / 60);
+  const minutes = clamped % 60;
+  if (hours <= 0) return `Kararını vermen için ${minutes} dk'n var`;
+  return `Kararını vermen için ${hours} sa ${minutes} dk'n var`;
+}
 
 // Kullanıcı kararı: takı (bilezik/yüzük/kolye, 14 veya 22 ayar fark
 // etmez) tek tek pazarlıkla satılmıyor — vitrine girip kendi kâr
@@ -29,10 +39,13 @@ export function KasamScreen() {
   const inventory = useGameStore((s) => s.inventory);
   const goldPrice = useGameStore((s) => s.goldPrice);
   const day = useGameStore((s) => s.day);
+  const minuteOfDay = useGameStore((s) => s.minuteOfDay);
   const sellInventoryItem = useGameStore((s) => s.sellInventoryItem);
   const realizedTradingProfitTl = useGameStore((s) => s.realizedTradingProfitTl);
   const lastVitrinMaturity = useGameStore((s) => s.lastVitrinMaturity);
   const purchasePirlanta = useGameStore((s) => s.purchasePirlanta);
+  const vitrinSaleInquiry = useGameStore((s) => s.vitrinSaleInquiry);
+  const respondToVitrinInquiry = useGameStore((s) => s.respondToVitrinInquiry);
 
   const [saleBanner, setSaleBanner] = useState<{ profitTl: number } | null>(null);
   const saleBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -76,6 +89,14 @@ export function KasamScreen() {
     saleBannerTimer.current = setTimeout(() => setSaleBanner(null), BANNER_VISIBLE_MS);
   };
 
+  const handleInquiryRespond = (accept: boolean) => {
+    const result = respondToVitrinInquiry(accept);
+    if (!result) return;
+    setSaleBanner({ profitTl: result.profitTl });
+    if (saleBannerTimer.current) clearTimeout(saleBannerTimer.current);
+    saleBannerTimer.current = setTimeout(() => setSaleBanner(null), BANNER_VISIBLE_MS);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -113,6 +134,17 @@ export function KasamScreen() {
             Günde ≈ {formatTl(vitrinDailyIncomeTl)} pasif gelir üretiyor · {VITRIN_TERM_DAYS} gün vade
           </Text>
         </Card>
+
+        {vitrinSaleInquiry && (
+          <VitrinInquiryCard
+            inquiry={vitrinSaleInquiry}
+            remainingLabel={formatInquiryRemaining(
+              vitrinSaleInquiry.expiresAtTotalMinutes - (day * MINUTES_PER_DAY + minuteOfDay),
+            )}
+            onAccept={() => handleInquiryRespond(true)}
+            onReject={() => handleInquiryRespond(false)}
+          />
+        )}
 
         {vitrinItems.length === 0 ? (
           <Text style={styles.emptyHint}>

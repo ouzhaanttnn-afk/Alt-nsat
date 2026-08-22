@@ -13,12 +13,15 @@ import type {
   ReputationState,
 } from '../types/game';
 import type { Offer } from '../types/offer';
+import type { VitrinSaleInquiry } from '../types/vitrinInquiry';
 
 export type ClockSpeed = 0 | 1 | 2 | 4;
 
 export interface JumpEvent {
   percent: number;
   day: number;
+  /** Sıçramanın "sebebi" olarak gösterilen haber başlığı — karar gerektirmez, salt bilgilendirme. */
+  headline: string;
 }
 
 export interface VitrinMaturityEvent {
@@ -55,6 +58,44 @@ const JUMP_TRIGGER_PROBABILITY = 0.075;
 const JUMP_PROBABILITY_PER_MINUTE = (JUMP_CHECKS_PER_DAY * JUMP_TRIGGER_PROBABILITY) / MINUTES_PER_DAY;
 // Uygulama arka planda uzun süre kaldıysa tek tick'te aşırı sıçramayı önler.
 const MAX_REAL_SECONDS_PER_TICK = 5;
+
+// Her sıçramanın bir "sebebi" var gibi görünsün diye yön bazlı haber
+// başlığı havuzu — karar gerektirmez, sadece fiyat hareketini bağlamlar.
+const POSITIVE_NEWS_HEADLINES = [
+  'Merkez Bankası faiz kararı sonrası altına talep arttı',
+  'Dolar/TL yükseldi, gram altın buna paralel yükseliyor',
+  'Külçe altın ithalatına ek vergi geldi, arz daraldı',
+  'Küresel piyasalarda güvenli liman talebi arttı',
+  'Enflasyon verileri beklentilerin üzerinde geldi',
+];
+const NEGATIVE_NEWS_HEADLINES = [
+  'Merkez Bankası faiz artırdı, altına talep zayıfladı',
+  'Dolar/TL geriledi, gram altın değer kaybediyor',
+  'Altın ithalat vergisi kaldırıldı, arz arttı',
+  'Küresel piyasalarda risk iştahı arttı, altından çıkış var',
+  'Güçlü istihdam verileri geldi, altın baskı altında',
+];
+
+// Vitrin Alıcısı: pasif gelir akışının yanında, ara sıra vitrindeki bir
+// takı için gerçek bir müşteri çıkıp vade (30 gün) beklemeden anında
+// satın almak ister. Kabul edilirse ürün hemen o fiyata satılır.
+const VITRIN_INQUIRY_CHECKS_PER_DAY = 0.6;
+const VITRIN_INQUIRY_TRIGGER_PROBABILITY = 0.5;
+const VITRIN_INQUIRY_PROBABILITY_PER_MINUTE =
+  (VITRIN_INQUIRY_CHECKS_PER_DAY * VITRIN_INQUIRY_TRIGGER_PROBABILITY) / MINUTES_PER_DAY;
+const VITRIN_INQUIRY_EXPIRY_MINUTES = 180; // 3 oyun saati içinde cevap verilmezse fırsat kaçar
+const VITRIN_INQUIRY_MIN_OFFER_RATIO = 0.8;
+const VITRIN_INQUIRY_MAX_OFFER_RATIO = 1.15;
+const VITRIN_INQUIRY_CUSTOMER_NAMES = [
+  'Mehmet Bey',
+  'Ayşe Hanım',
+  'Kemal Bey',
+  'Hasan Bey',
+  'Fatma Hanım',
+  'Serpil Hanım',
+  'Cengiz Bey',
+  'Nur Hanım',
+];
 
 // Toptancı Güveni: borç aldığında bir vade başlar, vadeyi geç ödersen
 // güven düşer ve vade yeniden ötelenir (kronik geç ödeyen daha çok
@@ -130,6 +171,7 @@ function computeStockValueTl(inventory: InventoryItem[], buyPricePerGram: number
 
 let nextInventoryId = 1;
 let nextOfferId = 1;
+let nextVitrinInquiryId = 1;
 
 interface GameState {
   capital: CapitalState;
@@ -140,6 +182,8 @@ interface GameState {
   marketListings: Opportunity[];
   /** Bölüm 4.6: Bekleyen/Kabul/Red durumundaki tüm pazarlık teklifleri. */
   offers: Offer[];
+  /** Vitrindeki bir takı için ara sıra çıkan gerçek alıcı — vade beklemeden anında satış fırsatı. */
+  vitrinSaleInquiry: VitrinSaleInquiry | null;
   day: number;
   minuteOfDay: number;
   speed: ClockSpeed;
@@ -208,6 +252,13 @@ interface GameState {
     estimatedSellPriceTl?: number;
     willAccept: boolean;
   }) => void;
+  /**
+   * Aktif Vitrin Alıcısı teklifine yanıt verir. Kabulde (accept=true) hedef
+   * ürün hemen envanterden kalkar; o ana kadar günlük pasif gelirle zaten
+   * ödenmiş kâr payı düşülüp geri kalanı (+ maliyet) nakde eklenir. Reddde
+   * ürün vitrinde pasif gelir üretmeye devam eder.
+   */
+  respondToVitrinInquiry: (accept: boolean) => { profitTl: number } | null;
   /** Alım-satım makasından bugüne kadar gerçekleşen toplam kâr/zarar. */
   realizedTradingProfitTl: number;
   /**
@@ -257,6 +308,7 @@ export const useGameStore = create<GameState>()(
   inventory: [],
   marketListings: marketOpportunities,
   offers: [],
+  vitrinSaleInquiry: null,
   day: 1,
   minuteOfDay: 0,
   speed: 1,
@@ -290,7 +342,9 @@ export const useGameStore = create<GameState>()(
       const magnitude = 5 + Math.random() * 10; // %5-15
       const jumpPercent = Math.random() < 0.5 ? -magnitude : magnitude;
       nextReference *= 1 + jumpPercent / 100;
-      jumpEvent = { percent: jumpPercent, day: state.day };
+      const headlines = jumpPercent >= 0 ? POSITIVE_NEWS_HEADLINES : NEGATIVE_NEWS_HEADLINES;
+      const headline = headlines[Math.floor(Math.random() * headlines.length)];
+      jumpEvent = { percent: jumpPercent, day: state.day, headline };
     }
     nextReference = Math.max(nextReference, 100);
     const nextBuyPrice = nextReference * (1 - SPREAD_RATIO);
@@ -381,6 +435,34 @@ export const useGameStore = create<GameState>()(
         ? { count: maturedCount, totalPayoutTl: maturedPayoutTl, sampleName: maturedSampleName }
         : state.lastVitrinMaturity;
 
+    // Vitrin Alıcısı: aktif teklifin süresi dolduysa ya da hedef ürün vadesi
+    // dolup vitrinden kalktıysa fırsat kaybolur; aktif teklif yoksa vitrinde
+    // takı varken düşük bir olasılıkla yeni bir alıcı çıkar.
+    let vitrinSaleInquiry = postOfferState.vitrinSaleInquiry;
+    if (vitrinSaleInquiry) {
+      const targetStillShowcased = inventory.some((i) => i.id === vitrinSaleInquiry!.itemId);
+      if (!targetStillShowcased || currentTotalMinutes >= vitrinSaleInquiry.expiresAtTotalMinutes) {
+        vitrinSaleInquiry = null;
+      }
+    } else {
+      const takiItems = inventory.filter((i) => i.category === 'taki');
+      if (takiItems.length > 0 && Math.random() < VITRIN_INQUIRY_PROBABILITY_PER_MINUTE * gameMinutes) {
+        const target = takiItems[Math.floor(Math.random() * takiItems.length)];
+        const offerRatio =
+          VITRIN_INQUIRY_MIN_OFFER_RATIO + Math.random() * (VITRIN_INQUIRY_MAX_OFFER_RATIO - VITRIN_INQUIRY_MIN_OFFER_RATIO);
+        const customerName =
+          VITRIN_INQUIRY_CUSTOMER_NAMES[Math.floor(Math.random() * VITRIN_INQUIRY_CUSTOMER_NAMES.length)];
+        vitrinSaleInquiry = {
+          id: String(nextVitrinInquiryId++),
+          itemId: target.id,
+          itemName: target.name,
+          customerName,
+          offerAmountTl: Math.round((target.estimatedValueTl ?? target.costBasisTl) * offerRatio),
+          expiresAtTotalMinutes: currentTotalMinutes + VITRIN_INQUIRY_EXPIRY_MINUTES,
+        };
+      }
+    }
+
     const capital: CapitalState = {
       ...postOfferState.capital,
       cashTl: postOfferState.capital.cashTl + vitrinIncomeTl + maturedPayoutTl,
@@ -400,6 +482,7 @@ export const useGameStore = create<GameState>()(
       loanDueDay,
       inventory,
       offers,
+      vitrinSaleInquiry,
       lastVitrinMaturity,
       capital,
       highestCapitalTierIndex: gainedTiers > 0 ? newTierIndex : postOfferState.highestCapitalTierIndex,
@@ -616,6 +699,43 @@ export const useGameStore = create<GameState>()(
     set({ offers: [newOffer, ...state.offers] });
   },
 
+  respondToVitrinInquiry: (accept) => {
+    const state = get();
+    const inquiry = state.vitrinSaleInquiry;
+    if (!inquiry) return null;
+
+    if (!accept) {
+      set({ vitrinSaleInquiry: null });
+      return null;
+    }
+
+    const item = state.inventory.find((i) => i.id === inquiry.itemId);
+    if (!item) {
+      set({ vitrinSaleInquiry: null });
+      return null;
+    }
+
+    // Bugüne kadar günlük pasif gelirle zaten ödenmiş kâr payı düşülür —
+    // aksi halde aynı kâr hem pasif gelir hem de bu satıştan iki kez sayılır.
+    const ageInDays = Math.min(VITRIN_TERM_DAYS, Math.max(0, state.day - item.acquiredDay));
+    const expectedTotalProfitTl = (item.estimatedValueTl ?? item.costBasisTl) - item.costBasisTl;
+    const alreadyPaidProfitTl = expectedTotalProfitTl * (ageInDays / VITRIN_TERM_DAYS);
+    const cashDeltaTl = inquiry.offerAmountTl - alreadyPaidProfitTl;
+    const profitTl = inquiry.offerAmountTl - item.costBasisTl - alreadyPaidProfitTl;
+
+    const inventory = state.inventory.filter((i) => i.id !== item.id);
+    set({
+      inventory,
+      vitrinSaleInquiry: null,
+      capital: {
+        ...state.capital,
+        cashTl: state.capital.cashTl + cashDeltaTl,
+        stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
+      },
+    });
+    return { profitTl };
+  },
+
   purchasePirlanta: (catalogItem) => {
     const state = get();
     const existingIndex = state.inventory.findIndex(
@@ -693,6 +813,7 @@ export const useGameStore = create<GameState>()(
         inventory: state.inventory,
         marketListings: state.marketListings,
         offers: state.offers,
+        vitrinSaleInquiry: state.vitrinSaleInquiry,
         day: state.day,
         minuteOfDay: state.minuteOfDay,
         speed: state.speed,
