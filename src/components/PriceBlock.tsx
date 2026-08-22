@@ -13,6 +13,7 @@ export function PriceBlock({
   value,
   onChange,
   disabled,
+  cashLimited,
 }: {
   marketValueTl: number;
   min: number;
@@ -20,6 +21,8 @@ export function PriceBlock({
   value: number;
   onChange: (value: number) => void;
   disabled?: boolean;
+  /** Teklif çubuğunun tavanı nakit yetersizliğinden mi kısıtlandı. */
+  cashLimited?: boolean;
 }) {
   return (
     <Card>
@@ -36,6 +39,11 @@ export function PriceBlock({
         <Text style={styles.rangeLabel}>{formatTl(min)}</Text>
         <Text style={styles.rangeLabel}>{formatTl(max)}</Text>
       </View>
+      {cashLimited && (
+        <Text style={styles.cashHint}>
+          Nakdin bu teklife yetiyor kadar — çubuğun tavanı kasandaki parayla sınırlı.
+        </Text>
+      )}
     </Card>
   );
 }
@@ -78,5 +86,11 @@ const styles = StyleSheet.create({
     fontFamily: fonts.mono,
     fontSize: 11,
     color: colors.inkMuted,
+  },
+  cashHint: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.warning,
+    marginTop: 10,
   },
 });

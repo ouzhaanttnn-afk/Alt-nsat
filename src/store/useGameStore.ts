@@ -8,8 +8,12 @@ export interface JumpEvent {
   day: number;
 }
 
-// Bölüm 2: Oyuncu 1 kg has altınla başlar.
-const STARTING_GOLD_GRAMS = 1000;
+// Bölüm 2: Oyuncu 1 kg has altınla başlar. "Açık nokta" olarak bırakılan
+// likit/teminat ayrımı şöyle çözüldü: 200g nakde çevrilip kasaya konuyor,
+// 800g fiziksel rezerv (SERMAYEN başlığı) olarak kalıyor. Tamamı rezerv
+// olsaydı nakit hep 0 kalır, hiçbir alım gerçekleşemezdi.
+const STARTING_CASH_GRAMS = 200;
+const STARTING_RESERVE_GRAMS = 800;
 const STARTING_REFERENCE_PRICE = 6845; // TL, gram altın referans (orta) fiyatı
 
 // ALIŞ (piyasa sizden düşük fiyattan alır) / SATIŞ (piyasa size yüksek
@@ -52,13 +56,18 @@ interface GameState {
   setSpeed: (speed: ClockSpeed) => void;
   /** Gerçek zamanda geçen saniyeyi oyun saatine ve altın fiyatına işler. */
   tick: (realSecondsElapsed: number) => void;
+  /**
+   * Bir alımı kapatır: önce nakitten öder, yetmeyen kısmı borca yazar.
+   * Alınan ürün, has altın karşılığı üzerinden stok değerine eklenir.
+   */
+  settleDeal: (paidAmountTl: number, itemMarketValueTl: number) => void;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
   capital: {
-    goldGrams: STARTING_GOLD_GRAMS,
-    cashTl: 0,
-    stockValueTl: STARTING_GOLD_GRAMS * STARTING_REFERENCE_PRICE,
+    goldGrams: STARTING_RESERVE_GRAMS,
+    cashTl: STARTING_CASH_GRAMS * STARTING_REFERENCE_PRICE,
+    stockValueTl: STARTING_RESERVE_GRAMS * STARTING_REFERENCE_PRICE,
     debtTl: 0,
   },
   goldPrice: {
@@ -118,6 +127,20 @@ export const useGameStore = create<GameState>((set, get) => ({
       goldPrice: {
         ...priceFromReference(nextReference),
         dailyChangePercent,
+      },
+    });
+  },
+
+  settleDeal: (paidAmountTl, itemMarketValueTl) => {
+    const state = get();
+    const shortfall = Math.max(0, paidAmountTl - state.capital.cashTl);
+    const cashTl = Math.max(0, state.capital.cashTl - paidAmountTl);
+    set({
+      capital: {
+        ...state.capital,
+        cashTl,
+        debtTl: state.capital.debtTl + shortfall,
+        stockValueTl: state.capital.stockValueTl + itemMarketValueTl,
       },
     });
   },

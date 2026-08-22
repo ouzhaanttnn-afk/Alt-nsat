@@ -1,7 +1,17 @@
+import type { ScaleReading } from '../components/ScalePanel';
+import type { NegotiationCustomer, NegotiationProduct } from '../types/negotiation';
+
 // Adım 3: Pazarlık Ekranı modal olarak ana sekmelerin üzerine açılıyor.
-// Şimdilik tek statik senaryo kullanıldığı için parametre almıyor;
-// Teklifler sistemi (Adım 6) kurulduğunda teklif kimliği parametre olarak eklenecek.
+// Parametre verilmezse Ana Ekran'daki varsayılan bozdurma senaryosu
+// kullanılır (bkz. PazarlikScreen); Piyasa'daki büyük parti gibi farklı
+// senaryolar bu parametrelerle aynı ekranı yeniden kullanır.
+export interface PazarlikParams {
+  customer: NegotiationCustomer;
+  product: NegotiationProduct;
+  scaleReading: ScaleReading;
+}
+
 export type RootStackParamList = {
   MainTabs: undefined;
-  Pazarlik: undefined;
+  Pazarlik: PazarlikParams | undefined;
 };

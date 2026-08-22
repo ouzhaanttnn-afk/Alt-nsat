@@ -1,10 +1,15 @@
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Card } from '../components/Card';
 import { FilterTabs } from '../components/FilterTabs';
 import { OpportunityCard, type OpportunitySource } from '../components/OpportunityCard';
+import { bulkLotCustomer, bulkLotProduct, bulkLotScaleReading } from '../data/mockBulkLot';
 import { marketOpportunities } from '../data/mockMarket';
-import { colors, fonts, fontSizes } from '../theme';
+import type { RootStackParamList } from '../navigation/types';
+import { colors, fonts, fontSizes, radius } from '../theme';
+import { formatTl } from '../utils/format';
 import { calculateOpportunityScore } from '../utils/opportunityScore';
 
 type SourceFilter = OpportunitySource | 'hepsi';
@@ -16,8 +21,11 @@ const FILTER_OPTIONS: { label: string; value: SourceFilter }[] = [
 ];
 
 // Bölüm 4.2: Piyasa — toptancı + müşteri bozdurma fırsatları birleşik
-// tek liste, Fırsat Skoru'na göre sıralı (yüksekten düşüğe).
+// tek liste, Fırsat Skoru'na göre sıralı (yüksekten düşüğe). Ayrıca
+// nakit yetersizliği/borç mekaniğini gösteren tek seferlik büyük parti
+// fırsatı en üstte sabit gösteriliyor.
 export function PiyasaScreen() {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [filter, setFilter] = useState<SourceFilter>('hepsi');
 
   const sortedOpportunities = useMemo(() => {
@@ -37,6 +45,29 @@ export function PiyasaScreen() {
           <Text style={styles.title}>Piyasa</Text>
           <Text style={styles.subtitle}>Toptancı ve bozdurma fırsatları, Fırsat Skoru'na göre sıralı</Text>
         </View>
+
+        <Pressable
+          onPress={() =>
+            navigation.navigate('Pazarlik', {
+              customer: bulkLotCustomer,
+              product: bulkLotProduct,
+              scaleReading: bulkLotScaleReading,
+            })
+          }
+        >
+          <Card style={styles.bulkCard}>
+            <View style={styles.bulkTag}>
+              <Text style={styles.bulkTagLabel}>BÜYÜK PARTİ</Text>
+            </View>
+            <Text style={styles.bulkTitle}>{bulkLotProduct.name}</Text>
+            <Text style={styles.bulkSubtitle}>
+              {bulkLotProduct.source} · Piyasa değeri ≈ {formatTl(bulkLotProduct.marketValueTl)}
+            </Text>
+            <Text style={styles.bulkHint}>
+              Bu kadar nakdin yoksa düşük teklif vermek ya da borç almak zorunda kalabilirsin.
+            </Text>
+          </Card>
+        </Pressable>
 
         <FilterTabs options={FILTER_OPTIONS} value={filter} onChange={setFilter} />
 
@@ -70,5 +101,40 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.inkMuted,
     marginTop: 2,
+  },
+  bulkCard: {
+    borderColor: colors.accent,
+    borderWidth: 1.5,
+  },
+  bulkTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.accent,
+    borderRadius: radius.sm,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    marginBottom: 8,
+  },
+  bulkTagLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    letterSpacing: 0.5,
+    color: colors.white,
+  },
+  bulkTitle: {
+    fontFamily: fonts.headingBold,
+    fontSize: fontSizes.md,
+    color: colors.ink,
+  },
+  bulkSubtitle: {
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.xs,
+    color: colors.inkMuted,
+    marginTop: 2,
+  },
+  bulkHint: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xs,
+    color: colors.inkMuted,
+    marginTop: 8,
   },
 });

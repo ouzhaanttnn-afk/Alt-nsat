@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,8 @@ import { NegotiationProductCard } from '../components/NegotiationProductCard';
 import { PriceBlock } from '../components/PriceBlock';
 import { ScalePanel } from '../components/ScalePanel';
 import { negotiationCustomer, negotiationProduct, scaleReading } from '../data/mockNegotiation';
+import type { RootStackParamList } from '../navigation/types';
+import { useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes, radius } from '../theme';
 import { formatTl } from '../utils/format';
 
@@ -16,21 +18,35 @@ type Result = 'accepted' | 'rejected' | null;
 const MEASURE_DURATION_MS = 900;
 
 // Bölüm 4.3: Pazarlık Ekranı — en detaylı tasarlanmış ekran. Adım 3'te
-// tam fonksiyonel hale getirildi: terazi testi zorunlu, teklif çubuğu
-// canlı günceller, sonuç müşterinin kabul eşiğine göre hesaplanır.
+// fonksiyonel hale getirildi, sonrasında gerçek nakit/borç etkisi ve
+// route parametreleriyle farklı senaryoları (ör. Piyasa'daki büyük
+// parti) destekleyecek şekilde genelleştirildi.
 export function PazarlikScreen() {
   const navigation = useNavigation();
+  const route = useRoute<RouteProp<RootStackParamList, 'Pazarlik'>>();
+
+  const customer = route.params?.customer ?? negotiationCustomer;
+  const product = route.params?.product ?? negotiationProduct;
+  const reading = route.params?.scaleReading ?? scaleReading;
+
+  const cashTl = useGameStore((s) => s.capital.cashTl);
+  const settleDeal = useGameStore((s) => s.settleDeal);
 
   const [tested, setTested] = useState(false);
   const [measuring, setMeasuring] = useState(false);
   const [held, setHeld] = useState(false);
   const measureTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const min = Math.round(negotiationProduct.marketValueTl * 0.5);
-  const max = Math.round(negotiationProduct.marketValueTl * 0.95);
-  const [offer, setOffer] = useState(8500);
+  const baseMin = Math.round(product.marketValueTl * 0.5);
+  const baseMax = Math.round(product.marketValueTl * 0.95);
+  const sliderMax = Math.max(1, Math.min(baseMax, Math.round(cashTl)));
+  const sliderMin = Math.min(baseMin, sliderMax);
+  const cashLimited = sliderMax < baseMax;
+
+  const [offer, setOffer] = useState(() => Math.min(Math.round(product.marketValueTl * 0.85), sliderMax));
 
   const [result, setResult] = useState<Result>(null);
+  const [borrowedTl, setBorrowedTl] = useState(0);
 
   const handleTare = () => {
     if (held) return;
@@ -50,19 +66,35 @@ export function PazarlikScreen() {
     }, MEASURE_DURATION_MS);
   };
 
-  const resolveOffer = (amount: number) => {
-    const threshold = negotiationProduct.marketValueTl * negotiationCustomer.acceptanceThreshold;
+  const completeDeal = (amount: number) => {
+    const shortfall = Math.max(0, amount - cashTl);
+    settleDeal(amount, product.marketValueTl);
     setOffer(amount);
-    setResult(amount >= threshold ? 'accepted' : 'rejected');
+    setBorrowedTl(shortfall);
+    setResult('accepted');
+  };
+
+  const resolveOffer = (amount: number) => {
+    const threshold = product.marketValueTl * customer.acceptanceThreshold;
+    setOffer(amount);
+    if (amount >= threshold) {
+      completeDeal(amount);
+    } else {
+      setResult('rejected');
+    }
   };
 
   const canAct = tested && !measuring && result === null;
+  const fullPriceShortfall = Math.max(0, product.marketValueTl - cashTl);
 
   if (result) {
     return (
       <ResultScreen
         result={result}
         offerAmount={offer}
+        borrowedTl={borrowedTl}
+        customerName={customer.name}
+        productName={product.name}
         onClose={() => navigation.goBack()}
       />
     );
@@ -78,11 +110,11 @@ export function PazarlikScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <CustomerNoteCard customer={negotiationCustomer} />
-        <NegotiationProductCard product={negotiationProduct} />
+        <CustomerNoteCard customer={customer} />
+        <NegotiationProductCard product={product} />
 
         <ScalePanel
-          reading={scaleReading}
+          reading={reading}
           tested={tested}
           measuring={measuring}
           held={held}
@@ -97,19 +129,25 @@ export function PazarlikScreen() {
         )}
 
         <PriceBlock
-          marketValueTl={negotiationProduct.marketValueTl}
-          min={min}
-          max={max}
+          marketValueTl={product.marketValueTl}
+          min={sliderMin}
+          max={sliderMax}
           value={offer}
           onChange={setOffer}
           disabled={!canAct}
+          cashLimited={cashLimited}
         />
 
         <NegotiationActions
           disabled={!canAct}
           onSendOffer={() => resolveOffer(offer)}
-          onPayFull={() => resolveOffer(negotiationProduct.marketValueTl)}
+          onPayFull={() => completeDeal(product.marketValueTl)}
           onReject={() => setResult('rejected')}
+          payFullHint={
+            fullPriceShortfall > 0
+              ? `Nakdin yetmiyor — ${formatTl(fullPriceShortfall)} borç alınacak`
+              : undefined
+          }
         />
       </ScrollView>
     </SafeAreaView>
@@ -119,10 +157,16 @@ export function PazarlikScreen() {
 function ResultScreen({
   result,
   offerAmount,
+  borrowedTl,
+  customerName,
+  productName,
   onClose,
 }: {
   result: 'accepted' | 'rejected';
   offerAmount: number;
+  borrowedTl: number;
+  customerName: string;
+  productName: string;
   onClose: () => void;
 }) {
   const accepted = result === 'accepted';
@@ -142,9 +186,14 @@ function ResultScreen({
         </Text>
         <Text style={styles.resultSubtitle}>
           {accepted
-            ? `${negotiationCustomer.name}, ${formatTl(offerAmount)} karşılığında ${negotiationProduct.name.toLowerCase()} bıraktı.`
-            : `${negotiationCustomer.name} teklifi düşük buldu ve dükkândan ayrıldı.`}
+            ? `${customerName}, ${formatTl(offerAmount)} karşılığında ${productName.toLowerCase()} bıraktı.`
+            : `${customerName} teklifi düşük buldu ve dükkândan ayrıldı.`}
         </Text>
+        {accepted && borrowedTl > 0 && (
+          <Text style={styles.borrowedNote}>
+            Kasadaki nakit yetmediği için {formatTl(borrowedTl)} borca yazıldı.
+          </Text>
+        )}
         <Pressable style={styles.resultButton} onPress={onClose}>
           <Text style={styles.resultButtonLabel}>Dükkâna Dön</Text>
         </Pressable>
@@ -217,6 +266,13 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     textAlign: 'center',
     marginTop: 8,
+  },
+  borrowedNote: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: fontSizes.sm,
+    color: colors.warning,
+    textAlign: 'center',
+    marginTop: 10,
   },
   resultButton: {
     marginTop: 28,

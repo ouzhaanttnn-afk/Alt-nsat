@@ -7,11 +7,14 @@ export function NegotiationActions({
   onSendOffer,
   onPayFull,
   onReject,
+  payFullHint,
 }: {
   disabled?: boolean;
   onSendOffer: () => void;
   onPayFull: () => void;
   onReject: () => void;
+  /** Nakit yetmediğinde "Tam Fiyatı Öde"nin borç alacağını hatırlatan not. */
+  payFullHint?: string;
 }) {
   return (
     <View>
@@ -24,13 +27,16 @@ export function NegotiationActions({
       </Pressable>
 
       <View style={styles.secondaryRow}>
-        <Pressable
-          disabled={disabled}
-          onPress={onPayFull}
-          style={[styles.secondaryButton, disabled && styles.disabled]}
-        >
-          <Text style={styles.secondaryButtonLabel}>Tam Fiyatı Öde</Text>
-        </Pressable>
+        <View style={styles.secondaryColumn}>
+          <Pressable
+            disabled={disabled}
+            onPress={onPayFull}
+            style={[styles.secondaryButton, disabled && styles.disabled]}
+          >
+            <Text style={styles.secondaryButtonLabel}>Tam Fiyatı Öde</Text>
+          </Pressable>
+          {payFullHint && <Text style={styles.payFullHint}>{payFullHint}</Text>}
+        </View>
         <Pressable
           disabled={disabled}
           onPress={onReject}
@@ -63,6 +69,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 10,
+    alignItems: 'flex-start',
+  },
+  secondaryColumn: {
+    flex: 1,
+  },
+  payFullHint: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.warning,
+    textAlign: 'center',
+    marginTop: 4,
   },
   secondaryButton: {
     flex: 1,
