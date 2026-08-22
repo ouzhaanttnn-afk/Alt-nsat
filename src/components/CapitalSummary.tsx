@@ -95,8 +95,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   divider: {
-    height: 1.5,
-    backgroundColor: colors.paperDark,
+    height: 1,
+    backgroundColor: colors.border,
     marginVertical: 10,
   },
   row: {

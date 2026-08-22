@@ -48,7 +48,7 @@ export function DukkanScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.paper,
+    backgroundColor: colors.background,
   },
   content: {
     padding: 16,

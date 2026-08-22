@@ -67,15 +67,14 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   button: {
-    borderWidth: 1.5,
-    borderColor: colors.accent,
-    borderRadius: 4,
-    paddingVertical: 3,
-    paddingHorizontal: 10,
+    backgroundColor: colors.accent,
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
   },
   buttonLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: 11,
-    color: colors.accent,
+    color: colors.white,
   },
 });

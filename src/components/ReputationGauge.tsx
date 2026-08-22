@@ -41,9 +41,8 @@ const styles = StyleSheet.create({
   segment: {
     width: 14,
     height: 6,
-    backgroundColor: colors.paperDark,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 2,
+    backgroundColor: colors.border,
   },
   segmentFilled: {
     backgroundColor: colors.accent,

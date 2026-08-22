@@ -10,7 +10,7 @@ export function SealIcon({ size = 40 }: { size?: number }) {
         cx={20}
         cy={20}
         r={18}
-        fill={colors.paper}
+        fill={colors.surface}
         stroke={colors.accent}
         strokeWidth={1.5}
       />

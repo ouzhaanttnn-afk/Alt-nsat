@@ -103,8 +103,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderTopWidth: 1.5,
-    borderTopColor: colors.paperDark,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
     paddingTop: 8,
   },
   scoreLabel: {

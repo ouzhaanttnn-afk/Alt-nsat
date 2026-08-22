@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { GoldPriceState } from '../types/game';
-import { colors, fonts, fontSizes, radius } from '../theme';
+import { colors, fonts, fontSizes, radius, shadow } from '../theme';
 import { formatTl } from '../utils/format';
 
 // Bölüm 2: Alış/satış fiyatı ayrı gösterilir (spread mantığı).
@@ -27,10 +27,9 @@ export function GoldTicker({ goldPrice }: { goldPrice: GoldPriceState }) {
 const styles = StyleSheet.create({
   panel: {
     backgroundColor: colors.lcdBg,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    padding: 10,
+    borderRadius: radius.md,
+    padding: 12,
+    ...shadow,
   },
   caption: {
     fontFamily: fonts.bodyMedium,

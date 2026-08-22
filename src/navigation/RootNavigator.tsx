@@ -8,7 +8,7 @@ import {
   SafeTabIcon,
   ShopTabIcon,
 } from '../components/icons/TabIcons';
-import { colors, fonts } from '../theme';
+import { colors, fonts, shadow } from '../theme';
 import { DukkanScreen } from '../screens/DukkanScreen';
 import { KasamScreen } from '../screens/KasamScreen';
 import { PiyasaScreen } from '../screens/PiyasaScreen';
@@ -28,9 +28,10 @@ export function RootNavigator() {
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.inkMuted,
           tabBarStyle: {
-            backgroundColor: colors.paper,
-            borderTopColor: colors.border,
-            borderTopWidth: 1.5,
+            backgroundColor: colors.surface,
+            borderTopWidth: 0,
+            ...shadow,
+            shadowOffset: { width: 0, height: -2 },
           },
           tabBarLabelStyle: {
             fontFamily: fonts.bodyMedium,

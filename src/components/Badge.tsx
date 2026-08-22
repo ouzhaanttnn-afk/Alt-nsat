@@ -11,10 +11,11 @@ const toneColor: Record<BadgeTone, string> = {
 };
 
 // Bölüm 4.2/4.3'teki 🟢/🟡/🔴 durum göstergelerinin emojisiz karşılığı.
+// Fintech modernizasyonu: dolgusuz kontur yerine yumuşak, açık ton dolgu ("soft chip").
 export function Badge({ tone, label }: { tone: BadgeTone; label: string }) {
   const tint = toneColor[tone];
   return (
-    <View style={[styles.badge, { borderColor: tint }]}>
+    <View style={[styles.badge, { backgroundColor: `${tint}17` }]}>
       <View style={[styles.dot, { backgroundColor: tint }]} />
       <Text style={[styles.label, { color: tint }]}>{label}</Text>
     </View>
@@ -26,10 +27,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    borderWidth: 1.5,
     borderRadius: radius.sm,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
     gap: 6,
   },
   dot: {

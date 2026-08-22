@@ -1,11 +1,12 @@
-// Bölüm 1: köşeler az yuvarlak (4px), ince kontur (1.5px), gölge yok/minimal.
+// Fintech-tarzı modernizasyon: daha yumuşak köşe, ince kontur yerine hafif
+// gölge ile derinlik. Neon/cam efekti yok — gölge çok düşük opasitede.
 export const radius = {
-  sm: 4,
-  md: 6,
+  sm: 8,
+  md: 12,
 } as const;
 
 export const border = {
-  width: 1.5,
+  width: 1,
 } as const;
 
 export const spacing = {
@@ -15,4 +16,12 @@ export const spacing = {
   lg: 16,
   xl: 24,
   xxl: 32,
+} as const;
+
+export const shadow = {
+  shadowColor: '#0F172A',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.06,
+  shadowRadius: 10,
+  elevation: 2,
 } as const;
