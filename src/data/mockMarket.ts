@@ -8,13 +8,14 @@ import type { Opportunity } from '../components/OpportunityCard';
 // ama "fırsat" değil), takıda ise pazarlık payı olduğu için yüksek
 // çıkabilir — skor formülü ayrıca özel bir kural gerektirmeden bu
 // ayrımı kendiliğinden yansıtıyor.
-// Piyasa (Adım 6: Teklifler/gerçek toptancı sistemi) kurulduğunda bu
-// statik veri gerçek üretim mantığıyla değişecek.
+// Kullanıcı kararı: takı satın alınınca vitrine girip pasif gelir
+// üretiyor (bkz. Kasam), yatırım altını ise doğrudan alınıp satılıyor.
 export const marketOpportunities: Opportunity[] = [
   {
     productName: 'Gram Altın (Has)',
     source: 'Toptancı',
     sourceType: 'toptanci',
+    category: 'yatirim',
     karat: 24,
     grams: 1,
     buyPriceTl: 6800,
@@ -26,6 +27,7 @@ export const marketOpportunities: Opportunity[] = [
     productName: 'Çeyrek Altın',
     source: 'Toptancı',
     sourceType: 'toptanci',
+    category: 'yatirim',
     karat: 22,
     grams: 1.75,
     buyPriceTl: 10800,
@@ -37,6 +39,7 @@ export const marketOpportunities: Opportunity[] = [
     productName: 'Yarım Altın',
     source: 'Toptancı',
     sourceType: 'toptanci',
+    category: 'yatirim',
     karat: 22,
     grams: 3.5,
     buyPriceTl: 21600,
@@ -48,6 +51,7 @@ export const marketOpportunities: Opportunity[] = [
     productName: 'Tam Altın (Cumhuriyet)',
     source: 'Kemal Bey getirdi',
     sourceType: 'bozdurma',
+    category: 'yatirim',
     karat: 22,
     grams: 7.02,
     buyPriceTl: 43000,
@@ -58,6 +62,7 @@ export const marketOpportunities: Opportunity[] = [
     productName: 'Ata Lira',
     source: 'Toptancı',
     sourceType: 'toptanci',
+    category: 'yatirim',
     karat: 22,
     grams: 7.2,
     buyPriceTl: 44200,
@@ -69,6 +74,7 @@ export const marketOpportunities: Opportunity[] = [
     productName: 'Burma Bilezik',
     source: 'Toptancı',
     sourceType: 'toptanci',
+    category: 'taki',
     karat: 22,
     grams: 21.73,
     buyPriceTl: 11800,
@@ -80,6 +86,7 @@ export const marketOpportunities: Opportunity[] = [
     productName: 'Tektaş Yüzük',
     source: 'Ayşe Hanım getirdi',
     sourceType: 'bozdurma',
+    category: 'taki',
     karat: 14,
     grams: 3.85,
     buyPriceTl: 7200,
@@ -90,6 +97,7 @@ export const marketOpportunities: Opportunity[] = [
     productName: 'Set (Kolye + Küpe)',
     source: 'Toptancı',
     sourceType: 'toptanci',
+    category: 'taki',
     karat: 22,
     grams: 34.2,
     buyPriceTl: 19500,
@@ -101,6 +109,7 @@ export const marketOpportunities: Opportunity[] = [
     productName: 'Zincir Kolye',
     source: 'Hasan Bey getirdi',
     sourceType: 'bozdurma',
+    category: 'taki',
     karat: 14,
     grams: 12.4,
     buyPriceTl: 8100,
@@ -111,6 +120,7 @@ export const marketOpportunities: Opportunity[] = [
     productName: 'Alyans Çifti',
     source: 'Toptancı',
     sourceType: 'toptanci',
+    category: 'taki',
     karat: 22,
     grams: 9.6,
     buyPriceTl: 6300,
@@ -121,6 +131,7 @@ export const marketOpportunities: Opportunity[] = [
     productName: 'Beşibiryerde',
     source: 'Fatma Hanım getirdi',
     sourceType: 'bozdurma',
+    category: 'taki',
     karat: 22,
     grams: 15.5,
     buyPriceTl: 13400,

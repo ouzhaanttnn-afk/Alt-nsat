@@ -15,3 +15,19 @@ export interface GoldPriceState {
 export interface ReputationState {
   score: number; // 0-100
 }
+
+// Kullanıcı kararı: takı ürünleri (bilezik/yüzük/kolye) tek tek pazarlıkla
+// satılmıyor — vitrine konup sürekli oranlı pasif gelir üretiyor. Yatırımlık
+// ürünler (çeyrek/gram/yarım/tam/ata lira) ise doğrudan/aktif alınıp satılıyor.
+export type InventoryCategory = 'taki' | 'yatirim';
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: InventoryCategory;
+  karat: number;
+  grams: number;
+  /** Takı için sabit vitrin değeri; yatırım ürününde satışta güncel kurla yeniden hesaplanır. */
+  valueTl: number;
+  acquiredDay: number;
+}

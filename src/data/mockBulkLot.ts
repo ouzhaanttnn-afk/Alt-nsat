@@ -17,6 +17,7 @@ export const bulkLotCustomer: NegotiationCustomer = {
 export const bulkLotProduct: NegotiationProduct = {
   name: 'Karışık Hurda Altın (1,5 kg)',
   source: 'Toplu parti',
+  category: 'yatirim',
   karat: 20,
   grams: 1500,
   marketValueTl: 8500000,

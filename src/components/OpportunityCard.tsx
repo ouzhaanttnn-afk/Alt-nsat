@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import type { InventoryCategory } from '../types/game';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatTl } from '../utils/format';
 import { calculateOpportunityScore } from '../utils/opportunityScore';
@@ -13,6 +14,7 @@ export interface Opportunity {
   productName: string;
   source: string;
   sourceType: OpportunitySource;
+  category: InventoryCategory;
   karat: number;
   grams: number;
   buyPriceTl: number;

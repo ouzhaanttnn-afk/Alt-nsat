@@ -67,7 +67,13 @@ export function PazarlikScreen() {
   };
 
   const completeDeal = (amount: number) => {
-    const outcome = settleDeal(amount, product.marketValueTl);
+    const outcome = settleDeal(amount, {
+      name: product.name,
+      category: product.category,
+      karat: product.karat,
+      grams: product.grams,
+      marketValueTl: product.marketValueTl,
+    });
     setOffer(amount);
     if (!outcome.success) {
       setResult('creditDenied');

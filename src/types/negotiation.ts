@@ -1,3 +1,5 @@
+import type { InventoryCategory } from './game';
+
 // Bölüm 4.3 (Pazarlık Ekranı) ve Bölüm 6 (Müşteri Sistemi) — iskelet tipler.
 export type BargainingStyle = 'sert' | 'dengeli' | 'kolay';
 
@@ -15,6 +17,7 @@ export interface NegotiationCustomer {
 export interface NegotiationProduct {
   name: string;
   source: string; // ürünün kaynağı (ör. "Müşteri getirdi")
+  category: InventoryCategory;
   karat: number;
   grams: number;
   marketValueTl: number;

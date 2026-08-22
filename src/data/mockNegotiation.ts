@@ -16,6 +16,7 @@ export const negotiationCustomer: NegotiationCustomer = {
 export const negotiationProduct: NegotiationProduct = {
   name: 'Tektaş Yüzük',
   source: 'Müşteri getirdi',
+  category: 'taki',
   karat: 14,
   grams: 3.85,
   marketValueTl: 9900,

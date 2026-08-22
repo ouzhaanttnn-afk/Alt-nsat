@@ -1,5 +1,11 @@
 import { create } from 'zustand';
-import type { CapitalState, GoldPriceState, ReputationState } from '../types/game';
+import type {
+  CapitalState,
+  GoldPriceState,
+  InventoryCategory,
+  InventoryItem,
+  ReputationState,
+} from '../types/game';
 
 export type ClockSpeed = 0 | 1 | 2 | 4;
 
@@ -46,6 +52,12 @@ const LOAN_TERM_DAYS = 5;
 const LATE_PAYMENT_TRUST_PENALTY = 15;
 const MIN_TRUST_FOR_CREDIT = 30;
 
+// Kullanıcı kararı: takı (bilezik/yüzük/kolye) tek tek pazarlıkla
+// satılmıyor — vitrine girip toplam değerinin sabit bir günlük oranı
+// kadar sürekli pasif gelir üretiyor. Yatırım altını (çeyrek/gram/vb.)
+// ise doğrudan/aktif alınıp satılıyor, değeri güncel kurla dalgalanır.
+export const TAKI_PASSIVE_INCOME_RATE_PER_DAY = 0.015;
+
 function priceFromReference(reference: number): Pick<GoldPriceState, 'buyPricePerGram' | 'sellPricePerGram'> {
   return {
     buyPricePerGram: reference * (1 - SPREAD_RATIO),
@@ -53,10 +65,28 @@ function priceFromReference(reference: number): Pick<GoldPriceState, 'buyPricePe
   };
 }
 
+/** Has altın karşılığı: karat 24 üzerinden orantılanmış gram. */
+export function hasEquivalentGrams(item: InventoryItem): number {
+  return item.grams * (item.karat / 24);
+}
+
+/** Stok değerini envanterden yeniden hesaplar: takı sabit değerde, yatırım güncel kurda. */
+function computeStockValueTl(inventory: InventoryItem[], buyPricePerGram: number): number {
+  return inventory.reduce((sum, item) => {
+    if (item.category === 'yatirim') {
+      return sum + hasEquivalentGrams(item) * buyPricePerGram;
+    }
+    return sum + item.valueTl;
+  }, 0);
+}
+
+let nextInventoryId = 1;
+
 interface GameState {
   capital: CapitalState;
   goldPrice: GoldPriceState;
   reputation: ReputationState;
+  inventory: InventoryItem[];
   day: number;
   minuteOfDay: number;
   speed: ClockSpeed;
@@ -66,17 +96,20 @@ interface GameState {
   /** Aktif borcun ödenmesi gereken oyun günü; borç yoksa null. */
   loanDueDay: number | null;
   setSpeed: (speed: ClockSpeed) => void;
-  /** Gerçek zamanda geçen saniyeyi oyun saatine ve altın fiyatına işler. */
+  /** Gerçek zamanda geçen saniyeyi oyun saatine, altın fiyatına ve pasif gelire işler. */
   tick: (realSecondsElapsed: number) => void;
   /**
    * Bir alımı kapatır: önce nakitten öder, yetmeyen kısmı borca yazar.
-   * Alınan ürün, has altın karşılığı üzerinden stok değerine eklenir.
+   * Alınan ürün envantere eklenir (takı ise vitrine girip pasif gelir
+   * üretmeye başlar, yatırım ise doğrudan satılabilir olur).
    * Toptancı Güveni eşiğin altındaysa ve nakit yetmiyorsa işlem reddedilir.
    */
   settleDeal: (
     paidAmountTl: number,
-    itemMarketValueTl: number,
+    item: { name: string; category: InventoryCategory; karat: number; grams: number; marketValueTl: number },
   ) => { success: true; borrowedTl: number } | { success: false; borrowedTl: 0 };
+  /** Bir yatırım ürününü güncel kurdan nakde çevirir. */
+  sellInventoryItem: (itemId: string) => void;
   /** Nakitten borcu (kısmen ya da tamamen) kapatır. */
   repayDebt: (amountTl: number) => void;
 }
@@ -95,6 +128,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   reputation: {
     score: 50,
   },
+  inventory: [],
   day: 1,
   minuteOfDay: 0,
   speed: 1,
@@ -126,6 +160,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       jumpEvent = { percent: jumpPercent, day: state.day };
     }
     nextReference = Math.max(nextReference, 100);
+    const nextBuyPrice = nextReference * (1 - SPREAD_RATIO);
 
     let minuteOfDay = state.minuteOfDay + gameMinutes;
     let day = state.day;
@@ -151,6 +186,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       loanDueDay = null;
     }
 
+    // Vitrindeki takının toplam değeri üzerinden sürekli oranlı pasif gelir.
+    const vitrinValueTl = state.inventory
+      .filter((item) => item.category === 'taki')
+      .reduce((sum, item) => sum + item.valueTl, 0);
+    const passiveIncomeTl = vitrinValueTl * TAKI_PASSIVE_INCOME_RATE_PER_DAY * (gameMinutes / MINUTES_PER_DAY);
+
     set({
       minuteOfDay,
       day,
@@ -158,6 +199,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       lastJumpEvent: jumpEvent,
       wholesalerTrust,
       loanDueDay,
+      capital: {
+        ...state.capital,
+        cashTl: state.capital.cashTl + passiveIncomeTl,
+        stockValueTl: computeStockValueTl(state.inventory, nextBuyPrice),
+      },
       goldPrice: {
         ...priceFromReference(nextReference),
         dailyChangePercent,
@@ -165,7 +211,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  settleDeal: (paidAmountTl, itemMarketValueTl) => {
+  settleDeal: (paidAmountTl, item) => {
     const state = get();
     const shortfall = Math.max(0, paidAmountTl - state.capital.cashTl);
 
@@ -177,16 +223,46 @@ export const useGameStore = create<GameState>((set, get) => ({
     const loanDueDay =
       shortfall > 0 && state.loanDueDay === null ? state.day + LOAN_TERM_DAYS : state.loanDueDay;
 
+    const newItem: InventoryItem = {
+      id: String(nextInventoryId++),
+      name: item.name,
+      category: item.category,
+      karat: item.karat,
+      grams: item.grams,
+      valueTl: item.marketValueTl,
+      acquiredDay: state.day,
+    };
+    const inventory = [...state.inventory, newItem];
+
     set({
+      inventory,
       capital: {
         ...state.capital,
         cashTl,
         debtTl: state.capital.debtTl + shortfall,
-        stockValueTl: state.capital.stockValueTl + itemMarketValueTl,
+        stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
       },
       loanDueDay,
     });
     return { success: true, borrowedTl: shortfall };
+  },
+
+  sellInventoryItem: (itemId) => {
+    const state = get();
+    const item = state.inventory.find((i) => i.id === itemId);
+    if (!item || item.category !== 'yatirim') return;
+
+    const saleValueTl = hasEquivalentGrams(item) * state.goldPrice.buyPricePerGram;
+    const inventory = state.inventory.filter((i) => i.id !== itemId);
+
+    set({
+      inventory,
+      capital: {
+        ...state.capital,
+        cashTl: state.capital.cashTl + saleValueTl,
+        stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
+      },
+    });
   },
 
   repayDebt: (amountTl) => {
