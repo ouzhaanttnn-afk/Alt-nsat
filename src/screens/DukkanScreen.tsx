@@ -1,3 +1,5 @@
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActiveOfferSummary } from '../components/ActiveOfferSummary';
@@ -8,12 +10,14 @@ import { OpportunityCard } from '../components/OpportunityCard';
 import { ReputationGauge } from '../components/ReputationGauge';
 import { SectionLabel } from '../components/SectionLabel';
 import { activeOffer, dailyGoalSteps, todaysOpportunity } from '../data/mockHome';
+import type { RootStackParamList } from '../navigation/types';
 import { useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 
 // Bölüm 4.1: Ana Ekran — Sermaye, gün sayacı, itibar, günün hedefi,
 // günün fırsatı, aktif teklif özeti, gram altın ticker.
 export function DukkanScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const capital = useGameStore((s) => s.capital);
   const goldPrice = useGameStore((s) => s.goldPrice);
   const reputation = useGameStore((s) => s.reputation);
@@ -39,7 +43,10 @@ export function DukkanScreen() {
         <OpportunityCard opportunity={todaysOpportunity} />
 
         <SectionLabel>AKTİF TEKLİF</SectionLabel>
-        <ActiveOfferSummary offer={activeOffer} />
+        <ActiveOfferSummary
+          offer={activeOffer}
+          onContinue={() => navigation.navigate('Pazarlik')}
+        />
       </ScrollView>
     </SafeAreaView>
   );

@@ -11,9 +11,14 @@ export interface ActiveOffer {
   status: string;
 }
 
-// Bölüm 4.1: aktif teklif özeti. "Devam Et" Pazarlık Ekranı'na (Adım 3)
-// yönlenecek — o ekran kurulana kadar dokunma olayı bağlanmadı.
-export function ActiveOfferSummary({ offer }: { offer: ActiveOffer }) {
+// Bölüm 4.1: aktif teklif özeti. "Devam Et" Pazarlık Ekranı'nı açar.
+export function ActiveOfferSummary({
+  offer,
+  onContinue,
+}: {
+  offer: ActiveOffer;
+  onContinue: () => void;
+}) {
   return (
     <Card style={styles.card}>
       <AvatarInitial name={offer.customerName} />
@@ -25,7 +30,7 @@ export function ActiveOfferSummary({ offer }: { offer: ActiveOffer }) {
       </View>
       <View style={styles.amountBlock}>
         <Text style={styles.amount}>{formatTl(offer.offerAmountTl)}</Text>
-        <Pressable style={styles.button}>
+        <Pressable style={styles.button} onPress={onContinue}>
           <Text style={styles.buttonLabel}>Devam Et</Text>
         </Pressable>
       </View>
