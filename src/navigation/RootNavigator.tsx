@@ -1,5 +1,13 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
+import {
+  InvestTabIcon,
+  MarketTabIcon,
+  OffersTabIcon,
+  ProfileTabIcon,
+  SafeTabIcon,
+  ShopTabIcon,
+} from '../components/icons/TabIcons';
 import { colors, fonts } from '../theme';
 import { DukkanScreen } from '../screens/DukkanScreen';
 import { KasamScreen } from '../screens/KasamScreen';
@@ -8,8 +16,7 @@ import { ProfilScreen } from '../screens/ProfilScreen';
 import { TekliflerScreen } from '../screens/TekliflerScreen';
 import { YatirimlarScreen } from '../screens/YatirimlarScreen';
 
-// Bölüm 4: Alt navigasyon — 6 sabit sekme.
-// İkonlar henüz eklenmedi (emoji YOK kuralı gereği SVG ikonlar sonraki adımda gelecek).
+// Bölüm 4: Alt navigasyon — 6 sabit sekme, emoji yok, sade çizgi ikonlar.
 const Tab = createBottomTabNavigator();
 
 export function RootNavigator() {
@@ -31,12 +38,36 @@ export function RootNavigator() {
           },
         }}
       >
-        <Tab.Screen name="Dükkân" component={DukkanScreen} />
-        <Tab.Screen name="Piyasa" component={PiyasaScreen} />
-        <Tab.Screen name="Kasam" component={KasamScreen} />
-        <Tab.Screen name="Yatırımlar" component={YatirimlarScreen} />
-        <Tab.Screen name="Teklifler" component={TekliflerScreen} />
-        <Tab.Screen name="Profil" component={ProfilScreen} />
+        <Tab.Screen
+          name="Dükkân"
+          component={DukkanScreen}
+          options={{ tabBarIcon: ({ color }) => <ShopTabIcon color={color} /> }}
+        />
+        <Tab.Screen
+          name="Piyasa"
+          component={PiyasaScreen}
+          options={{ tabBarIcon: ({ color }) => <MarketTabIcon color={color} /> }}
+        />
+        <Tab.Screen
+          name="Kasam"
+          component={KasamScreen}
+          options={{ tabBarIcon: ({ color }) => <SafeTabIcon color={color} /> }}
+        />
+        <Tab.Screen
+          name="Yatırımlar"
+          component={YatirimlarScreen}
+          options={{ tabBarIcon: ({ color }) => <InvestTabIcon color={color} /> }}
+        />
+        <Tab.Screen
+          name="Teklifler"
+          component={TekliflerScreen}
+          options={{ tabBarIcon: ({ color }) => <OffersTabIcon color={color} /> }}
+        />
+        <Tab.Screen
+          name="Profil"
+          component={ProfilScreen}
+          options={{ tabBarIcon: ({ color }) => <ProfileTabIcon color={color} /> }}
+        />
       </Tab.Navigator>
     </NavigationContainer>
   );
