@@ -17,3 +17,14 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Pazarlik: PazarlikParams | undefined;
 };
+
+// Bölüm 4: Ana sekmeler — Dükkân'dan Teklifler sekmesine geçiş gibi
+// sekmeler-arası gezinme için (bkz. DukkanScreen'in tip birleşimi).
+export type MainTabsParamList = {
+  Dükkân: undefined;
+  Piyasa: undefined;
+  Kasam: undefined;
+  Yatırımlar: undefined;
+  Teklifler: undefined;
+  Profil: undefined;
+};

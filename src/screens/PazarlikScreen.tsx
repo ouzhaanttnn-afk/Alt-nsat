@@ -13,7 +13,7 @@ import { useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes, radius } from '../theme';
 import { formatTl } from '../utils/format';
 
-type Result = 'accepted' | 'rejected' | 'creditDenied' | 'timedOut' | null;
+type Result = 'accepted' | 'rejected' | 'creditDenied' | 'timedOut' | 'sent' | null;
 
 const MEASURE_DURATION_MS = 900;
 // Bölüm 7: Soğukkanlı ve Güler Yüz bu süreyi uzatır.
@@ -43,6 +43,7 @@ export function PazarlikScreen() {
   const cashTl = useGameStore((s) => s.capital.cashTl);
   const settleDeal = useGameStore((s) => s.settleDeal);
   const removeMarketListing = useGameStore((s) => s.removeMarketListing);
+  const sendPendingOffer = useGameStore((s) => s.sendPendingOffer);
   const adjustReputation = useGameStore((s) => s.adjustReputation);
   const skillLevels = useGameStore((s) => s.skillLevels);
 
@@ -121,24 +122,40 @@ export function PazarlikScreen() {
     if (listingId) removeMarketListing(listingId);
   };
 
+  // Bölüm 4.6: Kaydırma çubuğuyla "Teklifi Gönder" anında sonuçlanmaz —
+  // müşterinin kararı zaten burada belirlenir (willAccept) ama açıklaması
+  // Teklifler sekmesinde bir süre sonra gerçekleşir (bkz. sendPendingOffer).
   const resolveOffer = (amount: number) => {
     const originalThreshold = product.marketValueTl * customer.acceptanceThreshold;
     const adjustedThreshold =
       originalThreshold * (1 - sikiPazarlikciLevel * SIKI_PAZARLIKCI_THRESHOLD_REDUCTION_PER_LEVEL);
+    const willAccept = amount >= adjustedThreshold;
     setOffer(amount);
-    if (amount < adjustedThreshold) {
-      setResult('rejected');
-      return;
+
+    if (willAccept) {
+      // Bölüm 7: Sıkı Pazarlıkçı normalde reddedilecek bir teklifi kurtardıysa itibar hafif düşer.
+      if (amount < originalThreshold && sikiPazarlikciLevel > 0) {
+        adjustReputation(-SIKI_PAZARLIKCI_REPUTATION_PENALTY);
+      }
+      // Bölüm 7: Ölücü ile piyasa değerinin çok altında kapatılan agresif bir anlaşma itibar riski taşır.
+      if (oluluLevel > 0 && amount < product.marketValueTl * OLUCU_AGGRESSIVE_OFFER_RATIO) {
+        adjustReputation(-OLUCU_REPUTATION_PENALTY_PER_LEVEL * oluluLevel);
+      }
     }
-    // Bölüm 7: Sıkı Pazarlıkçı normalde reddedilecek bir teklifi kurtardıysa itibar hafif düşer.
-    if (amount < originalThreshold && sikiPazarlikciLevel > 0) {
-      adjustReputation(-SIKI_PAZARLIKCI_REPUTATION_PENALTY);
-    }
-    // Bölüm 7: Ölücü ile piyasa değerinin çok altında kapatılan agresif bir anlaşma itibar riski taşır.
-    if (oluluLevel > 0 && amount < product.marketValueTl * OLUCU_AGGRESSIVE_OFFER_RATIO) {
-      adjustReputation(-OLUCU_REPUTATION_PENALTY_PER_LEVEL * oluluLevel);
-    }
-    completeDeal(amount);
+
+    sendPendingOffer({
+      customerName: customer.name,
+      productName: product.name,
+      category: product.category,
+      karat: product.karat,
+      grams: product.grams,
+      offerAmountTl: amount,
+      marketValueTl: product.marketValueTl,
+      estimatedSellPriceTl: product.estimatedSellPriceTl,
+      willAccept,
+    });
+    if (listingId) removeMarketListing(listingId);
+    setResult('sent');
   };
 
   const canAct = tested && !measuring && result === null;
@@ -225,7 +242,7 @@ function ResultScreen({
   productName,
   onClose,
 }: {
-  result: 'accepted' | 'rejected' | 'creditDenied' | 'timedOut';
+  result: 'accepted' | 'rejected' | 'creditDenied' | 'timedOut' | 'sent';
   offerAmount: number;
   borrowedTl: number;
   customerName: string;
@@ -234,7 +251,13 @@ function ResultScreen({
 }) {
   const accepted = result === 'accepted';
   const badgeColor =
-    result === 'accepted' ? colors.positive : result === 'creditDenied' ? colors.warning : colors.negative;
+    result === 'accepted'
+      ? colors.positive
+      : result === 'creditDenied'
+        ? colors.warning
+        : result === 'sent'
+          ? colors.brass
+          : colors.negative;
   const title =
     result === 'accepted'
       ? 'Teklif kabul edildi'
@@ -242,7 +265,9 @@ function ResultScreen({
         ? 'Toptancı kredi vermedi'
         : result === 'timedOut'
           ? 'Süre doldu'
-          : 'Teklif reddedildi';
+          : result === 'sent'
+            ? 'Teklif gönderildi'
+            : 'Teklif reddedildi';
   const subtitle =
     result === 'accepted'
       ? `${customerName}, ${formatTl(offerAmount)} karşılığında ${productName.toLowerCase()} bıraktı.`
@@ -250,14 +275,16 @@ function ResultScreen({
         ? 'Toptancı Güvenin çok düşük olduğu için borç vermiyorlar. Önce nakit biriktir ya da borcunu öde.'
         : result === 'timedOut'
           ? `${customerName} sabrını yitirip dükkândan ayrıldı.`
-          : `${customerName} teklifi düşük buldu ve dükkândan ayrıldı.`;
+          : result === 'sent'
+            ? `${customerName}, ${formatTl(offerAmount)} teklifini değerlendiriyor. Sonucu Teklifler sekmesinden takip edebilirsin.`
+            : `${customerName} teklifi düşük buldu ve dükkândan ayrıldı.`;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.resultContainer}>
         <View style={[styles.resultBadge, { backgroundColor: badgeColor }]}>
           <Text style={styles.resultBadgeLabel}>
-            {result === 'accepted' ? '✓' : result === 'creditDenied' ? '!' : '✕'}
+            {result === 'accepted' ? '✓' : result === 'creditDenied' ? '!' : result === 'sent' ? '…' : '✕'}
           </Text>
         </View>
         <Text style={styles.resultTitle}>{title}</Text>

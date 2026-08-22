@@ -10,6 +10,7 @@ import type {
   InventoryItem,
   ReputationState,
 } from '../types/game';
+import type { Offer } from '../types/offer';
 
 export type ClockSpeed = 0 | 1 | 2 | 4;
 
@@ -61,6 +62,10 @@ const STARTING_WHOLESALER_TRUST = 65;
 const LOAN_TERM_DAYS = 5;
 const LATE_PAYMENT_TRUST_PENALTY = 15;
 const MIN_TRUST_FOR_CREDIT = 30;
+
+// Bölüm 4.6: Teklifler — kaydırma çubuğuyla gönderilen bir teklif anında
+// sonuçlanmaz, müşterinin düşünmesi için bir süre "bekleyen" kalır.
+export const OFFER_RESOLUTION_DELAY_MINUTES = 240; // 4 oyun saati
 
 // Kullanıcı kararı: takı (bilezik/yüzük/kolye) tek tek pazarlıkla
 // satılmıyor — vitrine girip kendi kâr potansiyeline göre sürekli pasif
@@ -116,6 +121,7 @@ function computeStockValueTl(inventory: InventoryItem[], buyPricePerGram: number
 }
 
 let nextInventoryId = 1;
+let nextOfferId = 1;
 
 interface GameState {
   capital: CapitalState;
@@ -124,6 +130,8 @@ interface GameState {
   inventory: InventoryItem[];
   /** Piyasa'daki satın alınabilir fırsatlar; satın alınan bir fırsat listeden kalkar. */
   marketListings: Opportunity[];
+  /** Bölüm 4.6: Bekleyen/Kabul/Red durumundaki tüm pazarlık teklifleri. */
+  offers: Offer[];
   day: number;
   minuteOfDay: number;
   speed: ClockSpeed;
@@ -161,6 +169,23 @@ interface GameState {
   repayDebt: (amountTl: number) => void;
   /** Satın alınan bir Piyasa fırsatını listeden kaldırır. */
   removeMarketListing: (id: string) => void;
+  /**
+   * Kaydırma çubuğuyla gönderilen bir alım teklifini "bekleyen" olarak
+   * kaydeder. Sonuç (kabul/red) aslında gönderildiği anda `willAccept` ile
+   * belirlenmiştir — tick() içinde vadesi (OFFER_RESOLUTION_DELAY_MINUTES)
+   * dolunca açığa çıkar ve kabul ise settleDeal ile aynı şekilde kapanır.
+   */
+  sendPendingOffer: (offer: {
+    customerName: string;
+    productName: string;
+    category: InventoryCategory;
+    karat: number;
+    grams: number;
+    offerAmountTl: number;
+    marketValueTl: number;
+    estimatedSellPriceTl?: number;
+    willAccept: boolean;
+  }) => void;
   /** Alım-satım makasından bugüne kadar gerçekleşen toplam kâr/zarar. */
   realizedTradingProfitTl: number;
   /**
@@ -203,6 +228,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
   inventory: [],
   marketListings: marketOpportunities,
+  offers: [],
   day: 1,
   minuteOfDay: 0,
   speed: 1,
@@ -253,15 +279,41 @@ export const useGameStore = create<GameState>((set, get) => ({
     const dailyChangePercent =
       ((nextReference - referencePriceAtDayStart) / referencePriceAtDayStart) * 100;
 
+    // Bekleyen tekliflerin vadesi (OFFER_RESOLUTION_DELAY_MINUTES) dolduysa
+    // açığa çıkar: kabul ise settleDeal ile aynı şekilde kapanır (kredi
+    // reddedilirse red'e düşer), red ise doğrudan red olur. Sonuç aslında
+    // gönderildiği anda (willAccept) belirlenmişti, burada sadece açıklanıyor.
+    const currentTotalMinutes = day * MINUTES_PER_DAY + minuteOfDay;
+    const offers = state.offers.map((offer) => {
+      if (offer.status !== 'bekleyen' || currentTotalMinutes < offer.resolvesAtTotalMinutes) {
+        return offer;
+      }
+      if (!offer.willAccept) {
+        return { ...offer, status: 'red' as const };
+      }
+      const result = get().settleDeal(offer.offerAmountTl, {
+        name: offer.productName,
+        category: offer.category,
+        karat: offer.karat,
+        grams: offer.grams,
+        marketValueTl: offer.marketValueTl,
+        estimatedSellPriceTl: offer.estimatedSellPriceTl,
+      });
+      return { ...offer, status: result.success ? ('kabul' as const) : ('red' as const) };
+    });
+    // settleDeal, teklif kabul edildiyse kasa/envanteri zaten güncelledi —
+    // aşağıdaki gün-içi işlemler için o güncel hâli temel alıyoruz.
+    const postOfferState = get();
+
     // Vadesi geçmiş borç varsa Toptancı Güveni düşer, vade yeniden ötelenir.
-    let wholesalerTrust = state.wholesalerTrust;
-    let loanDueDay = state.loanDueDay;
-    if (state.capital.debtTl > 0 && loanDueDay !== null) {
+    let wholesalerTrust = postOfferState.wholesalerTrust;
+    let loanDueDay = postOfferState.loanDueDay;
+    if (postOfferState.capital.debtTl > 0 && loanDueDay !== null) {
       while (day > loanDueDay) {
         wholesalerTrust = Math.max(0, wholesalerTrust - LATE_PAYMENT_TRUST_PENALTY);
         loanDueDay += LOAN_TERM_DAYS;
       }
-    } else if (state.capital.debtTl <= 0) {
+    } else if (postOfferState.capital.debtTl <= 0) {
       loanDueDay = null;
     }
 
@@ -273,7 +325,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     let maturedPayoutTl = 0;
     let maturedSampleName = '';
     const inventory: InventoryItem[] = [];
-    for (const item of state.inventory) {
+    for (const item of postOfferState.inventory) {
       if (item.category === 'pirlanta') {
         // Kalıcı vitrin parçası: vade yok, sabit günlük gelir sonsuza kadar sürer.
         vitrinIncomeTl += (item.dailyIncomeTl ?? 0) * item.quantity * (gameMinutes / MINUTES_PER_DAY);
@@ -302,14 +354,14 @@ export const useGameStore = create<GameState>((set, get) => ({
         : state.lastVitrinMaturity;
 
     const capital: CapitalState = {
-      ...state.capital,
-      cashTl: state.capital.cashTl + vitrinIncomeTl + maturedPayoutTl,
+      ...postOfferState.capital,
+      cashTl: postOfferState.capital.cashTl + vitrinIncomeTl + maturedPayoutTl,
       stockValueTl: computeStockValueTl(inventory, nextBuyPrice),
     };
 
     // Bölüm 2/7: yeni bir Sermaye Kademesi'ne ulaşınca Yetenek Ağacı puanı kazanılır.
     const newTierIndex = tierIndexForNetWorth(computeNetWorthTl(capital));
-    const gainedTiers = Math.max(0, newTierIndex - state.highestCapitalTierIndex);
+    const gainedTiers = Math.max(0, newTierIndex - postOfferState.highestCapitalTierIndex);
 
     set({
       minuteOfDay,
@@ -319,10 +371,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       wholesalerTrust,
       loanDueDay,
       inventory,
+      offers,
       lastVitrinMaturity,
       capital,
-      highestCapitalTierIndex: gainedTiers > 0 ? newTierIndex : state.highestCapitalTierIndex,
-      skillPoints: state.skillPoints + gainedTiers,
+      highestCapitalTierIndex: gainedTiers > 0 ? newTierIndex : postOfferState.highestCapitalTierIndex,
+      skillPoints: postOfferState.skillPoints + gainedTiers,
       goldPrice: {
         ...priceFromReference(nextReference),
         dailyChangePercent,
@@ -432,6 +485,28 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       marketListings: state.marketListings.filter((listing) => listing.id !== id),
     }));
+  },
+
+  sendPendingOffer: (offer) => {
+    const state = get();
+    const totalMinutesNow = state.day * MINUTES_PER_DAY + state.minuteOfDay;
+    const newOffer: Offer = {
+      id: String(nextOfferId++),
+      customerName: offer.customerName,
+      productName: offer.productName,
+      category: offer.category,
+      karat: offer.karat,
+      grams: offer.grams,
+      offerAmountTl: offer.offerAmountTl,
+      marketValueTl: offer.marketValueTl,
+      estimatedSellPriceTl: offer.estimatedSellPriceTl,
+      status: 'bekleyen',
+      willAccept: offer.willAccept,
+      createdDay: state.day,
+      createdMinuteOfDay: state.minuteOfDay,
+      resolvesAtTotalMinutes: totalMinutesNow + OFFER_RESOLUTION_DELAY_MINUTES,
+    };
+    set({ offers: [newOffer, ...state.offers] });
   },
 
   purchasePirlanta: (catalogItem) => {
