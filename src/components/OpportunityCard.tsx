@@ -30,9 +30,12 @@ export interface Opportunity {
 export function OpportunityCard({
   opportunity,
   onPress,
+  scoreVisible = true,
 }: {
   opportunity: Opportunity;
   onPress?: () => void;
+  /** Bölüm 7 - Piyasa Sezgisi yeteneği: yoksa Fırsat Skoru gizlenir. */
+  scoreVisible?: boolean;
 }) {
   const profit = opportunity.estimatedSellPriceTl - opportunity.buyPriceTl;
   const score = calculateOpportunityScore(
@@ -71,7 +74,11 @@ export function OpportunityCard({
 
       <View style={styles.scoreRow}>
         <Text style={styles.scoreLabel}>Fırsat Skoru</Text>
-        <Text style={styles.scoreValue}>{score}/100</Text>
+        {scoreVisible ? (
+          <Text style={styles.scoreValue}>{score}/100</Text>
+        ) : (
+          <Text style={styles.scoreLocked}>Kilitli — Piyasa Sezgisi ile aç</Text>
+        )}
       </View>
     </Card>
   );
@@ -138,5 +145,11 @@ const styles = StyleSheet.create({
     fontFamily: fonts.monoBold,
     fontSize: fontSizes.md,
     color: colors.accent,
+  },
+  scoreLocked: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.inkMuted,
+    fontStyle: 'italic',
   },
 });

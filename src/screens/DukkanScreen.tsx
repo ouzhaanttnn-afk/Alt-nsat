@@ -35,6 +35,7 @@ export function DukkanScreen() {
   const wholesalerTrust = useGameStore((s) => s.wholesalerTrust);
   const loanDueDay = useGameStore((s) => s.loanDueDay);
   const repayDebt = useGameStore((s) => s.repayDebt);
+  const hasPiyasaSezgisi = useGameStore((s) => (s.skillLevels['piyasa-sezgisi'] ?? 0) > 0);
 
   const [visibleJump, setVisibleJump] = useState<JumpEvent | null>(null);
   const seenJumpRef = useRef<JumpEvent | null>(null);
@@ -80,7 +81,7 @@ export function DukkanScreen() {
         <DailyGoalCard steps={dailyGoalSteps} />
 
         <SectionLabel>GÜNÜN FIRSATI</SectionLabel>
-        <OpportunityCard opportunity={todaysOpportunity} />
+        <OpportunityCard opportunity={todaysOpportunity} scoreVisible={hasPiyasaSezgisi} />
 
         <SectionLabel>AKTİF TEKLİF</SectionLabel>
         <ActiveOfferSummary

@@ -27,6 +27,7 @@ const FILTER_OPTIONS: { label: string; value: SourceFilter }[] = [
 export function PiyasaScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const marketListings = useGameStore((s) => s.marketListings);
+  const hasPiyasaSezgisi = useGameStore((s) => (s.skillLevels['piyasa-sezgisi'] ?? 0) > 0);
   const [filter, setFilter] = useState<SourceFilter>('hepsi');
 
   const sortedOpportunities = useMemo(() => {
@@ -82,6 +83,7 @@ export function PiyasaScreen() {
           <OpportunityCard
             key={opportunity.id}
             opportunity={opportunity}
+            scoreVisible={hasPiyasaSezgisi}
             onPress={() => {
               const negotiation = opportunityToNegotiation(opportunity);
               navigation.navigate('Pazarlik', { ...negotiation, listingId: opportunity.id });

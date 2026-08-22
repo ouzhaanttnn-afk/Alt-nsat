@@ -1,5 +1,5 @@
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomerNoteCard } from '../components/CustomerNoteCard';
@@ -13,14 +13,24 @@ import { useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes, radius } from '../theme';
 import { formatTl } from '../utils/format';
 
-type Result = 'accepted' | 'rejected' | 'creditDenied' | null;
+type Result = 'accepted' | 'rejected' | 'creditDenied' | 'timedOut' | null;
 
 const MEASURE_DURATION_MS = 900;
+// Bölüm 7: Soğukkanlı ve Güler Yüz bu süreyi uzatır.
+const NEGOTIATION_BASE_SECONDS = 60;
+const SOGUKKANLI_SECONDS_PER_LEVEL = 15;
+const GULER_YUZ_SECONDS_PER_LEVEL = 10;
+// Bölüm 7: Sıkı Pazarlıkçı kabul eşiğini düşürür (Sv.1 %5 → Sv.5 %25).
+const SIKI_PAZARLIKCI_THRESHOLD_REDUCTION_PER_LEVEL = 0.05;
+// Bölüm 7: Ölücü teklif tabanını daha da aşağı çeker.
+const OLUCU_MIN_RATIO_REDUCTION_PER_LEVEL = 0.04;
+const OLUCU_AGGRESSIVE_OFFER_RATIO = 0.65;
+const OLUCU_REPUTATION_PENALTY_PER_LEVEL = 2;
+const SIKI_PAZARLIKCI_REPUTATION_PENALTY = 1;
 
 // Bölüm 4.3: Pazarlık Ekranı — en detaylı tasarlanmış ekran. Adım 3'te
-// fonksiyonel hale getirildi, sonrasında gerçek nakit/borç etkisi ve
-// route parametreleriyle farklı senaryoları (ör. Piyasa'daki büyük
-// parti) destekleyecek şekilde genelleştirildi.
+// fonksiyonel hale getirildi, sonrasında gerçek nakit/borç etkisi,
+// route parametreleri ve Bölüm 7 yetenek etkileri eklendi.
 export function PazarlikScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<RootStackParamList, 'Pazarlik'>>();
@@ -33,13 +43,27 @@ export function PazarlikScreen() {
   const cashTl = useGameStore((s) => s.capital.cashTl);
   const settleDeal = useGameStore((s) => s.settleDeal);
   const removeMarketListing = useGameStore((s) => s.removeMarketListing);
+  const adjustReputation = useGameStore((s) => s.adjustReputation);
+  const skillLevels = useGameStore((s) => s.skillLevels);
+
+  const sikiPazarlikciLevel = skillLevels['siki-pazarlikci'] ?? 0;
+  const oluluLevel = skillLevels['olucu'] ?? 0;
+  const sogukkanliLevel = skillLevels['sogukkanli'] ?? 0;
+  const gulerYuzLevel = skillLevels['guler-yuz'] ?? 0;
 
   const [tested, setTested] = useState(false);
   const [measuring, setMeasuring] = useState(false);
   const [held, setHeld] = useState(false);
   const measureTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const baseMin = Math.round(product.marketValueTl * 0.5);
+  const totalSeconds =
+    NEGOTIATION_BASE_SECONDS +
+    sogukkanliLevel * SOGUKKANLI_SECONDS_PER_LEVEL +
+    gulerYuzLevel * GULER_YUZ_SECONDS_PER_LEVEL;
+  const [secondsLeft, setSecondsLeft] = useState(totalSeconds);
+
+  const minRatio = Math.max(0.3, 0.5 - oluluLevel * OLUCU_MIN_RATIO_REDUCTION_PER_LEVEL);
+  const baseMin = Math.round(product.marketValueTl * minRatio);
   const baseMax = Math.round(product.marketValueTl * 0.95);
   const sliderMax = Math.max(1, Math.min(baseMax, Math.round(cashTl)));
   const sliderMin = Math.min(baseMin, sliderMax);
@@ -49,6 +73,16 @@ export function PazarlikScreen() {
 
   const [result, setResult] = useState<Result>(null);
   const [borrowedTl, setBorrowedTl] = useState(0);
+
+  useEffect(() => {
+    if (result !== null) return;
+    if (secondsLeft <= 0) {
+      setResult('timedOut');
+      return;
+    }
+    const timer = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [secondsLeft, result]);
 
   const handleTare = () => {
     if (held) return;
@@ -88,17 +122,28 @@ export function PazarlikScreen() {
   };
 
   const resolveOffer = (amount: number) => {
-    const threshold = product.marketValueTl * customer.acceptanceThreshold;
+    const originalThreshold = product.marketValueTl * customer.acceptanceThreshold;
+    const adjustedThreshold =
+      originalThreshold * (1 - sikiPazarlikciLevel * SIKI_PAZARLIKCI_THRESHOLD_REDUCTION_PER_LEVEL);
     setOffer(amount);
-    if (amount >= threshold) {
-      completeDeal(amount);
-    } else {
+    if (amount < adjustedThreshold) {
       setResult('rejected');
+      return;
     }
+    // Bölüm 7: Sıkı Pazarlıkçı normalde reddedilecek bir teklifi kurtardıysa itibar hafif düşer.
+    if (amount < originalThreshold && sikiPazarlikciLevel > 0) {
+      adjustReputation(-SIKI_PAZARLIKCI_REPUTATION_PENALTY);
+    }
+    // Bölüm 7: Ölücü ile piyasa değerinin çok altında kapatılan agresif bir anlaşma itibar riski taşır.
+    if (oluluLevel > 0 && amount < product.marketValueTl * OLUCU_AGGRESSIVE_OFFER_RATIO) {
+      adjustReputation(-OLUCU_REPUTATION_PENALTY_PER_LEVEL * oluluLevel);
+    }
+    completeDeal(amount);
   };
 
   const canAct = tested && !measuring && result === null;
   const fullPriceShortfall = Math.max(0, product.marketValueTl - cashTl);
+  const timerWarning = secondsLeft <= 15;
 
   if (result) {
     return (
@@ -117,9 +162,14 @@ export function PazarlikScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Text style={styles.title}>Pazarlık</Text>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
-          <Text style={styles.closeLabel}>Kapat</Text>
-        </Pressable>
+        <View style={styles.headerRight}>
+          <Text style={[styles.timer, timerWarning && styles.timerWarning]}>
+            {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')}
+          </Text>
+          <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
+            <Text style={styles.closeLabel}>Kapat</Text>
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -175,7 +225,7 @@ function ResultScreen({
   productName,
   onClose,
 }: {
-  result: 'accepted' | 'rejected' | 'creditDenied';
+  result: 'accepted' | 'rejected' | 'creditDenied' | 'timedOut';
   offerAmount: number;
   borrowedTl: number;
   customerName: string;
@@ -190,13 +240,17 @@ function ResultScreen({
       ? 'Teklif kabul edildi'
       : result === 'creditDenied'
         ? 'Toptancı kredi vermedi'
-        : 'Teklif reddedildi';
+        : result === 'timedOut'
+          ? 'Süre doldu'
+          : 'Teklif reddedildi';
   const subtitle =
     result === 'accepted'
       ? `${customerName}, ${formatTl(offerAmount)} karşılığında ${productName.toLowerCase()} bıraktı.`
       : result === 'creditDenied'
         ? 'Toptancı Güvenin çok düşük olduğu için borç vermiyorlar. Önce nakit biriktir ya da borcunu öde.'
-        : `${customerName} teklifi düşük buldu ve dükkândan ayrıldı.`;
+        : result === 'timedOut'
+          ? `${customerName} sabrını yitirip dükkândan ayrıldı.`
+          : `${customerName} teklifi düşük buldu ve dükkândan ayrıldı.`;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -233,10 +287,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
   title: {
     fontFamily: fonts.headingBold,
     fontSize: fontSizes.lg,
     color: colors.ink,
+  },
+  timer: {
+    fontFamily: fonts.monoBold,
+    fontSize: fontSizes.md,
+    color: colors.inkMuted,
+  },
+  timerWarning: {
+    color: colors.negative,
   },
   closeLabel: {
     fontFamily: fonts.bodyMedium,

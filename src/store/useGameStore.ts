@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Opportunity } from '../components/OpportunityCard';
 import { marketOpportunities } from '../data/mockMarket';
 import type { PirlantaCatalogItem } from '../data/mockPirlanta';
+import { skillTree } from '../data/skillTree';
 import type {
   CapitalState,
   GoldPriceState,
@@ -70,6 +71,22 @@ const MIN_TRUST_FOR_CREDIT = 30;
 // (çeyrek/gram/vb.) ise doğrudan/aktif alınıp satılıyor, değeri güncel
 // kurla dalgalanır, vade kavramı yok.
 export const VITRIN_TERM_DAYS = 30;
+
+// Bölüm 2: Sermaye Kademeleri — "Her kademe yeni bir kilit açar". Burada
+// her yeni kademeye ulaşmak bir Yetenek Ağacı puanı kazandırıyor.
+export const CAPITAL_TIERS = [100000, 500000, 2000000, 10000000, 50000000, 250000000];
+
+function computeNetWorthTl(capital: CapitalState): number {
+  return capital.cashTl + capital.stockValueTl - capital.debtTl;
+}
+
+function tierIndexForNetWorth(netWorthTl: number): number {
+  let index = -1;
+  for (let i = 0; i < CAPITAL_TIERS.length; i++) {
+    if (netWorthTl >= CAPITAL_TIERS[i]) index = i;
+  }
+  return index;
+}
 
 function priceFromReference(reference: number): Pick<GoldPriceState, 'buyPricePerGram' | 'sellPricePerGram'> {
   return {
@@ -153,7 +170,22 @@ interface GameState {
    * bağlanınca bu eylem gerçek satın alma onayından sonra çağrılacak.
    */
   purchasePirlanta: (catalogItem: PirlantaCatalogItem) => void;
+
+  // Bölüm 7: Yetenek Ağacı. Her yeni Sermaye Kademesi'ne (Bölüm 2) ulaşmak
+  // bir puan kazandırır; puanlar skillTree'deki yeteneklere harcanır.
+  skillPoints: number;
+  skillLevels: Record<string, number>;
+  highestCapitalTierIndex: number;
+  /** Bir yeteneği bir seviye yükseltir; puan yoksa ya da zaten maksimumdaysa false döner. */
+  levelUpSkill: (skillId: string) => boolean;
+  /** İtibarı 0-100 aralığında sınırlayarak değiştirir (skill etkileri, gelecekte olaylar vb. için). */
+  adjustReputation: (delta: number) => void;
 }
+
+// Oyuncu zaten bu kademeleri geçmiş sayılıp buna karşılık gelen puanla başlıyor
+// (1kg altınla başlamak zaten bir birikimi temsil ediyor).
+const STARTING_NET_WORTH_TL = (STARTING_CASH_GRAMS + STARTING_RESERVE_GRAMS) * STARTING_REFERENCE_PRICE;
+const STARTING_CAPITAL_TIER_INDEX = tierIndexForNetWorth(STARTING_NET_WORTH_TL);
 
 export const useGameStore = create<GameState>((set, get) => ({
   capital: {
@@ -180,6 +212,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   loanDueDay: null,
   lastVitrinMaturity: null,
   realizedTradingProfitTl: 0,
+  skillPoints: STARTING_CAPITAL_TIER_INDEX + 1,
+  skillLevels: {},
+  highestCapitalTierIndex: STARTING_CAPITAL_TIER_INDEX,
 
   setSpeed: (speed) => set({ speed }),
 
@@ -266,6 +301,16 @@ export const useGameStore = create<GameState>((set, get) => ({
         ? { count: maturedCount, totalPayoutTl: maturedPayoutTl, sampleName: maturedSampleName }
         : state.lastVitrinMaturity;
 
+    const capital: CapitalState = {
+      ...state.capital,
+      cashTl: state.capital.cashTl + vitrinIncomeTl + maturedPayoutTl,
+      stockValueTl: computeStockValueTl(inventory, nextBuyPrice),
+    };
+
+    // Bölüm 2/7: yeni bir Sermaye Kademesi'ne ulaşınca Yetenek Ağacı puanı kazanılır.
+    const newTierIndex = tierIndexForNetWorth(computeNetWorthTl(capital));
+    const gainedTiers = Math.max(0, newTierIndex - state.highestCapitalTierIndex);
+
     set({
       minuteOfDay,
       day,
@@ -275,11 +320,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       loanDueDay,
       inventory,
       lastVitrinMaturity,
-      capital: {
-        ...state.capital,
-        cashTl: state.capital.cashTl + vitrinIncomeTl + maturedPayoutTl,
-        stockValueTl: computeStockValueTl(inventory, nextBuyPrice),
-      },
+      capital,
+      highestCapitalTierIndex: gainedTiers > 0 ? newTierIndex : state.highestCapitalTierIndex,
+      skillPoints: state.skillPoints + gainedTiers,
       goldPrice: {
         ...priceFromReference(nextReference),
         dailyChangePercent,
@@ -429,5 +472,25 @@ export const useGameStore = create<GameState>((set, get) => ({
         stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
       },
     });
+  },
+
+  levelUpSkill: (skillId) => {
+    const state = get();
+    const definition = skillTree.find((s) => s.id === skillId);
+    if (!definition) return false;
+    const currentLevel = state.skillLevels[skillId] ?? 0;
+    if (state.skillPoints <= 0 || currentLevel >= definition.maxLevel) return false;
+
+    set({
+      skillPoints: state.skillPoints - 1,
+      skillLevels: { ...state.skillLevels, [skillId]: currentLevel + 1 },
+    });
+    return true;
+  },
+
+  adjustReputation: (delta) => {
+    set((state) => ({
+      reputation: { score: Math.max(0, Math.min(100, state.reputation.score + delta)) },
+    }));
   },
 }));
