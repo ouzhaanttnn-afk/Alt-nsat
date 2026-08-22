@@ -19,7 +19,10 @@ export interface ReputationState {
 // Kullanıcı kararı: takı ürünleri (bilezik/yüzük/kolye) tek tek pazarlıkla
 // satılmıyor — vitrine konup sürekli oranlı pasif gelir üretiyor. Yatırımlık
 // ürünler (çeyrek/gram/yarım/tam/ata lira) ise doğrudan/aktif alınıp satılıyor.
-export type InventoryCategory = 'taki' | 'yatirim';
+// "pirlanta": gerçek para (mağaza içi satın alma) ile edinilen kalıcı,
+// vadesiz vitrin parçası — oyun içi altın ekonomisine (nakit/borç) hiç
+// dokunmaz, ayrı bir satın alma yoluyla (bkz. purchasePirlanta) eklenir.
+export type InventoryCategory = 'taki' | 'yatirim' | 'pirlanta';
 
 // Aynı ürün (ör. "Çeyrek Altın") farklı fiyatlardan birden fazla kez
 // alınabilir — bunlar tek bir pozisyonda toplanır, maliyet ortalaması
@@ -43,4 +46,8 @@ export interface InventoryItem {
    * kullanılmıyor (o zaten canlı kurdan, istenen an satılabiliyor).
    */
   estimatedValueTl?: number;
+  /** Sadece pırlanta: kalıcı, sabit günlük gelir (birim başına). */
+  dailyIncomeTl?: number;
+  /** Sadece pırlanta: mağaza fiyat etiketi (ör. "₺99,99"), bilgi amaçlı. */
+  realMoneyPriceLabel?: string;
 }

@@ -3,8 +3,10 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
 import { InventoryItemCard } from '../components/InventoryItemCard';
+import { PirlantaCard } from '../components/PirlantaCard';
 import { SectionLabel } from '../components/SectionLabel';
 import { TradingPositionCard } from '../components/TradingPositionCard';
+import { pirlantaCatalog } from '../data/mockPirlanta';
 import {
   currentPositionValueTl,
   useGameStore,
@@ -30,6 +32,7 @@ export function KasamScreen() {
   const sellInventoryItem = useGameStore((s) => s.sellInventoryItem);
   const realizedTradingProfitTl = useGameStore((s) => s.realizedTradingProfitTl);
   const lastVitrinMaturity = useGameStore((s) => s.lastVitrinMaturity);
+  const purchasePirlanta = useGameStore((s) => s.purchasePirlanta);
 
   const [saleBanner, setSaleBanner] = useState<{ profitTl: number } | null>(null);
   const saleBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -57,6 +60,7 @@ export function KasamScreen() {
 
   const vitrinItems = inventory.filter((item) => item.category === 'taki');
   const yatirimItems = inventory.filter((item) => item.category === 'yatirim');
+  const pirlantaItems = inventory.filter((item) => item.category === 'pirlanta');
 
   const vitrinValueTl = vitrinItems.reduce((sum, item) => sum + item.costBasisTl, 0);
   const vitrinDailyIncomeTl = vitrinItems.reduce((sum, item) => {
@@ -128,6 +132,35 @@ export function KasamScreen() {
             );
           })
         )}
+
+        <SectionLabel>PIRLANTA KOLEKSİYONU</SectionLabel>
+        <Text style={styles.emptyHint}>
+          Gerçek para ile edinilen kalıcı vitrin parçaları — vadesi yok, sonsuza kadar sabit gelir üretir.
+        </Text>
+        {pirlantaItems.map((item) => (
+          <PirlantaCard
+            key={item.id}
+            name={item.name}
+            karat={item.karat}
+            grams={item.grams}
+            dailyIncomeTl={(item.dailyIncomeTl ?? 0) * item.quantity}
+            priceLabel={item.realMoneyPriceLabel ?? ''}
+            owned
+            quantity={item.quantity}
+          />
+        ))}
+        {pirlantaCatalog.map((catalogItem) => (
+          <PirlantaCard
+            key={catalogItem.id}
+            name={catalogItem.name}
+            karat={catalogItem.karat}
+            grams={catalogItem.grams}
+            dailyIncomeTl={catalogItem.dailyIncomeTl}
+            priceLabel={catalogItem.priceLabel}
+            owned={false}
+            onBuy={() => purchasePirlanta(catalogItem)}
+          />
+        ))}
 
         <SectionLabel>YATIRIM ÜRÜNLERİN</SectionLabel>
         <Card>

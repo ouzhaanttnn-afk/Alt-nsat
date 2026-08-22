@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Opportunity } from '../components/OpportunityCard';
 import { marketOpportunities } from '../data/mockMarket';
+import type { PirlantaCatalogItem } from '../data/mockPirlanta';
 import type {
   CapitalState,
   GoldPriceState,
@@ -87,7 +88,7 @@ export function currentPositionValueTl(item: InventoryItem, buyPricePerGram: num
   return hasEquivalentGrams(item) * item.quantity * buyPricePerGram;
 }
 
-/** Stok değerini envanterden yeniden hesaplar: takı maliyet değerinde, yatırım güncel kurda. */
+/** Stok değerini envanterden yeniden hesaplar: takı/pırlanta sabit değerde, yatırım güncel kurda. */
 function computeStockValueTl(inventory: InventoryItem[], buyPricePerGram: number): number {
   return inventory.reduce((sum, item) => {
     if (item.category === 'yatirim') {
@@ -145,6 +146,13 @@ interface GameState {
   removeMarketListing: (id: string) => void;
   /** Alım-satım makasından bugüne kadar gerçekleşen toplam kâr/zarar. */
   realizedTradingProfitTl: number;
+  /**
+   * Gerçek para (mağaza içi satın alma) ile kalıcı bir pırlanta vitrin
+   * parçası ekler. YER TUTUCU: gerçek ödeme tahsilatı yapmaz, oyun içi
+   * nakit/borca hiç dokunmaz — App Store/Play Store IAP entegrasyonu
+   * bağlanınca bu eylem gerçek satın alma onayından sonra çağrılacak.
+   */
+  purchasePirlanta: (catalogItem: PirlantaCatalogItem) => void;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -231,6 +239,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     let maturedSampleName = '';
     const inventory: InventoryItem[] = [];
     for (const item of state.inventory) {
+      if (item.category === 'pirlanta') {
+        // Kalıcı vitrin parçası: vade yok, sabit günlük gelir sonsuza kadar sürer.
+        vitrinIncomeTl += (item.dailyIncomeTl ?? 0) * item.quantity * (gameMinutes / MINUTES_PER_DAY);
+        inventory.push(item);
+        continue;
+      }
       if (item.category !== 'taki') {
         inventory.push(item);
         continue;
@@ -375,5 +389,45 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       marketListings: state.marketListings.filter((listing) => listing.id !== id),
     }));
+  },
+
+  purchasePirlanta: (catalogItem) => {
+    const state = get();
+    const existingIndex = state.inventory.findIndex(
+      (i) => i.category === 'pirlanta' && i.name === catalogItem.name,
+    );
+
+    const inventory =
+      existingIndex >= 0
+        ? state.inventory.map((i, idx) =>
+            idx === existingIndex
+              ? { ...i, quantity: i.quantity + 1, costBasisTl: i.costBasisTl + catalogItem.symbolicValueTl }
+              : i,
+          )
+        : [
+            ...state.inventory,
+            {
+              id: String(nextInventoryId++),
+              name: catalogItem.name,
+              category: 'pirlanta',
+              karat: catalogItem.karat,
+              grams: catalogItem.grams,
+              quantity: 1,
+              costBasisTl: catalogItem.symbolicValueTl,
+              acquiredDay: state.day,
+              dailyIncomeTl: catalogItem.dailyIncomeTl,
+              realMoneyPriceLabel: catalogItem.priceLabel,
+            } satisfies InventoryItem,
+          ];
+
+    // Not: cashTl/debtTl'ye kasıtlı olarak dokunulmuyor — gerçek para,
+    // oyun içi altın ekonomisinden tamamen ayrı bir rayda.
+    set({
+      inventory,
+      capital: {
+        ...state.capital,
+        stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
+      },
+    });
   },
 }));
