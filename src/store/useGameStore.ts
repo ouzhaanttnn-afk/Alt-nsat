@@ -64,8 +64,9 @@ const LATE_PAYMENT_TRUST_PENALTY = 15;
 const MIN_TRUST_FOR_CREDIT = 30;
 
 // Bölüm 4.6: Teklifler — kaydırma çubuğuyla gönderilen bir teklif anında
-// sonuçlanmaz, müşterinin düşünmesi için bir süre "bekleyen" kalır.
-export const OFFER_RESOLUTION_DELAY_MINUTES = 240; // 4 oyun saati
+// sonuçlanmaz, müşterinin düşünmesi için bir süre "bekleyen" kalır. 4 oyun
+// saati fazla uzun hissettirdiği için 30 oyun dakikasına düşürüldü.
+export const OFFER_RESOLUTION_DELAY_MINUTES = 30;
 
 // Kullanıcı kararı: takı (bilezik/yüzük/kolye) tek tek pazarlıkla
 // satılmıyor — vitrine girip kendi kâr potansiyeline göre sürekli pasif
