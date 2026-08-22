@@ -21,13 +21,19 @@ export interface ReputationState {
 // ürünler (çeyrek/gram/yarım/tam/ata lira) ise doğrudan/aktif alınıp satılıyor.
 export type InventoryCategory = 'taki' | 'yatirim';
 
+// Aynı ürün (ör. "Çeyrek Altın") farklı fiyatlardan birden fazla kez
+// alınabilir — bunlar tek bir pozisyonda toplanır, maliyet ortalaması
+// alınır. Kullanıcı örneği: 10 tane 11.200'den + 5 tane 11.480'den →
+// costBasisTl = 10*11.200 + 5*11.480, ortalama = costBasisTl/quantity.
+// Kâr = satış anındaki güncel değer - costBasisTl (alış-satış makası).
 export interface InventoryItem {
   id: string;
   name: string;
   category: InventoryCategory;
   karat: number;
-  grams: number;
-  /** Takı için sabit vitrin değeri; yatırım ürününde satışta güncel kurla yeniden hesaplanır. */
-  valueTl: number;
+  grams: number; // birim başına gram
+  quantity: number; // adet
+  /** Bu pozisyon için toplam ödenen maliyet (adet başına ortalama = costBasisTl / quantity). */
+  costBasisTl: number;
   acquiredDay: number;
 }

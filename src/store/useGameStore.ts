@@ -67,18 +67,23 @@ function priceFromReference(reference: number): Pick<GoldPriceState, 'buyPricePe
   };
 }
 
-/** Has altın karşılığı: karat 24 üzerinden orantılanmış gram. */
+/** Has altın karşılığı: karat 24 üzerinden orantılanmış birim gram. */
 export function hasEquivalentGrams(item: InventoryItem): number {
   return item.grams * (item.karat / 24);
 }
 
-/** Stok değerini envanterden yeniden hesaplar: takı sabit değerde, yatırım güncel kurda. */
+/** Bir pozisyonun güncel toplam değeri (tüm adet dahil, canlı kurdan). */
+export function currentPositionValueTl(item: InventoryItem, buyPricePerGram: number): number {
+  return hasEquivalentGrams(item) * item.quantity * buyPricePerGram;
+}
+
+/** Stok değerini envanterden yeniden hesaplar: takı maliyet değerinde, yatırım güncel kurda. */
 function computeStockValueTl(inventory: InventoryItem[], buyPricePerGram: number): number {
   return inventory.reduce((sum, item) => {
     if (item.category === 'yatirim') {
-      return sum + hasEquivalentGrams(item) * buyPricePerGram;
+      return sum + currentPositionValueTl(item, buyPricePerGram);
     }
-    return sum + item.valueTl;
+    return sum + item.costBasisTl;
   }, 0);
 }
 
@@ -112,12 +117,14 @@ interface GameState {
     paidAmountTl: number,
     item: { name: string; category: InventoryCategory; karat: number; grams: number; marketValueTl: number },
   ) => { success: true; borrowedTl: number } | { success: false; borrowedTl: 0 };
-  /** Bir yatırım ürününü güncel kurdan nakde çevirir. */
-  sellInventoryItem: (itemId: string) => void;
+  /** Bir yatırım pozisyonunun tamamını güncel kurdan nakde çevirir; alış-satış makasından gerçekleşen kârı döner. */
+  sellInventoryItem: (itemId: string) => { saleValueTl: number; profitTl: number; quantity: number } | null;
   /** Nakitten borcu (kısmen ya da tamamen) kapatır. */
   repayDebt: (amountTl: number) => void;
   /** Satın alınan bir Piyasa fırsatını listeden kaldırır. */
   removeMarketListing: (id: string) => void;
+  /** Alım-satım makasından bugüne kadar gerçekleşen toplam kâr/zarar. */
+  realizedTradingProfitTl: number;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -143,6 +150,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   lastJumpEvent: null,
   wholesalerTrust: STARTING_WHOLESALER_TRUST,
   loanDueDay: null,
+  realizedTradingProfitTl: 0,
 
   setSpeed: (speed) => set({ speed }),
 
@@ -196,7 +204,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Vitrindeki takının toplam değeri üzerinden sürekli oranlı pasif gelir.
     const vitrinValueTl = state.inventory
       .filter((item) => item.category === 'taki')
-      .reduce((sum, item) => sum + item.valueTl, 0);
+      .reduce((sum, item) => sum + item.costBasisTl, 0);
     const passiveIncomeTl = vitrinValueTl * TAKI_PASSIVE_INCOME_RATE_PER_DAY * (gameMinutes / MINUTES_PER_DAY);
 
     set({
@@ -230,16 +238,37 @@ export const useGameStore = create<GameState>((set, get) => ({
     const loanDueDay =
       shortfall > 0 && state.loanDueDay === null ? state.day + LOAN_TERM_DAYS : state.loanDueDay;
 
-    const newItem: InventoryItem = {
-      id: String(nextInventoryId++),
-      name: item.name,
-      category: item.category,
-      karat: item.karat,
-      grams: item.grams,
-      valueTl: item.marketValueTl,
-      acquiredDay: state.day,
-    };
-    const inventory = [...state.inventory, newItem];
+    // Aynı ürün (isim/kategori/ayar/gram eşleşen) zaten envanterdeyse
+    // yeni alım o pozisyona eklenir ve maliyet ortalaması güncellenir;
+    // yoksa yeni bir pozisyon açılır.
+    const existingIndex = state.inventory.findIndex(
+      (i) =>
+        i.name === item.name &&
+        i.category === item.category &&
+        i.karat === item.karat &&
+        i.grams === item.grams,
+    );
+
+    const inventory =
+      existingIndex >= 0
+        ? state.inventory.map((i, idx) =>
+            idx === existingIndex
+              ? { ...i, quantity: i.quantity + 1, costBasisTl: i.costBasisTl + paidAmountTl }
+              : i,
+          )
+        : [
+            ...state.inventory,
+            {
+              id: String(nextInventoryId++),
+              name: item.name,
+              category: item.category,
+              karat: item.karat,
+              grams: item.grams,
+              quantity: 1,
+              costBasisTl: paidAmountTl,
+              acquiredDay: state.day,
+            } satisfies InventoryItem,
+          ];
 
     set({
       inventory,
@@ -257,19 +286,22 @@ export const useGameStore = create<GameState>((set, get) => ({
   sellInventoryItem: (itemId) => {
     const state = get();
     const item = state.inventory.find((i) => i.id === itemId);
-    if (!item || item.category !== 'yatirim') return;
+    if (!item || item.category !== 'yatirim') return null;
 
-    const saleValueTl = hasEquivalentGrams(item) * state.goldPrice.buyPricePerGram;
+    const saleValueTl = currentPositionValueTl(item, state.goldPrice.buyPricePerGram);
+    const profitTl = saleValueTl - item.costBasisTl;
     const inventory = state.inventory.filter((i) => i.id !== itemId);
 
     set({
       inventory,
+      realizedTradingProfitTl: state.realizedTradingProfitTl + profitTl,
       capital: {
         ...state.capital,
         cashTl: state.capital.cashTl + saleValueTl,
         stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
       },
     });
+    return { saleValueTl, profitTl, quantity: item.quantity };
   },
 
   repayDebt: (amountTl) => {
