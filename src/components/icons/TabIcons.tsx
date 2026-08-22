@@ -46,15 +46,6 @@ export function SafeTabIcon({ color, size = 22 }: TabIconProps) {
   );
 }
 
-export function InvestTabIcon({ color, size = 22 }: TabIconProps) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M4 17v-3.5M9.5 17V9M15 17v-6M20 17V6" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
-      <Path d="M4 20h16" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
 export function OffersTabIcon({ color, size = 22 }: TabIconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">

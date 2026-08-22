@@ -25,7 +25,6 @@ export type MainTabsParamList = {
   Dükkân: undefined;
   Piyasa: undefined;
   Kasam: undefined;
-  Yatırımlar: undefined;
   Teklifler: undefined;
   Profil: undefined;
 };

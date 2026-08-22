@@ -203,9 +203,9 @@ interface GameState {
   /** Bir yatırım pozisyonunun tamamını güncel kurdan nakde çevirir; alış-satış makasından gerçekleşen kârı döner. */
   sellInventoryItem: (itemId: string) => { saleValueTl: number; profitTl: number; quantity: number } | null;
   /**
-   * Bölüm 4.5: Yatırımlar — basılı yatırım altını (gram/çeyrek/vb.) için
-   * pazarlıksız, her an açık borsa masası. Güncel SATIŞ kurundan, sadece
-   * nakit yettiği kadar (borç/kredi yok) anında satın alır.
+   * Piyasa: Toptancıdan Stok Al — pazarlıksız, her an açık restok. Güncel
+   * SATIŞ kurundan, sadece nakit yettiği kadar (borç/kredi yok) anında
+   * satın alır.
    */
   buyInvestmentUnits: (
     spec: { name: string; karat: number; grams: number; category: InventoryCategory },
@@ -417,32 +417,64 @@ export const useGameStore = create<GameState>()(
         : state.lastVitrinMaturity;
 
     // Piyasa: aktif müşterinin süresi dolduysa ya da istediği ürün stoktan
-    // tükendiyse (0 adet kaldıysa) müşteri elini boş dönüp gider; aktif
-    // müşteri yoksa stokta satılabilir bir şey varken düşük bir olasılıkla
-    // yeni bir müşteri gelir.
+    // tükendiyse müşteri elini boş dönüp gider; aktif müşteri yoksa stokta
+    // satılabilir bir şey varken düşük bir olasılıkla yeni bir müşteri gelir.
     let incomingCustomer = postOfferState.incomingCustomer;
     if (incomingCustomer) {
       const target = inventory.find((i) => i.id === incomingCustomer!.inventoryItemId);
-      if (!target || target.quantity <= 0 || currentTotalMinutes >= incomingCustomer.expiresAtTotalMinutes) {
+      if (
+        !target ||
+        target.quantity < incomingCustomer.unitsRequired ||
+        currentTotalMinutes >= incomingCustomer.expiresAtTotalMinutes
+      ) {
         incomingCustomer = null;
       }
     } else {
-      const eligible = inventory.filter(
-        (i) => (i.category === 'taki' || i.category === 'yatirim') && i.quantity > 0,
-      );
-      if (eligible.length > 0 && Math.random() < INCOMING_CUSTOMER_PROBABILITY_PER_MINUTE * gameMinutes) {
-        const target = eligible[Math.floor(Math.random() * eligible.length)];
+      // Cumhuriyet (Tam) Altını değerce 4 Çeyrek'e, Yarım Altın 2 Çeyrek'e
+      // eşit olduğundan ayrı stok tutulmuyor — müşteri isteği Çeyrek
+      // stoğundan bu kadarı düşülerek karşılanıyor.
+      const candidates = inventory
+        .filter((i) => (i.category === 'taki' || i.category === 'yatirim') && i.quantity > 0)
+        .map((item) => ({
+          target: item,
+          unitsRequired: 1,
+          displayName: item.name,
+          displayKarat: item.karat,
+          displayGrams: item.grams,
+        }));
+      const ceyrek = inventory.find((i) => i.category === 'yatirim' && i.name === 'Çeyrek Altın');
+      if (ceyrek && ceyrek.quantity >= 2) {
+        candidates.push({
+          target: ceyrek,
+          unitsRequired: 2,
+          displayName: 'Yarım Altın',
+          displayKarat: 22,
+          displayGrams: 3.5,
+        });
+      }
+      if (ceyrek && ceyrek.quantity >= 4) {
+        candidates.push({
+          target: ceyrek,
+          unitsRequired: 4,
+          displayName: 'Cumhuriyet Altını (Tam Altın)',
+          displayKarat: 22,
+          displayGrams: 7.02,
+        });
+      }
+
+      if (candidates.length > 0 && Math.random() < INCOMING_CUSTOMER_PROBABILITY_PER_MINUTE * gameMinutes) {
+        const candidate = candidates[Math.floor(Math.random() * candidates.length)];
         const archetype =
           INCOMING_CUSTOMER_ARCHETYPES[Math.floor(Math.random() * INCOMING_CUSTOMER_ARCHETYPES.length)];
         const customerName =
           INCOMING_CUSTOMER_NAMES[Math.floor(Math.random() * INCOMING_CUSTOMER_NAMES.length)];
-        const marketValueTl = equivalentGrams(target.grams, target.karat) * nextSellPrice;
+        const marketValueTl = equivalentGrams(candidate.displayGrams, candidate.displayKarat) * nextSellPrice;
         incomingCustomer = {
           id: String(nextIncomingCustomerId++),
           customer: {
             name: customerName,
             type: archetype.type,
-            request: `${target.name} almak istiyorum, elindeki en iyi fiyatı öğrenmek isterim.`,
+            request: `${candidate.displayName} almak istiyorum, elindeki en iyi fiyatı öğrenmek isterim.`,
             urgency: archetype.urgency,
             bargainingStyle: archetype.bargainingStyle,
             // Bölüm 4.3: satış modunda bu, müşterinin ödemeye razı olduğu
@@ -451,14 +483,15 @@ export const useGameStore = create<GameState>()(
             acceptanceThreshold: archetype.maxPayRatio,
           },
           product: {
-            name: target.name,
+            name: candidate.displayName,
             source: 'Dükkân stoğu',
-            category: target.category,
-            karat: target.karat,
-            grams: target.grams,
+            category: candidate.target.category,
+            karat: candidate.displayKarat,
+            grams: candidate.displayGrams,
             marketValueTl,
           },
-          inventoryItemId: target.id,
+          inventoryItemId: candidate.target.id,
+          unitsRequired: candidate.unitsRequired,
           expiresAtTotalMinutes: currentTotalMinutes + INCOMING_CUSTOMER_EXPIRY_MINUTES,
         };
       }
@@ -706,21 +739,22 @@ export const useGameStore = create<GameState>()(
     }
 
     const item = state.inventory.find((i) => i.id === customer.inventoryItemId);
-    if (!item || item.quantity <= 0) {
+    if (!item || item.quantity < customer.unitsRequired) {
       set({ incomingCustomer: null });
       return null;
     }
 
     const amountTl = saleAmountTl ?? 0;
     const costBasisPerUnit = item.costBasisTl / item.quantity;
-    const profitTl = amountTl - costBasisPerUnit;
-    const remainingQuantity = item.quantity - 1;
+    const soldCostBasisTl = costBasisPerUnit * customer.unitsRequired;
+    const profitTl = amountTl - soldCostBasisTl;
+    const remainingQuantity = item.quantity - customer.unitsRequired;
 
     const inventory =
       remainingQuantity > 0
         ? state.inventory.map((i) =>
             i.id === item.id
-              ? { ...i, quantity: remainingQuantity, costBasisTl: i.costBasisTl - costBasisPerUnit }
+              ? { ...i, quantity: remainingQuantity, costBasisTl: i.costBasisTl - soldCostBasisTl }
               : i,
           )
         : state.inventory.filter((i) => i.id !== item.id);
@@ -802,7 +836,7 @@ export const useGameStore = create<GameState>()(
   setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
     }),
     {
-      name: 'cepkaynak-save-v3',
+      name: 'cepkaynak-save-v4',
       storage: createJSONStorage(() => AsyncStorage),
       // Skill tanımları/oyun kodu değişse bile eski kayıtlar yüklenebilsin diye
       // sadece serileştirilebilir oyun verisi tutulur — aksiyon fonksiyonları

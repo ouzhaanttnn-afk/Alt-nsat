@@ -2,7 +2,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
-  InvestTabIcon,
   MarketTabIcon,
   OffersTabIcon,
   ProfileTabIcon,
@@ -16,10 +15,9 @@ import { PazarlikScreen } from '../screens/PazarlikScreen';
 import { PiyasaScreen } from '../screens/PiyasaScreen';
 import { ProfilScreen } from '../screens/ProfilScreen';
 import { TekliflerScreen } from '../screens/TekliflerScreen';
-import { YatirimlarScreen } from '../screens/YatirimlarScreen';
 import type { RootStackParamList } from './types';
 
-// Bölüm 4: Alt navigasyon — 6 sabit sekme, emoji yok, sade çizgi ikonlar.
+// Bölüm 4: Alt navigasyon — 5 sabit sekme, emoji yok, sade çizgi ikonlar.
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -56,11 +54,6 @@ function MainTabs() {
         name="Kasam"
         component={KasamScreen}
         options={{ tabBarIcon: ({ color }) => <SafeTabIcon color={color} /> }}
-      />
-      <Tab.Screen
-        name="Yatırımlar"
-        component={YatirimlarScreen}
-        options={{ tabBarIcon: ({ color }) => <InvestTabIcon color={color} /> }}
       />
       <Tab.Screen
         name="Teklifler"

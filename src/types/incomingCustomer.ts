@@ -11,5 +11,12 @@ export interface IncomingCustomer {
   product: NegotiationProduct;
   /** Müşterinin almak istediği, dükkânın stoğundaki envanter kalemi. */
   inventoryItemId: string;
+  /**
+   * Satış tamamlanınca inventoryItemId'den düşülecek adet. Çoğu zaman 1;
+   * Cumhuriyet (Tam) Altını 4 Çeyrek'e, Yarım Altın 2 Çeyrek'e değerce eşit
+   * olduğundan bunlar için stok tutmak yerine Çeyrek stoğundan bu kadarı
+   * düşülür (bkz. useGameStore'daki bileşik ürün mantığı).
+   */
+  unitsRequired: number;
   expiresAtTotalMinutes: number;
 }

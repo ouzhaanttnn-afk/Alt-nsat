@@ -2,18 +2,18 @@ import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomerArrivalCard } from '../components/CustomerArrivalCard';
-import { InvestmentExchangeCard } from '../components/InvestmentExchangeCard';
 import { SectionLabel } from '../components/SectionLabel';
-import { toptanciTakiStock } from '../data/toptanciStock';
+import { StockCard } from '../components/StockCard';
+import { toptanciStock } from '../data/toptanciStock';
 import type { RootStackParamList } from '../navigation/types';
 import { useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 
 // Bölüm 4.2: Piyasa — artık tek seferlik statik fırsat listesi değil, iki
-// bölümden oluşuyor: (1) Toptancıdan Stok Al — takı için her an açık,
-// pazarlıksız restok masası (yatırım altınının borsa masasıyla aynı
-// mantık); (2) dükkâna sürekli akan, stoktan bir şey almak isteyen müşteri
-// — dokununca Pazarlık ekranını satış modunda açar.
+// bölümden oluşuyor: (1) Toptancıdan Stok Al — sarrafiye stoğu (gram/çeyrek
+// altın + bilezik) için her an açık, pazarlıksız restok masası; (2)
+// dükkâna sürekli akan, stoktan bir şey almak isteyen müşteri — dokununca
+// Pazarlık ekranını satış modunda açar.
 export function PiyasaScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const inventory = useGameStore((s) => s.inventory);
@@ -32,7 +32,7 @@ export function PiyasaScreen() {
         </View>
 
         <SectionLabel>TOPTANCIDAN STOK AL</SectionLabel>
-        {toptanciTakiStock.map((spec) => {
+        {toptanciStock.map((spec) => {
           const ownedItem = inventory.find(
             (item) =>
               item.category === spec.category &&
@@ -41,13 +41,12 @@ export function PiyasaScreen() {
               item.grams === spec.grams,
           );
           return (
-            <InvestmentExchangeCard
+            <StockCard
               key={spec.id}
               spec={spec}
               goldPrice={goldPrice}
               cashTl={cashTl}
               ownedItem={ownedItem}
-              sellable={false}
               onBuy={(quantity) => buyInvestmentUnits(spec, quantity)}
             />
           );
