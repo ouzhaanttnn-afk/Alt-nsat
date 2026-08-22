@@ -47,6 +47,7 @@ export function opportunityToNegotiation(opportunity: Opportunity): {
     karat: opportunity.karat,
     grams: opportunity.grams,
     marketValueTl: opportunity.buyPriceTl,
+    estimatedSellPriceTl: opportunity.estimatedSellPriceTl,
     sealVerified: opportunity.sealVerified,
   };
 

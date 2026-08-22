@@ -21,5 +21,7 @@ export interface NegotiationProduct {
   karat: number;
   grams: number;
   marketValueTl: number;
+  /** Sadece takı: vitrin vadesi sonunda beklenen satış değeri (pasif gelir oranını belirler). */
+  estimatedSellPriceTl?: number;
   sealVerified?: boolean;
 }

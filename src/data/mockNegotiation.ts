@@ -20,6 +20,7 @@ export const negotiationProduct: NegotiationProduct = {
   karat: 14,
   grams: 3.85,
   marketValueTl: 9900,
+  estimatedSellPriceTl: 13600,
   sealVerified: false,
 };
 

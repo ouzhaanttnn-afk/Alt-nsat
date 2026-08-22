@@ -16,6 +16,12 @@ export interface JumpEvent {
   day: number;
 }
 
+export interface VitrinMaturityEvent {
+  count: number;
+  totalPayoutTl: number;
+  sampleName: string;
+}
+
 // Bölüm 2: Oyuncu 1 kg has altınla başlar. "Açık nokta" olarak bırakılan
 // likit/teminat ayrımı şöyle çözüldü: 200g nakde çevrilip kasaya konuyor,
 // 800g fiziksel rezerv (SERMAYEN başlığı) olarak kalıyor. Tamamı rezerv
@@ -55,10 +61,14 @@ const LATE_PAYMENT_TRUST_PENALTY = 15;
 const MIN_TRUST_FOR_CREDIT = 30;
 
 // Kullanıcı kararı: takı (bilezik/yüzük/kolye) tek tek pazarlıkla
-// satılmıyor — vitrine girip toplam değerinin sabit bir günlük oranı
-// kadar sürekli pasif gelir üretiyor. Yatırım altını (çeyrek/gram/vb.)
-// ise doğrudan/aktif alınıp satılıyor, değeri güncel kurla dalgalanır.
-export const TAKI_PASSIVE_INCOME_RATE_PER_DAY = 0.015;
+// satılmıyor — vitrine girip kendi kâr potansiyeline göre sürekli pasif
+// gelir üretiyor (yüksek marjlı ürün günde daha çok kazandırır). 30 gün
+// (vitrin vadesi) dolunca ürün "satılmış" sayılır: o güne kadar zaten
+// beklenen kârının tamamını gün gün tahsil etmiştir, vade sonunda sadece
+// ödediği maliyet nakde döner ve vitrinden kalkar. Yatırım altını
+// (çeyrek/gram/vb.) ise doğrudan/aktif alınıp satılıyor, değeri güncel
+// kurla dalgalanır, vade kavramı yok.
+export const VITRIN_TERM_DAYS = 30;
 
 function priceFromReference(reference: number): Pick<GoldPriceState, 'buyPricePerGram' | 'sellPricePerGram'> {
   return {
@@ -104,6 +114,8 @@ interface GameState {
   wholesalerTrust: number;
   /** Aktif borcun ödenmesi gereken oyun günü; borç yoksa null. */
   loanDueDay: number | null;
+  /** En son tick'te vadesi dolup vitrinden kalkan takı(lar) — banner için. */
+  lastVitrinMaturity: VitrinMaturityEvent | null;
   setSpeed: (speed: ClockSpeed) => void;
   /** Gerçek zamanda geçen saniyeyi oyun saatine, altın fiyatına ve pasif gelire işler. */
   tick: (realSecondsElapsed: number) => void;
@@ -115,7 +127,15 @@ interface GameState {
    */
   settleDeal: (
     paidAmountTl: number,
-    item: { name: string; category: InventoryCategory; karat: number; grams: number; marketValueTl: number },
+    item: {
+      name: string;
+      category: InventoryCategory;
+      karat: number;
+      grams: number;
+      marketValueTl: number;
+      /** Sadece takı: vitrin vadesi sonunda beklenen satış değeri. */
+      estimatedSellPriceTl?: number;
+    },
   ) => { success: true; borrowedTl: number } | { success: false; borrowedTl: 0 };
   /** Bir yatırım pozisyonunun tamamını güncel kurdan nakde çevirir; alış-satış makasından gerçekleşen kârı döner. */
   sellInventoryItem: (itemId: string) => { saleValueTl: number; profitTl: number; quantity: number } | null;
@@ -150,6 +170,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   lastJumpEvent: null,
   wholesalerTrust: STARTING_WHOLESALER_TRUST,
   loanDueDay: null,
+  lastVitrinMaturity: null,
   realizedTradingProfitTl: 0,
 
   setSpeed: (speed) => set({ speed }),
@@ -201,11 +222,35 @@ export const useGameStore = create<GameState>((set, get) => ({
       loanDueDay = null;
     }
 
-    // Vitrindeki takının toplam değeri üzerinden sürekli oranlı pasif gelir.
-    const vitrinValueTl = state.inventory
-      .filter((item) => item.category === 'taki')
-      .reduce((sum, item) => sum + item.costBasisTl, 0);
-    const passiveIncomeTl = vitrinValueTl * TAKI_PASSIVE_INCOME_RATE_PER_DAY * (gameMinutes / MINUTES_PER_DAY);
+    // Her takı kendi kâr potansiyeline göre günlük pasif gelir üretir;
+    // vitrin vadesi (30 gün) dolan ürün "satılmış" sayılıp maliyeti
+    // nakde döner ve envanterden kalkar.
+    let vitrinIncomeTl = 0;
+    let maturedCount = 0;
+    let maturedPayoutTl = 0;
+    let maturedSampleName = '';
+    const inventory: InventoryItem[] = [];
+    for (const item of state.inventory) {
+      if (item.category !== 'taki') {
+        inventory.push(item);
+        continue;
+      }
+      const ageInDays = day - item.acquiredDay;
+      if (ageInDays >= VITRIN_TERM_DAYS) {
+        maturedCount += 1;
+        maturedPayoutTl += item.costBasisTl;
+        maturedSampleName = item.name;
+        continue;
+      }
+      const expectedProfitTl = (item.estimatedValueTl ?? item.costBasisTl) - item.costBasisTl;
+      const dailyIncomeTl = expectedProfitTl / VITRIN_TERM_DAYS;
+      vitrinIncomeTl += dailyIncomeTl * (gameMinutes / MINUTES_PER_DAY);
+      inventory.push(item);
+    }
+    const lastVitrinMaturity: VitrinMaturityEvent | null =
+      maturedCount > 0
+        ? { count: maturedCount, totalPayoutTl: maturedPayoutTl, sampleName: maturedSampleName }
+        : state.lastVitrinMaturity;
 
     set({
       minuteOfDay,
@@ -214,10 +259,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       lastJumpEvent: jumpEvent,
       wholesalerTrust,
       loanDueDay,
+      inventory,
+      lastVitrinMaturity,
       capital: {
         ...state.capital,
-        cashTl: state.capital.cashTl + passiveIncomeTl,
-        stockValueTl: computeStockValueTl(state.inventory, nextBuyPrice),
+        cashTl: state.capital.cashTl + vitrinIncomeTl + maturedPayoutTl,
+        stockValueTl: computeStockValueTl(inventory, nextBuyPrice),
       },
       goldPrice: {
         ...priceFromReference(nextReference),
@@ -238,16 +285,20 @@ export const useGameStore = create<GameState>((set, get) => ({
     const loanDueDay =
       shortfall > 0 && state.loanDueDay === null ? state.day + LOAN_TERM_DAYS : state.loanDueDay;
 
-    // Aynı ürün (isim/kategori/ayar/gram eşleşen) zaten envanterdeyse
-    // yeni alım o pozisyona eklenir ve maliyet ortalaması güncellenir;
-    // yoksa yeni bir pozisyon açılır.
-    const existingIndex = state.inventory.findIndex(
-      (i) =>
-        i.name === item.name &&
-        i.category === item.category &&
-        i.karat === item.karat &&
-        i.grams === item.grams,
-    );
+    // Yatırım altını fungible olduğu için aynı ürün (isim/kategori/ayar/
+    // gram eşleşen) zaten envanterdeyse yeni alım o pozisyona eklenir ve
+    // maliyet ortalaması güncellenir. Takı ise her parça kendi 30 günlük
+    // vitrin vadesini ayrı işletmesi gerektiğinden hiçbir zaman birleşmez.
+    const existingIndex =
+      item.category === 'yatirim'
+        ? state.inventory.findIndex(
+            (i) =>
+              i.name === item.name &&
+              i.category === item.category &&
+              i.karat === item.karat &&
+              i.grams === item.grams,
+          )
+        : -1;
 
     const inventory =
       existingIndex >= 0
@@ -267,6 +318,7 @@ export const useGameStore = create<GameState>((set, get) => ({
               quantity: 1,
               costBasisTl: paidAmountTl,
               acquiredDay: state.day,
+              estimatedValueTl: item.estimatedSellPriceTl,
             } satisfies InventoryItem,
           ];
 

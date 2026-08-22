@@ -75,6 +75,7 @@ export function PazarlikScreen() {
       karat: product.karat,
       grams: product.grams,
       marketValueTl: product.marketValueTl,
+      estimatedSellPriceTl: product.estimatedSellPriceTl,
     });
     setOffer(amount);
     if (!outcome.success) {

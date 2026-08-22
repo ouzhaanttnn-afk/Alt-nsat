@@ -36,4 +36,11 @@ export interface InventoryItem {
   /** Bu pozisyon için toplam ödenen maliyet (adet başına ortalama = costBasisTl / quantity). */
   costBasisTl: number;
   acquiredDay: number;
+  /**
+   * Sadece takı: vitrin vadesi (30 gün) sonunda ulaşılacak tahmini satış
+   * değeri. Günlük pasif gelir = (estimatedValueTl - costBasisTl) / 30 gün
+   * — yani her takı kendi kâr potansiyeline göre kazandırır. Yatırımda
+   * kullanılmıyor (o zaten canlı kurdan, istenen an satılabiliyor).
+   */
+  estimatedValueTl?: number;
 }
