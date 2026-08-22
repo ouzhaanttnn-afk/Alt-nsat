@@ -7,6 +7,7 @@ export const marketOpportunities: Opportunity[] = [
   {
     productName: 'Burma Bilezik',
     source: 'Toptancı',
+    sourceType: 'toptanci',
     karat: 22,
     grams: 21.73,
     buyPriceTl: 11800,
@@ -17,6 +18,7 @@ export const marketOpportunities: Opportunity[] = [
   {
     productName: 'Tektaş Yüzük',
     source: 'Ayşe Hanım getirdi',
+    sourceType: 'bozdurma',
     karat: 14,
     grams: 3.85,
     buyPriceTl: 7200,
@@ -26,6 +28,7 @@ export const marketOpportunities: Opportunity[] = [
   {
     productName: 'Set (Kolye + Küpe)',
     source: 'Toptancı',
+    sourceType: 'toptanci',
     karat: 22,
     grams: 34.2,
     buyPriceTl: 19500,
@@ -36,6 +39,7 @@ export const marketOpportunities: Opportunity[] = [
   {
     productName: 'Zincir Kolye',
     source: 'Hasan Bey getirdi',
+    sourceType: 'bozdurma',
     karat: 14,
     grams: 12.4,
     buyPriceTl: 8100,
@@ -45,6 +49,7 @@ export const marketOpportunities: Opportunity[] = [
   {
     productName: 'Alyans Çifti',
     source: 'Toptancı',
+    sourceType: 'toptanci',
     karat: 22,
     grams: 9.6,
     buyPriceTl: 6300,
@@ -54,6 +59,7 @@ export const marketOpportunities: Opportunity[] = [
   {
     productName: 'Beşibiryerde',
     source: 'Fatma Hanım getirdi',
+    sourceType: 'bozdurma',
     karat: 22,
     grams: 15.5,
     buyPriceTl: 13400,

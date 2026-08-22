@@ -13,6 +13,7 @@ export const dailyGoalSteps: DailyGoalStep[] = [
 export const todaysOpportunity: Opportunity = {
   productName: 'Burma Bilezik',
   source: 'Toptancı',
+  sourceType: 'toptanci',
   karat: 22,
   grams: 21.73,
   buyPriceTl: 11800,

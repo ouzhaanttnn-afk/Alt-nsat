@@ -7,9 +7,12 @@ import { Card } from './Card';
 import { RingIcon } from './icons/RingIcon';
 import { SealIcon } from './icons/SealIcon';
 
+export type OpportunitySource = 'toptanci' | 'bozdurma';
+
 export interface Opportunity {
   productName: string;
   source: string;
+  sourceType: OpportunitySource;
   karat: number;
   grams: number;
   buyPriceTl: number;
