@@ -1,4 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import type { Opportunity } from '../components/OpportunityCard';
 import { marketOpportunities } from '../data/mockMarket';
 import type { PirlantaCatalogItem } from '../data/mockPirlanta';
@@ -225,6 +227,10 @@ interface GameState {
   levelUpSkill: (skillId: string) => boolean;
   /** İtibarı 0-100 aralığında sınırlayarak değiştirir (skill etkileri, gelecekte olaylar vb. için). */
   adjustReputation: (delta: number) => void;
+
+  /** Kalıcı kayıt (AsyncStorage) yüklenene kadar false — bkz. App.tsx'teki yükleme ekranı. */
+  hasHydrated: boolean;
+  setHasHydrated: (hydrated: boolean) => void;
 }
 
 // Oyuncu zaten bu kademeleri geçmiş sayılıp buna karşılık gelen puanla başlıyor
@@ -232,7 +238,9 @@ interface GameState {
 const STARTING_NET_WORTH_TL = (STARTING_CASH_GRAMS + STARTING_RESERVE_GRAMS) * STARTING_REFERENCE_PRICE;
 const STARTING_CAPITAL_TIER_INDEX = tierIndexForNetWorth(STARTING_NET_WORTH_TL);
 
-export const useGameStore = create<GameState>((set, get) => ({
+export const useGameStore = create<GameState>()(
+  persist(
+    (set, get) => ({
   capital: {
     goldGrams: STARTING_RESERVE_GRAMS,
     cashTl: STARTING_CASH_GRAMS * STARTING_REFERENCE_PRICE,
@@ -667,4 +675,38 @@ export const useGameStore = create<GameState>((set, get) => ({
       reputation: { score: Math.max(0, Math.min(100, state.reputation.score + delta)) },
     }));
   },
-}));
+
+  hasHydrated: false,
+  setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
+    }),
+    {
+      name: 'cepkaynak-save-v1',
+      storage: createJSONStorage(() => AsyncStorage),
+      // Skill tanımları/oyun kodu değişse bile eski kayıtlar yüklenebilsin diye
+      // sadece serileştirilebilir oyun verisi tutulur — aksiyon fonksiyonları
+      // ve geçici banner alanları (lastJumpEvent/lastVitrinMaturity/hasHydrated)
+      // hariç tutulur.
+      partialize: (state) => ({
+        capital: state.capital,
+        goldPrice: state.goldPrice,
+        reputation: state.reputation,
+        inventory: state.inventory,
+        marketListings: state.marketListings,
+        offers: state.offers,
+        day: state.day,
+        minuteOfDay: state.minuteOfDay,
+        speed: state.speed,
+        referencePriceAtDayStart: state.referencePriceAtDayStart,
+        wholesalerTrust: state.wholesalerTrust,
+        loanDueDay: state.loanDueDay,
+        realizedTradingProfitTl: state.realizedTradingProfitTl,
+        skillPoints: state.skillPoints,
+        skillLevels: state.skillLevels,
+        highestCapitalTierIndex: state.highestCapitalTierIndex,
+      }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
+    },
+  ),
+);

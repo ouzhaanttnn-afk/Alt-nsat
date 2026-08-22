@@ -18,6 +18,7 @@ import { useCallback } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useGameClock } from './src/hooks/useGameClock';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { useGameStore } from './src/store/useGameStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -32,15 +33,22 @@ export default function App() {
     IBMPlexMono_600SemiBold,
   });
 
+  // Kalıcı kayıt (AsyncStorage) yüklenmeden önce oyun ekranı gösterilmez —
+  // aksi halde bir anlığına sıfırdan başlayan durum görünüp kayıtlı
+  // veriyle üzerine yazılabilir.
+  const hasHydrated = useGameStore((s) => s.hasHydrated);
+
   useGameClock();
 
+  const ready = fontsLoaded && hasHydrated;
+
   const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded) {
+    if (ready) {
       await SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [ready]);
 
-  if (!fontsLoaded) {
+  if (!ready) {
     return null;
   }
 
