@@ -1,27 +1,49 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActiveOfferSummary } from '../components/ActiveOfferSummary';
 import { CapitalSummary } from '../components/CapitalSummary';
 import { DailyGoalCard } from '../components/DailyGoalCard';
 import { GoldTicker } from '../components/GoldTicker';
+import { JumpEventBanner } from '../components/JumpEventBanner';
 import { OpportunityCard } from '../components/OpportunityCard';
 import { ReputationGauge } from '../components/ReputationGauge';
 import { SectionLabel } from '../components/SectionLabel';
+import { SpeedControl } from '../components/SpeedControl';
 import { activeOffer, dailyGoalSteps, todaysOpportunity } from '../data/mockHome';
 import type { RootStackParamList } from '../navigation/types';
-import { useGameStore } from '../store/useGameStore';
+import { useGameStore, type JumpEvent } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
+import { formatGameTime } from '../utils/format';
+
+const JUMP_BANNER_VISIBLE_MS = 4000;
 
 // Bölüm 4.1: Ana Ekran — Sermaye, gün sayacı, itibar, günün hedefi,
-// günün fırsatı, aktif teklif özeti, gram altın ticker.
+// günün fırsatı, aktif teklif özeti, gram altın ticker, zaman hızı kontrolü.
 export function DukkanScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const capital = useGameStore((s) => s.capital);
   const goldPrice = useGameStore((s) => s.goldPrice);
   const reputation = useGameStore((s) => s.reputation);
   const day = useGameStore((s) => s.day);
+  const minuteOfDay = useGameStore((s) => s.minuteOfDay);
+  const speed = useGameStore((s) => s.speed);
+  const setSpeed = useGameStore((s) => s.setSpeed);
+  const lastJumpEvent = useGameStore((s) => s.lastJumpEvent);
+
+  const [visibleJump, setVisibleJump] = useState<JumpEvent | null>(null);
+  const seenJumpRef = useRef<JumpEvent | null>(null);
+
+  useEffect(() => {
+    if (lastJumpEvent && lastJumpEvent !== seenJumpRef.current) {
+      seenJumpRef.current = lastJumpEvent;
+      setVisibleJump(lastJumpEvent);
+      const timer = setTimeout(() => setVisibleJump(null), JUMP_BANNER_VISIBLE_MS);
+      return () => clearTimeout(timer);
+    }
+  }, [lastJumpEvent]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -29,10 +51,18 @@ export function DukkanScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.wordmark}>CEPKAYNAK</Text>
-            <Text style={styles.dayLabel}>Gün {day}</Text>
+            <Text style={styles.dayLabel}>
+              Gün {day} · {formatGameTime(minuteOfDay)}
+            </Text>
           </View>
           <ReputationGauge score={reputation.score} />
         </View>
+
+        <View style={styles.speedRow}>
+          <SpeedControl speed={speed} onChange={setSpeed} />
+        </View>
+
+        {visibleJump && <JumpEventBanner event={visibleJump} />}
 
         <CapitalSummary capital={capital} goldPrice={goldPrice} />
         <GoldTicker goldPrice={goldPrice} />
@@ -74,8 +104,12 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   dayLabel: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.mono,
     fontSize: fontSizes.sm,
     color: colors.inkMuted,
+  },
+  speedRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
 });

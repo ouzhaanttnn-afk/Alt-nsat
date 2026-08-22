@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatTl } from '../utils/format';
+import { calculateOpportunityScore } from '../utils/opportunityScore';
 import { Badge, type BadgeTone } from './Badge';
 import { Card } from './Card';
 import { RingIcon } from './icons/RingIcon';
@@ -8,19 +9,24 @@ import { SealIcon } from './icons/SealIcon';
 
 export interface Opportunity {
   productName: string;
+  source: string;
   karat: number;
   grams: number;
   buyPriceTl: number;
   estimatedSellPriceTl: number;
   expertiseRisk: { tone: BadgeTone; label: string };
-  opportunityScore: number;
   sealVerified?: boolean;
 }
 
 // Bölüm 4.2: Piyasa fırsat kartı — Ana Ekran'da "günün fırsatı" olarak
-// tekil gösterim, Piyasa ekranında (Adım 4) liste halinde yeniden kullanılacak.
+// tekil gösterim, Piyasa ekranında (Adım 4) liste halinde yeniden kullanılıyor.
 export function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
   const profit = opportunity.estimatedSellPriceTl - opportunity.buyPriceTl;
+  const score = calculateOpportunityScore(
+    opportunity.buyPriceTl,
+    opportunity.estimatedSellPriceTl,
+    opportunity.expertiseRisk.tone,
+  );
 
   return (
     <Card style={styles.card}>
@@ -35,7 +41,7 @@ export function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
         <View style={styles.headerText}>
           <Text style={styles.title}>{opportunity.productName}</Text>
           <Text style={styles.subtitle}>
-            {opportunity.karat} Ayar, {opportunity.grams.toLocaleString('tr-TR')}g
+            {opportunity.karat} Ayar, {opportunity.grams.toLocaleString('tr-TR')}g · {opportunity.source}
           </Text>
         </View>
       </View>
@@ -52,7 +58,7 @@ export function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
 
       <View style={styles.scoreRow}>
         <Text style={styles.scoreLabel}>Fırsat Skoru</Text>
-        <Text style={styles.scoreValue}>{opportunity.opportunityScore}/100</Text>
+        <Text style={styles.scoreValue}>{score}/100</Text>
       </View>
     </Card>
   );

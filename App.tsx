@@ -16,6 +16,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useGameClock } from './src/hooks/useGameClock';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
 SplashScreen.preventAutoHideAsync();
@@ -30,6 +31,8 @@ export default function App() {
     IBMPlexMono_500Medium,
     IBMPlexMono_600SemiBold,
   });
+
+  useGameClock();
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) {

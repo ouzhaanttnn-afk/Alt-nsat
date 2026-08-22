@@ -12,8 +12,10 @@ export function CapitalSummary({
   capital: CapitalState;
   goldPrice: GoldPriceState;
 }) {
-  const totalTl = capital.goldGrams * goldPrice.sellPricePerGram;
+  // Likidasyon değeri: oyuncu altınını bozdursa piyasanın ödeyeceği (ALIŞ) fiyat.
+  const totalTl = capital.goldGrams * goldPrice.buyPricePerGram;
   const netWorth = capital.cashTl + capital.stockValueTl - capital.debtTl;
+  const netWorthInGrams = netWorth / goldPrice.buyPricePerGram;
   const isUp = goldPrice.dailyChangePercent >= 0;
 
   return (
@@ -34,6 +36,7 @@ export function CapitalSummary({
       <Row label="Borç" value={formatTl(capital.debtTl)} valueColor={colors.negative} />
       <View style={styles.divider} />
       <Row label="Net Servet" value={formatTl(netWorth)} bold />
+      <Text style={styles.netWorthGrams}>≈ {formatGram(netWorthInGrams)} altın karşılığı</Text>
     </Card>
   );
 }
@@ -121,5 +124,12 @@ const styles = StyleSheet.create({
   rowValueBold: {
     fontFamily: fonts.monoBold,
     fontSize: fontSizes.md,
+  },
+  netWorthGrams: {
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.xs,
+    color: colors.inkMuted,
+    textAlign: 'right',
+    marginTop: 2,
   },
 });
