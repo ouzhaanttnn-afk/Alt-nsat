@@ -13,7 +13,7 @@ import { useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes, radius } from '../theme';
 import { formatTl } from '../utils/format';
 
-type Result = 'accepted' | 'rejected' | null;
+type Result = 'accepted' | 'rejected' | 'creditDenied' | null;
 
 const MEASURE_DURATION_MS = 900;
 
@@ -67,10 +67,13 @@ export function PazarlikScreen() {
   };
 
   const completeDeal = (amount: number) => {
-    const shortfall = Math.max(0, amount - cashTl);
-    settleDeal(amount, product.marketValueTl);
+    const outcome = settleDeal(amount, product.marketValueTl);
     setOffer(amount);
-    setBorrowedTl(shortfall);
+    if (!outcome.success) {
+      setResult('creditDenied');
+      return;
+    }
+    setBorrowedTl(outcome.borrowedTl);
     setResult('accepted');
   };
 
@@ -162,7 +165,7 @@ function ResultScreen({
   productName,
   onClose,
 }: {
-  result: 'accepted' | 'rejected';
+  result: 'accepted' | 'rejected' | 'creditDenied';
   offerAmount: number;
   borrowedTl: number;
   customerName: string;
@@ -170,25 +173,31 @@ function ResultScreen({
   onClose: () => void;
 }) {
   const accepted = result === 'accepted';
+  const badgeColor =
+    result === 'accepted' ? colors.positive : result === 'creditDenied' ? colors.warning : colors.negative;
+  const title =
+    result === 'accepted'
+      ? 'Teklif kabul edildi'
+      : result === 'creditDenied'
+        ? 'Toptancı kredi vermedi'
+        : 'Teklif reddedildi';
+  const subtitle =
+    result === 'accepted'
+      ? `${customerName}, ${formatTl(offerAmount)} karşılığında ${productName.toLowerCase()} bıraktı.`
+      : result === 'creditDenied'
+        ? 'Toptancı Güvenin çok düşük olduğu için borç vermiyorlar. Önce nakit biriktir ya da borcunu öde.'
+        : `${customerName} teklifi düşük buldu ve dükkândan ayrıldı.`;
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.resultContainer}>
-        <View
-          style={[
-            styles.resultBadge,
-            { backgroundColor: accepted ? colors.positive : colors.negative },
-          ]}
-        >
-          <Text style={styles.resultBadgeLabel}>{accepted ? '✓' : '✕'}</Text>
+        <View style={[styles.resultBadge, { backgroundColor: badgeColor }]}>
+          <Text style={styles.resultBadgeLabel}>
+            {result === 'accepted' ? '✓' : result === 'creditDenied' ? '!' : '✕'}
+          </Text>
         </View>
-        <Text style={styles.resultTitle}>
-          {accepted ? 'Teklif kabul edildi' : 'Teklif reddedildi'}
-        </Text>
-        <Text style={styles.resultSubtitle}>
-          {accepted
-            ? `${customerName}, ${formatTl(offerAmount)} karşılığında ${productName.toLowerCase()} bıraktı.`
-            : `${customerName} teklifi düşük buldu ve dükkândan ayrıldı.`}
-        </Text>
+        <Text style={styles.resultTitle}>{title}</Text>
+        <Text style={styles.resultSubtitle}>{subtitle}</Text>
         {accepted && borrowedTl > 0 && (
           <Text style={styles.borrowedNote}>
             Kasadaki nakit yetmediği için {formatTl(borrowedTl)} borca yazıldı.

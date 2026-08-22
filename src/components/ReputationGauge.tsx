@@ -4,12 +4,21 @@ import { colors, fonts, fontSizes } from '../theme';
 const SEGMENT_COUNT = 5;
 
 // Bölüm 8: İtibar sistemi. Emoji yıldız yerine mat, dolum çubuğu segmentleri.
-export function ReputationGauge({ score }: { score: number }) {
+// Genelleştirildi: aynı gösterge Toptancı Güveni için de kullanılıyor.
+export function ReputationGauge({
+  score,
+  label = 'İTİBAR',
+  align = 'flex-end',
+}: {
+  score: number;
+  label?: string;
+  align?: 'flex-start' | 'flex-end';
+}) {
   const filledSegments = Math.round((score / 100) * SEGMENT_COUNT);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>İTİBAR</Text>
+    <View style={[styles.container, { alignItems: align }]}>
+      <Text style={styles.label}>{label}</Text>
       <View style={styles.segmentsRow}>
         {Array.from({ length: SEGMENT_COUNT }).map((_, i) => (
           <View
@@ -24,9 +33,7 @@ export function ReputationGauge({ score }: { score: number }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    alignItems: 'flex-end',
-  },
+  container: {},
   label: {
     fontFamily: fonts.bodyMedium,
     fontSize: 10,

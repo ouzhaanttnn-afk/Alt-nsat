@@ -1,22 +1,34 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CapitalState, GoldPriceState } from '../types/game';
-import { colors, fonts, fontSizes } from '../theme';
+import { colors, fonts, fontSizes, radius } from '../theme';
 import { formatGram, formatPercent, formatTl } from '../utils/format';
 import { Card } from './Card';
+import { ReputationGauge } from './ReputationGauge';
 
 // Bölüm 2: Sermaye Gösterimi + Nakit/Stok/Borç Ayrımı.
+// Ayrıca Toptancı Güveni: borcunu vadesinde ödemezsen düşer, düşerse
+// toptancı artık kredi (borçla tamamlama) vermez.
 export function CapitalSummary({
   capital,
   goldPrice,
+  wholesalerTrust,
+  loanDueDay,
+  currentDay,
+  onRepayDebt,
 }: {
   capital: CapitalState;
   goldPrice: GoldPriceState;
+  wholesalerTrust: number;
+  loanDueDay: number | null;
+  currentDay: number;
+  onRepayDebt: () => void;
 }) {
   // Likidasyon değeri: oyuncu altınını bozdursa piyasanın ödeyeceği (ALIŞ) fiyat.
   const totalTl = capital.goldGrams * goldPrice.buyPricePerGram;
   const netWorth = capital.cashTl + capital.stockValueTl - capital.debtTl;
   const netWorthInGrams = netWorth / goldPrice.buyPricePerGram;
   const isUp = goldPrice.dailyChangePercent >= 0;
+  const canRepay = capital.debtTl > 0 && capital.cashTl > 0;
 
   return (
     <Card>
@@ -34,6 +46,26 @@ export function CapitalSummary({
       <Row label="Nakit (Kasa)" value={formatTl(capital.cashTl)} />
       <Row label="Stok değeri (has altın karşılığı)" value={formatTl(capital.stockValueTl)} />
       <Row label="Borç" value={formatTl(capital.debtTl)} valueColor={colors.negative} />
+
+      {capital.debtTl > 0 && (
+        <View style={styles.debtActionRow}>
+          {loanDueDay !== null && (
+            <Text style={styles.dueLabel}>
+              Vade: Gün {loanDueDay} (bugün {currentDay})
+            </Text>
+          )}
+          {canRepay && (
+            <Pressable style={styles.repayButton} onPress={onRepayDebt}>
+              <Text style={styles.repayButtonLabel}>Borcu Öde</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
+      <View style={styles.trustRow}>
+        <ReputationGauge score={wholesalerTrust} label="TOPTANCI GÜVENİ" align="flex-start" />
+      </View>
+
       <View style={styles.divider} />
       <Row label="Net Servet" value={formatTl(netWorth)} bold />
       <Text style={styles.netWorthGrams}>≈ {formatGram(netWorthInGrams)} altın karşılığı</Text>
@@ -131,5 +163,30 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     textAlign: 'right',
     marginTop: 2,
+  },
+  debtActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  dueLabel: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xs,
+    color: colors.inkMuted,
+  },
+  repayButton: {
+    backgroundColor: colors.ink,
+    borderRadius: radius.sm,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  repayButtonLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    color: colors.white,
+  },
+  trustRow: {
+    marginTop: 10,
   },
 });

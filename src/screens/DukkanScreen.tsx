@@ -32,6 +32,9 @@ export function DukkanScreen() {
   const speed = useGameStore((s) => s.speed);
   const setSpeed = useGameStore((s) => s.setSpeed);
   const lastJumpEvent = useGameStore((s) => s.lastJumpEvent);
+  const wholesalerTrust = useGameStore((s) => s.wholesalerTrust);
+  const loanDueDay = useGameStore((s) => s.loanDueDay);
+  const repayDebt = useGameStore((s) => s.repayDebt);
 
   const [visibleJump, setVisibleJump] = useState<JumpEvent | null>(null);
   const seenJumpRef = useRef<JumpEvent | null>(null);
@@ -64,7 +67,14 @@ export function DukkanScreen() {
 
         {visibleJump && <JumpEventBanner event={visibleJump} />}
 
-        <CapitalSummary capital={capital} goldPrice={goldPrice} />
+        <CapitalSummary
+          capital={capital}
+          goldPrice={goldPrice}
+          wholesalerTrust={wholesalerTrust}
+          loanDueDay={loanDueDay}
+          currentDay={day}
+          onRepayDebt={() => repayDebt(capital.cashTl)}
+        />
         <GoldTicker goldPrice={goldPrice} />
 
         <DailyGoalCard steps={dailyGoalSteps} />

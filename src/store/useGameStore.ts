@@ -37,6 +37,15 @@ const JUMP_PROBABILITY_PER_MINUTE = (JUMP_CHECKS_PER_DAY * JUMP_TRIGGER_PROBABIL
 // Uygulama arka planda uzun süre kaldıysa tek tick'te aşırı sıçramayı önler.
 const MAX_REAL_SECONDS_PER_TICK = 5;
 
+// Toptancı Güveni: borç aldığında bir vade başlar, vadeyi geç ödersen
+// güven düşer ve vade yeniden ötelenir (kronik geç ödeyen daha çok
+// puan kaybeder). Güven belirli bir eşiğin altına inerse toptancı
+// artık kredi (borçla tamamlama) vermez.
+const STARTING_WHOLESALER_TRUST = 65;
+const LOAN_TERM_DAYS = 5;
+const LATE_PAYMENT_TRUST_PENALTY = 15;
+const MIN_TRUST_FOR_CREDIT = 30;
+
 function priceFromReference(reference: number): Pick<GoldPriceState, 'buyPricePerGram' | 'sellPricePerGram'> {
   return {
     buyPricePerGram: reference * (1 - SPREAD_RATIO),
@@ -53,14 +62,23 @@ interface GameState {
   speed: ClockSpeed;
   referencePriceAtDayStart: number;
   lastJumpEvent: JumpEvent | null;
+  wholesalerTrust: number;
+  /** Aktif borcun ödenmesi gereken oyun günü; borç yoksa null. */
+  loanDueDay: number | null;
   setSpeed: (speed: ClockSpeed) => void;
   /** Gerçek zamanda geçen saniyeyi oyun saatine ve altın fiyatına işler. */
   tick: (realSecondsElapsed: number) => void;
   /**
    * Bir alımı kapatır: önce nakitten öder, yetmeyen kısmı borca yazar.
    * Alınan ürün, has altın karşılığı üzerinden stok değerine eklenir.
+   * Toptancı Güveni eşiğin altındaysa ve nakit yetmiyorsa işlem reddedilir.
    */
-  settleDeal: (paidAmountTl: number, itemMarketValueTl: number) => void;
+  settleDeal: (
+    paidAmountTl: number,
+    itemMarketValueTl: number,
+  ) => { success: true; borrowedTl: number } | { success: false; borrowedTl: 0 };
+  /** Nakitten borcu (kısmen ya da tamamen) kapatır. */
+  repayDebt: (amountTl: number) => void;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -82,6 +100,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   speed: 1,
   referencePriceAtDayStart: STARTING_REFERENCE_PRICE,
   lastJumpEvent: null,
+  wholesalerTrust: STARTING_WHOLESALER_TRUST,
+  loanDueDay: null,
 
   setSpeed: (speed) => set({ speed }),
 
@@ -119,11 +139,25 @@ export const useGameStore = create<GameState>((set, get) => ({
     const dailyChangePercent =
       ((nextReference - referencePriceAtDayStart) / referencePriceAtDayStart) * 100;
 
+    // Vadesi geçmiş borç varsa Toptancı Güveni düşer, vade yeniden ötelenir.
+    let wholesalerTrust = state.wholesalerTrust;
+    let loanDueDay = state.loanDueDay;
+    if (state.capital.debtTl > 0 && loanDueDay !== null) {
+      while (day > loanDueDay) {
+        wholesalerTrust = Math.max(0, wholesalerTrust - LATE_PAYMENT_TRUST_PENALTY);
+        loanDueDay += LOAN_TERM_DAYS;
+      }
+    } else if (state.capital.debtTl <= 0) {
+      loanDueDay = null;
+    }
+
     set({
       minuteOfDay,
       day,
       referencePriceAtDayStart,
       lastJumpEvent: jumpEvent,
+      wholesalerTrust,
+      loanDueDay,
       goldPrice: {
         ...priceFromReference(nextReference),
         dailyChangePercent,
@@ -134,7 +168,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   settleDeal: (paidAmountTl, itemMarketValueTl) => {
     const state = get();
     const shortfall = Math.max(0, paidAmountTl - state.capital.cashTl);
+
+    if (shortfall > 0 && state.wholesalerTrust < MIN_TRUST_FOR_CREDIT) {
+      return { success: false, borrowedTl: 0 };
+    }
+
     const cashTl = Math.max(0, state.capital.cashTl - paidAmountTl);
+    const loanDueDay =
+      shortfall > 0 && state.loanDueDay === null ? state.day + LOAN_TERM_DAYS : state.loanDueDay;
+
     set({
       capital: {
         ...state.capital,
@@ -142,6 +184,23 @@ export const useGameStore = create<GameState>((set, get) => ({
         debtTl: state.capital.debtTl + shortfall,
         stockValueTl: state.capital.stockValueTl + itemMarketValueTl,
       },
+      loanDueDay,
+    });
+    return { success: true, borrowedTl: shortfall };
+  },
+
+  repayDebt: (amountTl) => {
+    const state = get();
+    const payment = Math.min(amountTl, state.capital.debtTl, state.capital.cashTl);
+    if (payment <= 0) return;
+    const debtTl = state.capital.debtTl - payment;
+    set({
+      capital: {
+        ...state.capital,
+        cashTl: state.capital.cashTl - payment,
+        debtTl,
+      },
+      loanDueDay: debtTl <= 0 ? null : state.loanDueDay,
     });
   },
 }));
