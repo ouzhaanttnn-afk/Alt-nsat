@@ -6,6 +6,7 @@ import { CustomerNoteCard } from '../components/CustomerNoteCard';
 import { NegotiationActions } from '../components/NegotiationActions';
 import { NegotiationProductCard } from '../components/NegotiationProductCard';
 import { PriceBlock } from '../components/PriceBlock';
+import { SaleActions } from '../components/SaleActions';
 import { ScalePanel } from '../components/ScalePanel';
 import { negotiationCustomer, negotiationProduct, scaleReading } from '../data/mockNegotiation';
 import type { RootStackParamList } from '../navigation/types';
@@ -35,15 +36,16 @@ export function PazarlikScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<RootStackParamList, 'Pazarlik'>>();
 
+  const mode = route.params?.mode ?? 'alis';
+  const isSale = mode === 'satis';
   const customer = route.params?.customer ?? negotiationCustomer;
   const product = route.params?.product ?? negotiationProduct;
   const reading = route.params?.scaleReading ?? scaleReading;
-  const listingId = route.params?.listingId;
 
   const cashTl = useGameStore((s) => s.capital.cashTl);
   const settleDeal = useGameStore((s) => s.settleDeal);
-  const removeMarketListing = useGameStore((s) => s.removeMarketListing);
   const sendPendingOffer = useGameStore((s) => s.sendPendingOffer);
+  const resolveIncomingCustomer = useGameStore((s) => s.resolveIncomingCustomer);
   const adjustReputation = useGameStore((s) => s.adjustReputation);
   const skillLevels = useGameStore((s) => s.skillLevels);
 
@@ -63,14 +65,18 @@ export function PazarlikScreen() {
     gulerYuzLevel * GULER_YUZ_SECONDS_PER_LEVEL;
   const [secondsLeft, setSecondsLeft] = useState(totalSeconds);
 
+  // Satış modunda (dükkândan müşteriye) nakit sınırı yok — istediğin fiyatı
+  // isteyebilirsin, tavan/taban sadece piyasa değerine göre makul bir aralık.
   const minRatio = Math.max(0.3, 0.5 - oluluLevel * OLUCU_MIN_RATIO_REDUCTION_PER_LEVEL);
-  const baseMin = Math.round(product.marketValueTl * minRatio);
-  const baseMax = Math.round(product.marketValueTl * 0.95);
-  const sliderMax = Math.max(1, Math.min(baseMax, Math.round(cashTl)));
+  const baseMin = isSale ? Math.round(product.marketValueTl * 0.7) : Math.round(product.marketValueTl * minRatio);
+  const baseMax = isSale ? Math.round(product.marketValueTl * 1.3) : Math.round(product.marketValueTl * 0.95);
+  const sliderMax = isSale ? baseMax : Math.max(1, Math.min(baseMax, Math.round(cashTl)));
   const sliderMin = Math.min(baseMin, sliderMax);
-  const cashLimited = sliderMax < baseMax;
+  const cashLimited = !isSale && sliderMax < baseMax;
 
-  const [offer, setOffer] = useState(() => Math.min(Math.round(product.marketValueTl * 0.85), sliderMax));
+  const [offer, setOffer] = useState(() =>
+    isSale ? Math.round(product.marketValueTl) : Math.min(Math.round(product.marketValueTl * 0.85), sliderMax),
+  );
 
   const [result, setResult] = useState<Result>(null);
   const [borrowedTl, setBorrowedTl] = useState(0);
@@ -78,12 +84,13 @@ export function PazarlikScreen() {
   useEffect(() => {
     if (result !== null) return;
     if (secondsLeft <= 0) {
+      if (isSale) resolveIncomingCustomer(false);
       setResult('timedOut');
       return;
     }
     const timer = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
     return () => clearTimeout(timer);
-  }, [secondsLeft, result]);
+  }, [secondsLeft, result, isSale, resolveIncomingCustomer]);
 
   const handleTare = () => {
     if (held) return;
@@ -119,7 +126,20 @@ export function PazarlikScreen() {
     }
     setBorrowedTl(outcome.borrowedTl);
     setResult('accepted');
-    if (listingId) removeMarketListing(listingId);
+  };
+
+  // Bölüm 4.2 satış modu: dükkâna gelen müşteriye anında sonuçlanan satış.
+  // customer.acceptanceThreshold burada müşterinin ödemeye razı olduğu
+  // TAVAN oran olarak yorumlanıyor (alım modunda taban olmasının simetriği).
+  const resolveSale = (amount: number) => {
+    const ceiling = product.marketValueTl * customer.acceptanceThreshold;
+    setOffer(amount);
+    if (amount > ceiling) {
+      setResult('rejected');
+      return;
+    }
+    resolveIncomingCustomer(true, amount);
+    setResult('accepted');
   };
 
   // Bölüm 4.6: Kaydırma çubuğuyla "Teklifi Gönder" anında sonuçlanmaz —
@@ -154,11 +174,10 @@ export function PazarlikScreen() {
       estimatedSellPriceTl: product.estimatedSellPriceTl,
       willAccept,
     });
-    if (listingId) removeMarketListing(listingId);
     setResult('sent');
   };
 
-  const canAct = tested && !measuring && result === null;
+  const canAct = isSale ? result === null : tested && !measuring && result === null;
   const fullPriceShortfall = Math.max(0, product.marketValueTl - cashTl);
   const timerWarning = secondsLeft <= 15;
 
@@ -166,6 +185,7 @@ export function PazarlikScreen() {
     return (
       <ResultScreen
         result={result}
+        isSale={isSale}
         offerAmount={offer}
         borrowedTl={borrowedTl}
         customerName={customer.name}
@@ -193,19 +213,23 @@ export function PazarlikScreen() {
         <CustomerNoteCard customer={customer} />
         <NegotiationProductCard product={product} />
 
-        <ScalePanel
-          reading={reading}
-          tested={tested}
-          measuring={measuring}
-          held={held}
-          onTare={handleTare}
-          onHold={handleHold}
-          onTest={handleTest}
-        />
-        {!tested && (
-          <Text style={styles.hint}>
-            Teklif vermeden önce ürünü tart — TEST'e bas.
-          </Text>
+        {!isSale && (
+          <>
+            <ScalePanel
+              reading={reading}
+              tested={tested}
+              measuring={measuring}
+              held={held}
+              onTare={handleTare}
+              onHold={handleHold}
+              onTest={handleTest}
+            />
+            {!tested && (
+              <Text style={styles.hint}>
+                Teklif vermeden önce ürünü tart — TEST'e bas.
+              </Text>
+            )}
+          </>
         )}
 
         <PriceBlock
@@ -218,17 +242,28 @@ export function PazarlikScreen() {
           cashLimited={cashLimited}
         />
 
-        <NegotiationActions
-          disabled={!canAct}
-          onSendOffer={() => resolveOffer(offer)}
-          onPayFull={() => completeDeal(product.marketValueTl)}
-          onReject={() => setResult('rejected')}
-          payFullHint={
-            fullPriceShortfall > 0
-              ? `Nakdin yetmiyor — ${formatTl(fullPriceShortfall)} borç alınacak`
-              : undefined
-          }
-        />
+        {isSale ? (
+          <SaleActions
+            disabled={!canAct}
+            onOfferPrice={() => resolveSale(offer)}
+            onReject={() => {
+              resolveIncomingCustomer(false);
+              setResult('rejected');
+            }}
+          />
+        ) : (
+          <NegotiationActions
+            disabled={!canAct}
+            onSendOffer={() => resolveOffer(offer)}
+            onPayFull={() => completeDeal(product.marketValueTl)}
+            onReject={() => setResult('rejected')}
+            payFullHint={
+              fullPriceShortfall > 0
+                ? `Nakdin yetmiyor — ${formatTl(fullPriceShortfall)} borç alınacak`
+                : undefined
+            }
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -236,6 +271,7 @@ export function PazarlikScreen() {
 
 function ResultScreen({
   result,
+  isSale,
   offerAmount,
   borrowedTl,
   customerName,
@@ -243,6 +279,7 @@ function ResultScreen({
   onClose,
 }: {
   result: 'accepted' | 'rejected' | 'creditDenied' | 'timedOut' | 'sent';
+  isSale: boolean;
   offerAmount: number;
   borrowedTl: number;
   customerName: string;
@@ -260,24 +297,32 @@ function ResultScreen({
           : colors.negative;
   const title =
     result === 'accepted'
-      ? 'Teklif kabul edildi'
+      ? isSale
+        ? 'Satıldı'
+        : 'Teklif kabul edildi'
       : result === 'creditDenied'
         ? 'Toptancı kredi vermedi'
         : result === 'timedOut'
           ? 'Süre doldu'
           : result === 'sent'
             ? 'Teklif gönderildi'
-            : 'Teklif reddedildi';
+            : isSale
+              ? 'Satış olmadı'
+              : 'Teklif reddedildi';
   const subtitle =
     result === 'accepted'
-      ? `${customerName}, ${formatTl(offerAmount)} karşılığında ${productName.toLowerCase()} bıraktı.`
+      ? isSale
+        ? `${customerName}, ${formatTl(offerAmount)} karşılığında ${productName.toLowerCase()} satın aldı.`
+        : `${customerName}, ${formatTl(offerAmount)} karşılığında ${productName.toLowerCase()} bıraktı.`
       : result === 'creditDenied'
         ? 'Toptancı Güvenin çok düşük olduğu için borç vermiyorlar. Önce nakit biriktir ya da borcunu öde.'
         : result === 'timedOut'
           ? `${customerName} sabrını yitirip dükkândan ayrıldı.`
           : result === 'sent'
             ? `${customerName}, ${formatTl(offerAmount)} teklifini değerlendiriyor. Sonucu Teklifler sekmesinden takip edebilirsin.`
-            : `${customerName} teklifi düşük buldu ve dükkândan ayrıldı.`;
+            : isSale
+              ? `${customerName} alışveriş yapmadan dükkândan ayrıldı.`
+              : `${customerName} teklifi düşük buldu ve dükkândan ayrıldı.`;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>

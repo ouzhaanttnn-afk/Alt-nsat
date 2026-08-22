@@ -3,14 +3,15 @@ import type { NegotiationCustomer, NegotiationProduct } from '../types/negotiati
 
 // Adım 3: Pazarlık Ekranı modal olarak ana sekmelerin üzerine açılıyor.
 // Parametre verilmezse Ana Ekran'daki varsayılan bozdurma senaryosu
-// kullanılır (bkz. PazarlikScreen); Piyasa'daki büyük parti gibi farklı
-// senaryolar bu parametrelerle aynı ekranı yeniden kullanır.
+// kullanılır (bkz. PazarlikScreen); Piyasa'daki farklı senaryolar bu
+// parametrelerle aynı ekranı yeniden kullanır.
+// mode 'alis' (varsayılan): oyuncu satın alıyor, terazi/kredi mantığı devrede.
+// mode 'satis': dükkâna gelen bir müşteriye satış — terazi yok, anında sonuçlanır.
 export interface PazarlikParams {
   customer: NegotiationCustomer;
   product: NegotiationProduct;
-  scaleReading: ScaleReading;
-  /** Kabul edilirse Piyasa listesinden kaldırılacak fırsatın kimliği. */
-  listingId?: string;
+  scaleReading?: ScaleReading;
+  mode?: 'alis' | 'satis';
 }
 
 export type RootStackParamList = {

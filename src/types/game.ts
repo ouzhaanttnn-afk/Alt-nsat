@@ -1,8 +1,10 @@
-// Bölüm 2: Sermaye ve Ekonomi Modeli — temel tipler (iskelet, ileride genişletilecek).
+// Bölüm 2: Sermaye ve Ekonomi Modeli. Kullanıcı kararı: ayrı bir "rezerv"
+// kavramı yok — 1 kg'lik başlangıç sermayesinin tamamı doğrudan kullanılabilir
+// nakde çevrilir. "Kaç gram altına karşılık geliyor" artık saklanan bir alan
+// değil, kasadaki nakit güncel kurdan bölünerek her an türetilen bir gösterge.
 export interface CapitalState {
-  goldGrams: number; // toplam sermaye (gram has altın cinsinden)
-  cashTl: number; // kasadaki nakit (TL)
-  stockValueTl: number; // stok değeri (has altın karşılığı, TL)
+  cashTl: number; // kasadaki nakit (TL) — sermayenin tamamı burada
+  stockValueTl: number; // envanterdeki mal değeri (has altın karşılığı, TL)
   debtTl: number; // borç (TL)
 }
 

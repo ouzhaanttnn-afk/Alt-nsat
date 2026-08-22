@@ -11,11 +11,10 @@ import { DailyGoalCard } from '../components/DailyGoalCard';
 import { GoldTicker } from '../components/GoldTicker';
 import { JumpEventBanner } from '../components/JumpEventBanner';
 import { OFFER_STATUS_LABEL } from '../components/OfferCard';
-import { OpportunityCard } from '../components/OpportunityCard';
 import { ReputationGauge } from '../components/ReputationGauge';
 import { SectionLabel } from '../components/SectionLabel';
 import { SpeedControl } from '../components/SpeedControl';
-import { dailyGoalSteps, todaysOpportunity } from '../data/mockHome';
+import { dailyGoalSteps } from '../data/mockHome';
 import type { MainTabsParamList, RootStackParamList } from '../navigation/types';
 import { useGameStore, type JumpEvent } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
@@ -31,7 +30,7 @@ type DukkanNavigationProp = CompositeNavigationProp<
 >;
 
 // Bölüm 4.1: Ana Ekran — Sermaye, gün sayacı, itibar, günün hedefi,
-// günün fırsatı, aktif teklif özeti, gram altın ticker, zaman hızı kontrolü.
+// aktif teklif özeti, gram altın ticker, zaman hızı kontrolü.
 export function DukkanScreen() {
   const navigation = useNavigation<DukkanNavigationProp>();
   const capital = useGameStore((s) => s.capital);
@@ -46,7 +45,6 @@ export function DukkanScreen() {
   const loanDueDay = useGameStore((s) => s.loanDueDay);
   const repayDebt = useGameStore((s) => s.repayDebt);
   const offers = useGameStore((s) => s.offers);
-  const hasPiyasaSezgisi = useGameStore((s) => (s.skillLevels['piyasa-sezgisi'] ?? 0) > 0);
 
   // En son gönderilen bekleyen teklif öncelikli gösterilir; bekleyen yoksa
   // en son sonuçlanan teklif gösterilir (offers dizisi en yeniden en eskiye sıralı).
@@ -103,9 +101,6 @@ export function DukkanScreen() {
         <GoldTicker goldPrice={goldPrice} />
 
         <DailyGoalCard steps={dailyGoalSteps} />
-
-        <SectionLabel>GÜNÜN FIRSATI</SectionLabel>
-        <OpportunityCard opportunity={todaysOpportunity} scoreVisible={hasPiyasaSezgisi} />
 
         {activeOffer && (
           <>

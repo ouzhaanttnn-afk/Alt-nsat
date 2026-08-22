@@ -18,13 +18,16 @@ export function InvestmentExchangeCard({
   ownedItem,
   onBuy,
   onSell,
+  sellable = true,
 }: {
   spec: InvestmentProductSpec;
   goldPrice: GoldPriceState;
   cashTl: number;
   ownedItem?: InventoryItem;
   onBuy: (quantity: number) => void;
-  onSell: (quantity: number) => void;
+  onSell?: (quantity: number) => void;
+  /** false ise sadece restok (Satın Al) — takı gibi müşteriye pazarlıkla satılan stoklar için. */
+  sellable?: boolean;
 }) {
   const [quantity, setQuantity] = useState(1);
 
@@ -51,19 +54,24 @@ export function InvestmentExchangeCard({
             {spec.karat} Ayar, {spec.grams.toLocaleString('tr-TR')}g/adet
           </Text>
         </View>
-        {ownedItem && (
+        {ownedItem && sellable && (
           <Badge
             tone={profitTl >= 0 ? 'positive' : 'negative'}
             label={`${ownedQuantity} adet · ${profitTl >= 0 ? '+' : ''}${formatTl(profitTl)}`}
           />
         )}
+        {ownedItem && !sellable && (
+          <Badge tone="neutral" label={`${ownedQuantity} adet stokta`} />
+        )}
       </View>
 
       <View style={styles.priceRow}>
-        <View style={styles.priceColumn}>
-          <Text style={styles.priceLabel}>ALIŞ (satarsın)</Text>
-          <Text style={styles.priceValue}>{formatTl(unitSellPriceTl)}</Text>
-        </View>
+        {sellable && (
+          <View style={styles.priceColumn}>
+            <Text style={styles.priceLabel}>ALIŞ (satarsın)</Text>
+            <Text style={styles.priceValue}>{formatTl(unitSellPriceTl)}</Text>
+          </View>
+        )}
         <View style={styles.priceColumn}>
           <Text style={styles.priceLabel}>SATIŞ (alırsın)</Text>
           <Text style={styles.priceValue}>{formatTl(unitBuyPriceTl)}</Text>
@@ -85,15 +93,17 @@ export function InvestmentExchangeCard({
         </View>
 
         <View style={styles.actions}>
-          <Pressable
-            disabled={!canSell}
-            onPress={() => onSell(quantity)}
-            style={[styles.actionButton, styles.sellButton, !canSell && styles.actionButtonDisabled]}
-          >
-            <Text style={[styles.actionButtonLabel, styles.sellButtonLabel]}>
-              Sat · {formatTl(totalSellProceedsTl)}
-            </Text>
-          </Pressable>
+          {sellable && onSell && (
+            <Pressable
+              disabled={!canSell}
+              onPress={() => onSell(quantity)}
+              style={[styles.actionButton, styles.sellButton, !canSell && styles.actionButtonDisabled]}
+            >
+              <Text style={[styles.actionButtonLabel, styles.sellButtonLabel]}>
+                Sat · {formatTl(totalSellProceedsTl)}
+              </Text>
+            </Pressable>
+          )}
           <Pressable
             disabled={!canBuy}
             onPress={() => onBuy(quantity)}
@@ -107,6 +117,9 @@ export function InvestmentExchangeCard({
       </View>
       {!canBuy && (
         <Text style={styles.hint}>Nakdin yetmiyor — bu masada borç/kredi yok.</Text>
+      )}
+      {sellable === false && ownedQuantity > 0 && (
+        <Text style={styles.hintMuted}>Elindeki stok müşteriye pazarlıkla satılır.</Text>
       )}
     </Card>
   );
@@ -218,6 +231,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 11,
     color: colors.warning,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  hintMuted: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.inkMuted,
     marginTop: 6,
     textAlign: 'center',
   },

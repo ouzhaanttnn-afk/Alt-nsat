@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { GoldTicker } from '../components/GoldTicker';
 import { InvestmentExchangeCard } from '../components/InvestmentExchangeCard';
 import { SectionLabel } from '../components/SectionLabel';
-import { investmentProducts } from '../data/investmentProducts';
+import { investmentProducts, type InvestmentProductSpec } from '../data/investmentProducts';
 import { useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatTl } from '../utils/format';
@@ -32,7 +32,7 @@ export function YatirimlarScreen() {
     bannerTimer.current = setTimeout(() => setBanner(null), BANNER_VISIBLE_MS);
   };
 
-  const handleBuy = (productName: string, spec: { name: string; karat: number; grams: number }, quantity: number) => {
+  const handleBuy = (productName: string, spec: InvestmentProductSpec, quantity: number) => {
     const result = buyInvestmentUnits(spec, quantity);
     if (!result.success) {
       showBanner('Nakit yetersiz.', false);

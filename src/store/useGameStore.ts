@@ -1,8 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { Opportunity } from '../components/OpportunityCard';
-import { marketOpportunities } from '../data/mockMarket';
+import { INCOMING_CUSTOMER_ARCHETYPES, INCOMING_CUSTOMER_NAMES } from '../data/incomingCustomerPool';
 import type { PirlantaCatalogItem } from '../data/mockPirlanta';
 import { skillTree } from '../data/skillTree';
 import type {
@@ -12,8 +11,8 @@ import type {
   InventoryItem,
   ReputationState,
 } from '../types/game';
+import type { IncomingCustomer } from '../types/incomingCustomer';
 import type { Offer } from '../types/offer';
-import type { VitrinSaleInquiry } from '../types/vitrinInquiry';
 
 export type ClockSpeed = 0 | 1 | 2 | 4;
 
@@ -30,12 +29,11 @@ export interface VitrinMaturityEvent {
   sampleName: string;
 }
 
-// Bölüm 2: Oyuncu 1 kg has altınla başlar. "Açık nokta" olarak bırakılan
-// likit/teminat ayrımı şöyle çözüldü: 200g nakde çevrilip kasaya konuyor,
-// 800g fiziksel rezerv (SERMAYEN başlığı) olarak kalıyor. Tamamı rezerv
-// olsaydı nakit hep 0 kalır, hiçbir alım gerçekleşemezdi.
-const STARTING_CASH_GRAMS = 200;
-const STARTING_RESERVE_GRAMS = 800;
+// Bölüm 2: Oyuncu 1 kg has altınla başlar — ayrı bir "rezerv" yok, tamamı
+// gün 1 fiyatından doğrudan kullanılabilir nakde çevrilir. "Sermayen X gram
+// altın" gösterimi artık sabit bir varlık değil, kasadaki nakit güncel
+// kurdan bölünerek her an yeniden hesaplanan bir gösterge (bkz. CapitalSummary).
+const STARTING_CAPITAL_GRAMS = 1000;
 const STARTING_REFERENCE_PRICE = 6845; // TL, gram altın referans (orta) fiyatı
 
 // ALIŞ (piyasa sizden düşük fiyattan alır) / SATIŞ (piyasa size yüksek
@@ -76,26 +74,15 @@ const NEGATIVE_NEWS_HEADLINES = [
   'Güçlü istihdam verileri geldi, altın baskı altında',
 ];
 
-// Vitrin Alıcısı: pasif gelir akışının yanında, ara sıra vitrindeki bir
-// takı için gerçek bir müşteri çıkıp vade (30 gün) beklemeden anında
-// satın almak ister. Kabul edilirse ürün hemen o fiyata satılır.
-const VITRIN_INQUIRY_CHECKS_PER_DAY = 0.6;
-const VITRIN_INQUIRY_TRIGGER_PROBABILITY = 0.5;
-const VITRIN_INQUIRY_PROBABILITY_PER_MINUTE =
-  (VITRIN_INQUIRY_CHECKS_PER_DAY * VITRIN_INQUIRY_TRIGGER_PROBABILITY) / MINUTES_PER_DAY;
-const VITRIN_INQUIRY_EXPIRY_MINUTES = 180; // 3 oyun saati içinde cevap verilmezse fırsat kaçar
-const VITRIN_INQUIRY_MIN_OFFER_RATIO = 0.8;
-const VITRIN_INQUIRY_MAX_OFFER_RATIO = 1.15;
-const VITRIN_INQUIRY_CUSTOMER_NAMES = [
-  'Mehmet Bey',
-  'Ayşe Hanım',
-  'Kemal Bey',
-  'Hasan Bey',
-  'Fatma Hanım',
-  'Serpil Hanım',
-  'Cengiz Bey',
-  'Nur Hanım',
-];
+// Piyasa: dükkâna sürekli akan müşteri. İlk aşamada müşteriler sadece
+// dükkânın stoğundan (toptancıdan alınan yatırım altını / takı) bir şey
+// almak isteyip geliyor — pazarlıkla satılıyor. Ortalama ~1.2 saatte bir
+// müşteri gelir; belirtilen süre içinde pazarlığa girilmezse müşteri ayrılır.
+const INCOMING_CUSTOMER_CHECKS_PER_DAY = 20;
+const INCOMING_CUSTOMER_TRIGGER_PROBABILITY = 1;
+const INCOMING_CUSTOMER_PROBABILITY_PER_MINUTE =
+  (INCOMING_CUSTOMER_CHECKS_PER_DAY * INCOMING_CUSTOMER_TRIGGER_PROBABILITY) / MINUTES_PER_DAY;
+const INCOMING_CUSTOMER_EXPIRY_MINUTES = 90;
 
 // Toptancı Güveni: borç aldığında bir vade başlar, vadeyi geç ödersen
 // güven düşer ve vade yeniden ötelenir (kronik geç ödeyen daha çok
@@ -171,19 +158,17 @@ function computeStockValueTl(inventory: InventoryItem[], buyPricePerGram: number
 
 let nextInventoryId = 1;
 let nextOfferId = 1;
-let nextVitrinInquiryId = 1;
+let nextIncomingCustomerId = 1;
 
 interface GameState {
   capital: CapitalState;
   goldPrice: GoldPriceState;
   reputation: ReputationState;
   inventory: InventoryItem[];
-  /** Piyasa'daki satın alınabilir fırsatlar; satın alınan bir fırsat listeden kalkar. */
-  marketListings: Opportunity[];
   /** Bölüm 4.6: Bekleyen/Kabul/Red durumundaki tüm pazarlık teklifleri. */
   offers: Offer[];
-  /** Vitrindeki bir takı için ara sıra çıkan gerçek alıcı — vade beklemeden anında satış fırsatı. */
-  vitrinSaleInquiry: VitrinSaleInquiry | null;
+  /** Piyasa: dükkânın stoğundan bir şey almak isteyip gelen, o an aktif müşteri. */
+  incomingCustomer: IncomingCustomer | null;
   day: number;
   minuteOfDay: number;
   speed: ClockSpeed;
@@ -223,7 +208,7 @@ interface GameState {
    * nakit yettiği kadar (borç/kredi yok) anında satın alır.
    */
   buyInvestmentUnits: (
-    spec: { name: string; karat: number; grams: number },
+    spec: { name: string; karat: number; grams: number; category: InventoryCategory },
     quantity: number,
   ) => { success: true } | { success: false; reason: 'insufficient_cash' };
   /** Bir yatırım pozisyonundan istenen adedi (kısmi olabilir) güncel ALIŞ kurundan anında nakde çevirir. */
@@ -233,8 +218,6 @@ interface GameState {
   ) => { saleValueTl: number; profitTl: number; quantity: number } | null;
   /** Nakitten borcu (kısmen ya da tamamen) kapatır. */
   repayDebt: (amountTl: number) => void;
-  /** Satın alınan bir Piyasa fırsatını listeden kaldırır. */
-  removeMarketListing: (id: string) => void;
   /**
    * Kaydırma çubuğuyla gönderilen bir alım teklifini "bekleyen" olarak
    * kaydeder. Sonuç (kabul/red) aslında gönderildiği anda `willAccept` ile
@@ -253,12 +236,11 @@ interface GameState {
     willAccept: boolean;
   }) => void;
   /**
-   * Aktif Vitrin Alıcısı teklifine yanıt verir. Kabulde (accept=true) hedef
-   * ürün hemen envanterden kalkar; o ana kadar günlük pasif gelirle zaten
-   * ödenmiş kâr payı düşülüp geri kalanı (+ maliyet) nakde eklenir. Reddde
-   * ürün vitrinde pasif gelir üretmeye devam eder.
+   * Aktif gelen müşteriye yanıt verir. Kabulde (accepted=true, saleAmountTl
+   * ile) stoktan bir adet düşülür, karşılığında pazarlıkla anlaşılan tutar
+   * nakde eklenir. Reddde müşteri elini boş dönüp gider.
    */
-  respondToVitrinInquiry: (accept: boolean) => { profitTl: number } | null;
+  resolveIncomingCustomer: (accepted: boolean, saleAmountTl?: number) => { profitTl: number } | null;
   /** Alım-satım makasından bugüne kadar gerçekleşen toplam kâr/zarar. */
   realizedTradingProfitTl: number;
   /**
@@ -286,16 +268,15 @@ interface GameState {
 
 // Oyuncu zaten bu kademeleri geçmiş sayılıp buna karşılık gelen puanla başlıyor
 // (1kg altınla başlamak zaten bir birikimi temsil ediyor).
-const STARTING_NET_WORTH_TL = (STARTING_CASH_GRAMS + STARTING_RESERVE_GRAMS) * STARTING_REFERENCE_PRICE;
+const STARTING_NET_WORTH_TL = STARTING_CAPITAL_GRAMS * STARTING_REFERENCE_PRICE;
 const STARTING_CAPITAL_TIER_INDEX = tierIndexForNetWorth(STARTING_NET_WORTH_TL);
 
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
   capital: {
-    goldGrams: STARTING_RESERVE_GRAMS,
-    cashTl: STARTING_CASH_GRAMS * STARTING_REFERENCE_PRICE,
-    stockValueTl: STARTING_RESERVE_GRAMS * STARTING_REFERENCE_PRICE,
+    cashTl: STARTING_CAPITAL_GRAMS * STARTING_REFERENCE_PRICE,
+    stockValueTl: 0,
     debtTl: 0,
   },
   goldPrice: {
@@ -306,9 +287,8 @@ export const useGameStore = create<GameState>()(
     score: 50,
   },
   inventory: [],
-  marketListings: marketOpportunities,
   offers: [],
-  vitrinSaleInquiry: null,
+  incomingCustomer: null,
   day: 1,
   minuteOfDay: 0,
   speed: 1,
@@ -348,6 +328,7 @@ export const useGameStore = create<GameState>()(
     }
     nextReference = Math.max(nextReference, 100);
     const nextBuyPrice = nextReference * (1 - SPREAD_RATIO);
+    const nextSellPrice = nextReference * (1 + SPREAD_RATIO);
 
     let minuteOfDay = state.minuteOfDay + gameMinutes;
     let day = state.day;
@@ -435,30 +416,50 @@ export const useGameStore = create<GameState>()(
         ? { count: maturedCount, totalPayoutTl: maturedPayoutTl, sampleName: maturedSampleName }
         : state.lastVitrinMaturity;
 
-    // Vitrin Alıcısı: aktif teklifin süresi dolduysa ya da hedef ürün vadesi
-    // dolup vitrinden kalktıysa fırsat kaybolur; aktif teklif yoksa vitrinde
-    // takı varken düşük bir olasılıkla yeni bir alıcı çıkar.
-    let vitrinSaleInquiry = postOfferState.vitrinSaleInquiry;
-    if (vitrinSaleInquiry) {
-      const targetStillShowcased = inventory.some((i) => i.id === vitrinSaleInquiry!.itemId);
-      if (!targetStillShowcased || currentTotalMinutes >= vitrinSaleInquiry.expiresAtTotalMinutes) {
-        vitrinSaleInquiry = null;
+    // Piyasa: aktif müşterinin süresi dolduysa ya da istediği ürün stoktan
+    // tükendiyse (0 adet kaldıysa) müşteri elini boş dönüp gider; aktif
+    // müşteri yoksa stokta satılabilir bir şey varken düşük bir olasılıkla
+    // yeni bir müşteri gelir.
+    let incomingCustomer = postOfferState.incomingCustomer;
+    if (incomingCustomer) {
+      const target = inventory.find((i) => i.id === incomingCustomer!.inventoryItemId);
+      if (!target || target.quantity <= 0 || currentTotalMinutes >= incomingCustomer.expiresAtTotalMinutes) {
+        incomingCustomer = null;
       }
     } else {
-      const takiItems = inventory.filter((i) => i.category === 'taki');
-      if (takiItems.length > 0 && Math.random() < VITRIN_INQUIRY_PROBABILITY_PER_MINUTE * gameMinutes) {
-        const target = takiItems[Math.floor(Math.random() * takiItems.length)];
-        const offerRatio =
-          VITRIN_INQUIRY_MIN_OFFER_RATIO + Math.random() * (VITRIN_INQUIRY_MAX_OFFER_RATIO - VITRIN_INQUIRY_MIN_OFFER_RATIO);
+      const eligible = inventory.filter(
+        (i) => (i.category === 'taki' || i.category === 'yatirim') && i.quantity > 0,
+      );
+      if (eligible.length > 0 && Math.random() < INCOMING_CUSTOMER_PROBABILITY_PER_MINUTE * gameMinutes) {
+        const target = eligible[Math.floor(Math.random() * eligible.length)];
+        const archetype =
+          INCOMING_CUSTOMER_ARCHETYPES[Math.floor(Math.random() * INCOMING_CUSTOMER_ARCHETYPES.length)];
         const customerName =
-          VITRIN_INQUIRY_CUSTOMER_NAMES[Math.floor(Math.random() * VITRIN_INQUIRY_CUSTOMER_NAMES.length)];
-        vitrinSaleInquiry = {
-          id: String(nextVitrinInquiryId++),
-          itemId: target.id,
-          itemName: target.name,
-          customerName,
-          offerAmountTl: Math.round((target.estimatedValueTl ?? target.costBasisTl) * offerRatio),
-          expiresAtTotalMinutes: currentTotalMinutes + VITRIN_INQUIRY_EXPIRY_MINUTES,
+          INCOMING_CUSTOMER_NAMES[Math.floor(Math.random() * INCOMING_CUSTOMER_NAMES.length)];
+        const marketValueTl = equivalentGrams(target.grams, target.karat) * nextSellPrice;
+        incomingCustomer = {
+          id: String(nextIncomingCustomerId++),
+          customer: {
+            name: customerName,
+            type: archetype.type,
+            request: `${target.name} almak istiyorum, elindeki en iyi fiyatı öğrenmek isterim.`,
+            urgency: archetype.urgency,
+            bargainingStyle: archetype.bargainingStyle,
+            // Bölüm 4.3: satış modunda bu, müşterinin ödemeye razı olduğu
+            // TAVAN oranı olarak yorumlanır (alım modunda taban olarak
+            // yorumlanmasının simetriği) — bkz. PazarlikScreen satış modu.
+            acceptanceThreshold: archetype.maxPayRatio,
+          },
+          product: {
+            name: target.name,
+            source: 'Dükkân stoğu',
+            category: target.category,
+            karat: target.karat,
+            grams: target.grams,
+            marketValueTl,
+          },
+          inventoryItemId: target.id,
+          expiresAtTotalMinutes: currentTotalMinutes + INCOMING_CUSTOMER_EXPIRY_MINUTES,
         };
       }
     }
@@ -482,7 +483,7 @@ export const useGameStore = create<GameState>()(
       loanDueDay,
       inventory,
       offers,
-      vitrinSaleInquiry,
+      incomingCustomer,
       lastVitrinMaturity,
       capital,
       highestCapitalTierIndex: gainedTiers > 0 ? newTierIndex : postOfferState.highestCapitalTierIndex,
@@ -588,7 +589,8 @@ export const useGameStore = create<GameState>()(
     }
 
     const existingIndex = state.inventory.findIndex(
-      (i) => i.category === 'yatirim' && i.name === spec.name && i.karat === spec.karat && i.grams === spec.grams,
+      (i) =>
+        i.category === spec.category && i.name === spec.name && i.karat === spec.karat && i.grams === spec.grams,
     );
     const inventory =
       existingIndex >= 0
@@ -602,7 +604,7 @@ export const useGameStore = create<GameState>()(
             {
               id: String(nextInventoryId++),
               name: spec.name,
-              category: 'yatirim',
+              category: spec.category,
               karat: spec.karat,
               grams: spec.grams,
               quantity,
@@ -671,12 +673,6 @@ export const useGameStore = create<GameState>()(
     });
   },
 
-  removeMarketListing: (id) => {
-    set((state) => ({
-      marketListings: state.marketListings.filter((listing) => listing.id !== id),
-    }));
-  },
-
   sendPendingOffer: (offer) => {
     const state = get();
     const totalMinutesNow = state.day * MINUTES_PER_DAY + state.minuteOfDay;
@@ -699,37 +695,43 @@ export const useGameStore = create<GameState>()(
     set({ offers: [newOffer, ...state.offers] });
   },
 
-  respondToVitrinInquiry: (accept) => {
+  resolveIncomingCustomer: (accepted, saleAmountTl) => {
     const state = get();
-    const inquiry = state.vitrinSaleInquiry;
-    if (!inquiry) return null;
+    const customer = state.incomingCustomer;
+    if (!customer) return null;
 
-    if (!accept) {
-      set({ vitrinSaleInquiry: null });
+    if (!accepted) {
+      set({ incomingCustomer: null });
       return null;
     }
 
-    const item = state.inventory.find((i) => i.id === inquiry.itemId);
-    if (!item) {
-      set({ vitrinSaleInquiry: null });
+    const item = state.inventory.find((i) => i.id === customer.inventoryItemId);
+    if (!item || item.quantity <= 0) {
+      set({ incomingCustomer: null });
       return null;
     }
 
-    // Bugüne kadar günlük pasif gelirle zaten ödenmiş kâr payı düşülür —
-    // aksi halde aynı kâr hem pasif gelir hem de bu satıştan iki kez sayılır.
-    const ageInDays = Math.min(VITRIN_TERM_DAYS, Math.max(0, state.day - item.acquiredDay));
-    const expectedTotalProfitTl = (item.estimatedValueTl ?? item.costBasisTl) - item.costBasisTl;
-    const alreadyPaidProfitTl = expectedTotalProfitTl * (ageInDays / VITRIN_TERM_DAYS);
-    const cashDeltaTl = inquiry.offerAmountTl - alreadyPaidProfitTl;
-    const profitTl = inquiry.offerAmountTl - item.costBasisTl - alreadyPaidProfitTl;
+    const amountTl = saleAmountTl ?? 0;
+    const costBasisPerUnit = item.costBasisTl / item.quantity;
+    const profitTl = amountTl - costBasisPerUnit;
+    const remainingQuantity = item.quantity - 1;
 
-    const inventory = state.inventory.filter((i) => i.id !== item.id);
+    const inventory =
+      remainingQuantity > 0
+        ? state.inventory.map((i) =>
+            i.id === item.id
+              ? { ...i, quantity: remainingQuantity, costBasisTl: i.costBasisTl - costBasisPerUnit }
+              : i,
+          )
+        : state.inventory.filter((i) => i.id !== item.id);
+
     set({
       inventory,
-      vitrinSaleInquiry: null,
+      incomingCustomer: null,
+      realizedTradingProfitTl: state.realizedTradingProfitTl + profitTl,
       capital: {
         ...state.capital,
-        cashTl: state.capital.cashTl + cashDeltaTl,
+        cashTl: state.capital.cashTl + amountTl,
         stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
       },
     });
@@ -800,7 +802,7 @@ export const useGameStore = create<GameState>()(
   setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
     }),
     {
-      name: 'cepkaynak-save-v1',
+      name: 'cepkaynak-save-v3',
       storage: createJSONStorage(() => AsyncStorage),
       // Skill tanımları/oyun kodu değişse bile eski kayıtlar yüklenebilsin diye
       // sadece serileştirilebilir oyun verisi tutulur — aksiyon fonksiyonları
@@ -811,9 +813,8 @@ export const useGameStore = create<GameState>()(
         goldPrice: state.goldPrice,
         reputation: state.reputation,
         inventory: state.inventory,
-        marketListings: state.marketListings,
         offers: state.offers,
-        vitrinSaleInquiry: state.vitrinSaleInquiry,
+        incomingCustomer: state.incomingCustomer,
         day: state.day,
         minuteOfDay: state.minuteOfDay,
         speed: state.speed,

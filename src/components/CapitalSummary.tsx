@@ -23,8 +23,9 @@ export function CapitalSummary({
   currentDay: number;
   onRepayDebt: () => void;
 }) {
-  // Likidasyon değeri: oyuncu altınını bozdursa piyasanın ödeyeceği (ALIŞ) fiyat.
-  const totalTl = capital.goldGrams * goldPrice.buyPricePerGram;
+  // Kasadaki nakit anlık kurdan gram altına çevrilerek gösterilir — ayrı,
+  // sabit bir "rezerv" yok, sermayenin tamamı bu tek rakamda.
+  const cashInGrams = capital.cashTl / goldPrice.buyPricePerGram;
   const netWorth = capital.cashTl + capital.stockValueTl - capital.debtTl;
   const netWorthInGrams = netWorth / goldPrice.buyPricePerGram;
   const isUp = goldPrice.dailyChangePercent >= 0;
@@ -34,8 +35,8 @@ export function CapitalSummary({
     <Card>
       <Text style={styles.label}>SERMAYEN</Text>
       <View style={styles.headlineRow}>
-        <Text style={styles.headline}>{formatGram(capital.goldGrams)} altın</Text>
-        <Text style={styles.headlineApprox}>≈ {formatTl(totalTl)}</Text>
+        <Text style={styles.headline}>{formatGram(cashInGrams)} altın</Text>
+        <Text style={styles.headlineApprox}>≈ {formatTl(capital.cashTl)}</Text>
       </View>
       <Text style={[styles.change, { color: isUp ? colors.positive : colors.negative }]}>
         {formatPercent(goldPrice.dailyChangePercent)} (bugün)

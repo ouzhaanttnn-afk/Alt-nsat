@@ -2,7 +2,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { colors } from '../../theme';
 
 // Bölüm 1: İmza bileşen — dairesel "ayar onaylı" mühür. Ürün kartlarının
-// üzerine hafif taşan konumda kullanılır (bkz. OpportunityCard).
+// üzerine hafif taşan konumda kullanılır (bkz. NegotiationProductCard).
 export function SealIcon({ size = 40 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 40 40">

@@ -1,95 +1,76 @@
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card } from '../components/Card';
-import { FilterTabs } from '../components/FilterTabs';
-import { OpportunityCard, type OpportunitySource } from '../components/OpportunityCard';
-import { bulkLotCustomer, bulkLotProduct, bulkLotScaleReading } from '../data/mockBulkLot';
+import { CustomerArrivalCard } from '../components/CustomerArrivalCard';
+import { InvestmentExchangeCard } from '../components/InvestmentExchangeCard';
+import { SectionLabel } from '../components/SectionLabel';
+import { toptanciTakiStock } from '../data/toptanciStock';
 import type { RootStackParamList } from '../navigation/types';
 import { useGameStore } from '../store/useGameStore';
-import { colors, fonts, fontSizes, radius } from '../theme';
-import { formatTl } from '../utils/format';
-import { calculateOpportunityScore } from '../utils/opportunityScore';
-import { opportunityToNegotiation } from '../utils/opportunityToNegotiation';
+import { colors, fonts, fontSizes } from '../theme';
 
-type SourceFilter = OpportunitySource | 'hepsi';
-
-const FILTER_OPTIONS: { label: string; value: SourceFilter }[] = [
-  { label: 'Tümü', value: 'hepsi' },
-  { label: 'Toptancı', value: 'toptanci' },
-  { label: 'Bozdurma', value: 'bozdurma' },
-];
-
-// Bölüm 4.2: Piyasa — toptancı + müşteri bozdurma fırsatları birleşik
-// tek liste, Fırsat Skoru'na göre sıralı (yüksekten düşüğe). Her karta
-// dokunmak Pazarlık Ekranı'nı açar; kabul edilen fırsat listeden kalkar.
+// Bölüm 4.2: Piyasa — artık tek seferlik statik fırsat listesi değil, iki
+// bölümden oluşuyor: (1) Toptancıdan Stok Al — takı için her an açık,
+// pazarlıksız restok masası (yatırım altınının borsa masasıyla aynı
+// mantık); (2) dükkâna sürekli akan, stoktan bir şey almak isteyen müşteri
+// — dokununca Pazarlık ekranını satış modunda açar.
 export function PiyasaScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const marketListings = useGameStore((s) => s.marketListings);
+  const inventory = useGameStore((s) => s.inventory);
+  const goldPrice = useGameStore((s) => s.goldPrice);
+  const cashTl = useGameStore((s) => s.capital.cashTl);
+  const buyInvestmentUnits = useGameStore((s) => s.buyInvestmentUnits);
+  const incomingCustomer = useGameStore((s) => s.incomingCustomer);
   const hasPiyasaSezgisi = useGameStore((s) => (s.skillLevels['piyasa-sezgisi'] ?? 0) > 0);
-  const [filter, setFilter] = useState<SourceFilter>('hepsi');
-
-  const sortedOpportunities = useMemo(() => {
-    return [...marketListings]
-      .filter((item) => filter === 'hepsi' || item.sourceType === filter)
-      .sort((a, b) => {
-        const scoreA = calculateOpportunityScore(a.buyPriceTl, a.estimatedSellPriceTl, a.expertiseRisk.tone);
-        const scoreB = calculateOpportunityScore(b.buyPriceTl, b.estimatedSellPriceTl, b.expertiseRisk.tone);
-        return scoreB - scoreA;
-      });
-  }, [marketListings, filter]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>Piyasa</Text>
-          <Text style={styles.subtitle}>Toptancı ve bozdurma fırsatları, Fırsat Skoru'na göre sıralı</Text>
+          <Text style={styles.subtitle}>Toptancıdan stokla, gelen müşterilere pazarlıkla sat</Text>
         </View>
 
-        <Pressable
-          onPress={() =>
-            navigation.navigate('Pazarlik', {
-              customer: bulkLotCustomer,
-              product: bulkLotProduct,
-              scaleReading: bulkLotScaleReading,
-            })
-          }
-        >
-          <Card style={styles.bulkCard}>
-            <View style={styles.bulkTag}>
-              <Text style={styles.bulkTagLabel}>BÜYÜK PARTİ</Text>
-            </View>
-            <Text style={styles.bulkTitle}>{bulkLotProduct.name}</Text>
-            <Text style={styles.bulkSubtitle}>
-              {bulkLotProduct.source} · Piyasa değeri ≈ {formatTl(bulkLotProduct.marketValueTl)}
-            </Text>
-            <Text style={styles.bulkHint}>
-              Bu kadar nakdin yoksa düşük teklif vermek ya da borç almak zorunda kalabilirsin.
-            </Text>
-          </Card>
-        </Pressable>
+        <SectionLabel>TOPTANCIDAN STOK AL</SectionLabel>
+        {toptanciTakiStock.map((spec) => {
+          const ownedItem = inventory.find(
+            (item) =>
+              item.category === spec.category &&
+              item.name === spec.name &&
+              item.karat === spec.karat &&
+              item.grams === spec.grams,
+          );
+          return (
+            <InvestmentExchangeCard
+              key={spec.id}
+              spec={spec}
+              goldPrice={goldPrice}
+              cashTl={cashTl}
+              ownedItem={ownedItem}
+              sellable={false}
+              onBuy={(quantity) => buyInvestmentUnits(spec, quantity)}
+            />
+          );
+        })}
 
-        <FilterTabs options={FILTER_OPTIONS} value={filter} onChange={setFilter} />
-
-        {sortedOpportunities.length === 0 && (
+        <SectionLabel>MÜŞTERİLER</SectionLabel>
+        {incomingCustomer ? (
+          <CustomerArrivalCard
+            incomingCustomer={incomingCustomer}
+            scoreVisible={hasPiyasaSezgisi}
+            onPress={() =>
+              navigation.navigate('Pazarlik', {
+                mode: 'satis',
+                customer: incomingCustomer.customer,
+                product: incomingCustomer.product,
+              })
+            }
+          />
+        ) : (
           <Text style={styles.emptyHint}>
-            Şu an piyasada başka fırsat yok — mevcutları satın aldın.
+            Şu an dükkânda müşteri yok — birazdan biri gelecek.
           </Text>
         )}
-
-        {sortedOpportunities.map((opportunity) => (
-          <OpportunityCard
-            key={opportunity.id}
-            opportunity={opportunity}
-            scoreVisible={hasPiyasaSezgisi}
-            onPress={() => {
-              const negotiation = opportunityToNegotiation(opportunity);
-              navigation.navigate('Pazarlik', { ...negotiation, listingId: opportunity.id });
-            }}
-          />
-        ))}
       </ScrollView>
     </SafeAreaView>
   );
@@ -122,40 +103,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: fontSizes.sm,
     color: colors.inkMuted,
-  },
-  bulkCard: {
-    borderColor: colors.accent,
-    borderWidth: 1.5,
-  },
-  bulkTag: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.accent,
-    borderRadius: radius.sm,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    marginBottom: 8,
-  },
-  bulkTagLabel: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 0.5,
-    color: colors.white,
-  },
-  bulkTitle: {
-    fontFamily: fonts.headingBold,
-    fontSize: fontSizes.md,
-    color: colors.ink,
-  },
-  bulkSubtitle: {
-    fontFamily: fonts.mono,
-    fontSize: fontSizes.xs,
-    color: colors.inkMuted,
-    marginTop: 2,
-  },
-  bulkHint: {
-    fontFamily: fonts.body,
-    fontSize: fontSizes.xs,
-    color: colors.inkMuted,
-    marginTop: 8,
   },
 });
