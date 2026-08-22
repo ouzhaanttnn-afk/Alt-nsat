@@ -1,9 +1,70 @@
 import type { Opportunity } from '../components/OpportunityCard';
 
 // Bölüm 4.2: Toptancı + müşteri bozdurma fırsatları birleşik tek liste.
+// Hem işlenmiş takı (bilezik/yüzük/kolye) hem basılı yatırım altını
+// (gram/çeyrek/yarım/tam/ata lira) bir arada — gerçek bir kuyumcunun
+// günlük cirosunun büyük kısmı ikincisinden gelir. Basılı altının marjı
+// dar olduğu için Fırsat Skoru'nda doğal olarak düşük çıkar (güvenli
+// ama "fırsat" değil), takıda ise pazarlık payı olduğu için yüksek
+// çıkabilir — skor formülü ayrıca özel bir kural gerektirmeden bu
+// ayrımı kendiliğinden yansıtıyor.
 // Piyasa (Adım 6: Teklifler/gerçek toptancı sistemi) kurulduğunda bu
 // statik veri gerçek üretim mantığıyla değişecek.
 export const marketOpportunities: Opportunity[] = [
+  {
+    productName: 'Gram Altın (Has)',
+    source: 'Toptancı',
+    sourceType: 'toptanci',
+    karat: 24,
+    grams: 1,
+    buyPriceTl: 6800,
+    estimatedSellPriceTl: 7020,
+    expertiseRisk: { tone: 'positive', label: 'Ekspertiz riski: Düşük' },
+    sealVerified: true,
+  },
+  {
+    productName: 'Çeyrek Altın',
+    source: 'Toptancı',
+    sourceType: 'toptanci',
+    karat: 22,
+    grams: 1.75,
+    buyPriceTl: 10800,
+    estimatedSellPriceTl: 11400,
+    expertiseRisk: { tone: 'positive', label: 'Ekspertiz riski: Düşük' },
+    sealVerified: true,
+  },
+  {
+    productName: 'Yarım Altın',
+    source: 'Toptancı',
+    sourceType: 'toptanci',
+    karat: 22,
+    grams: 3.5,
+    buyPriceTl: 21600,
+    estimatedSellPriceTl: 22800,
+    expertiseRisk: { tone: 'positive', label: 'Ekspertiz riski: Düşük' },
+    sealVerified: true,
+  },
+  {
+    productName: 'Tam Altın (Cumhuriyet)',
+    source: 'Kemal Bey getirdi',
+    sourceType: 'bozdurma',
+    karat: 22,
+    grams: 7.02,
+    buyPriceTl: 43000,
+    estimatedSellPriceTl: 45500,
+    expertiseRisk: { tone: 'warning', label: 'Ekspertiz riski: Orta' },
+  },
+  {
+    productName: 'Ata Lira',
+    source: 'Toptancı',
+    sourceType: 'toptanci',
+    karat: 22,
+    grams: 7.2,
+    buyPriceTl: 44200,
+    estimatedSellPriceTl: 46800,
+    expertiseRisk: { tone: 'positive', label: 'Ekspertiz riski: Düşük' },
+    sealVerified: true,
+  },
   {
     productName: 'Burma Bilezik',
     source: 'Toptancı',
