@@ -25,16 +25,6 @@ export function ShopTabIcon({ color, size = 22 }: TabIconProps) {
   );
 }
 
-export function MarketTabIcon({ color, size = 22 }: TabIconProps) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Circle cx={10.5} cy={10.5} r={6} stroke={color} strokeWidth={1.6} />
-      <Line x1={15} y1={15} x2={20} y2={20} stroke={color} strokeWidth={1.6} strokeLinecap="round" />
-      <Path d="M8 10.5h5M10.5 8v5" stroke={color} strokeWidth={1.3} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
 export function SafeTabIcon({ color, size = 22 }: TabIconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -53,6 +43,15 @@ export function OffersTabIcon({ color, size = 22 }: TabIconProps) {
       <Path d="M15 4v3h3" stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
       <Line x1={9} y1={12} x2={15} y2={12} stroke={color} strokeWidth={1.4} strokeLinecap="round" />
       <Line x1={9} y1={15.5} x2={15} y2={15.5} stroke={color} strokeWidth={1.4} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+export function SkillTabIcon({ color, size = 22 }: TabIconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={9} r={5} stroke={color} strokeWidth={1.6} />
+      <Path d="M9 13.2 7.5 20l4.5-2.4 4.5 2.4-1.5-6.8" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
     </Svg>
   );
 }

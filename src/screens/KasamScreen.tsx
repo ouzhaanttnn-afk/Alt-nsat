@@ -8,12 +8,14 @@ import { CraftedGoodCard } from '../components/CraftedGoodCard';
 import { MeltingJobBanner } from '../components/MeltingJobBanner';
 import { PirlantaCard } from '../components/PirlantaCard';
 import { SectionLabel } from '../components/SectionLabel';
+import { StockCard } from '../components/StockCard';
 import { TakiPackageCard } from '../components/TakiPackageCard';
 import { TradingPositionCard } from '../components/TradingPositionCard';
 import { ATOLYE_GRAMS_PER_DAY_PER_LEVEL, ATOLYE_MAX_LEVEL, ATOLYE_UPGRADE_BASE_COST_TL, ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL } from '../config/economyConfig';
 import { BRAND_STAGES } from '../data/brandStages';
 import { pirlantaCatalog } from '../data/mockPirlanta';
 import { TAKI_PACKAGE_TIERS } from '../data/takiPackageTiers';
+import { toptanciStock } from '../data/toptanciStock';
 import { currentPositionValueTl, MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatTl } from '../utils/format';
@@ -42,6 +44,8 @@ export function KasamScreen() {
   const level = useGameStore((s) => s.level);
   const highestBrandStageIndex = useGameStore((s) => s.highestBrandStageIndex);
   const purchaseBrandStage = useGameStore((s) => s.purchaseBrandStage);
+  const wholesalerBuyMarginTlPerGram = useGameStore((s) => s.wholesalerBuyMarginTlPerGram);
+  const buyInvestmentUnits = useGameStore((s) => s.buyInvestmentUnits);
 
   const [saleBanner, setSaleBanner] = useState<{ profitTl: number } | null>(null);
   const saleBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -70,7 +74,29 @@ export function KasamScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Kasam</Text>
+        <Text style={styles.title}>Stok</Text>
+
+        <SectionLabel>TOPTANCIDAN STOK AL</SectionLabel>
+        {toptanciStock.map((spec) => {
+          const ownedItem = inventory.find(
+            (item) =>
+              item.category === spec.category &&
+              item.name === spec.name &&
+              item.karat === spec.karat &&
+              item.grams === spec.grams,
+          );
+          return (
+            <StockCard
+              key={spec.id}
+              spec={spec}
+              goldPrice={goldPrice}
+              wholesalerBuyMarginTlPerGram={wholesalerBuyMarginTlPerGram}
+              cashTl={cashTl}
+              ownedItem={ownedItem}
+              onBuy={(quantity) => buyInvestmentUnits(spec, quantity)}
+            />
+          );
+        })}
 
         {saleBanner && (
           <View

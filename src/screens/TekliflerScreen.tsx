@@ -26,7 +26,7 @@ function formatRemaining(remainingMinutes: number): string {
 
 // Bölüm 4.6: Teklifler — Bekleyen/Kabul/Red durumundaki tüm pazarlıkların
 // listesi. Kaydırma çubuğuyla gönderilen teklifler bir süre "bekleyen"
-// kalır (bkz. PazarlikScreen'deki sendPendingOffer), sonucu tick() içinde
+// kalır (bkz. NegotiationPanel'deki sendPendingOffer), sonucu tick() içinde
 // açığa çıkar.
 export function TekliflerScreen() {
   const offers = useGameStore((s) => s.offers);
@@ -50,7 +50,7 @@ export function TekliflerScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Teklifler</Text>
+          <Text style={styles.title}>Müşteriler</Text>
           {pendingCount > 0 && (
             <View style={styles.pendingBadge}>
               <Text style={styles.pendingBadgeLabel}>{pendingCount} bekleyen</Text>
@@ -64,7 +64,7 @@ export function TekliflerScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyText}>
               {filter === 'tumu'
-                ? 'Henüz gönderilmiş bir teklifin yok. Pazarlıkta "Teklifi Gönder" ile bir teklif bekletebilirsin.'
+                ? 'Henüz gönderilmiş bir teklifin yok. Dükkân\'daki pazarlıkta "Teklifi Gönder" ile bir teklif bekletebilirsin.'
                 : 'Bu durumda teklif yok.'}
             </Text>
           </View>

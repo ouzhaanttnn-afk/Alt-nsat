@@ -3,26 +3,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
 import { LevelProgressCard } from '../components/LevelProgressCard';
 import { ReputationGauge } from '../components/ReputationGauge';
-import { SectionLabel } from '../components/SectionLabel';
-import { SkillNodeCard } from '../components/SkillNodeCard';
+import { ShopNameHeader } from '../components/ShopNameHeader';
 import { LEVEL_MAX } from '../config/economyConfig';
-import { BRANCH_LABELS, skillTree, type SkillBranch } from '../data/skillTree';
 import { useGameStore, xpRequiredForLevel } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
+import { formatTl } from '../utils/format';
 
-const BRANCHES: SkillBranch[] = ['tuccar', 'usta', 'esnaf'];
-
-// Bölüm 7/23-24: Yetenek Ağacı (Tüccar / Usta / Esnaf) + Seviye — seviye
-// paradan bağımsız, yalnızca aktif alım-satımdan kazanılan XP ile ilerler.
+// Bölüm 31: Profil — oyuncu/dükkân adı, seviye, XP, karizma, toplam kâr.
+// Yetenek ağacı artık ayrı bir sekmede (bkz. YeteneklerScreen).
 export function ProfilScreen() {
+  const playerName = useGameStore((s) => s.playerName);
+  const setPlayerName = useGameStore((s) => s.setPlayerName);
+  const shopName = useGameStore((s) => s.shopName);
+  const setShopName = useGameStore((s) => s.setShopName);
   const reputation = useGameStore((s) => s.reputation);
   const wholesalerTrust = useGameStore((s) => s.wholesalerTrust);
   const level = useGameStore((s) => s.level);
   const totalXp = useGameStore((s) => s.totalXp);
-  const skillPoints = useGameStore((s) => s.skillPoints);
-  const skillLevels = useGameStore((s) => s.skillLevels);
-  const levelUpSkill = useGameStore((s) => s.levelUpSkill);
   const resetSkills = useGameStore((s) => s.resetSkills);
+  const realizedTradingProfitTl = useGameStore((s) => s.realizedTradingProfitTl);
 
   const isMaxLevel = level >= LEVEL_MAX;
   const xpForCurrentLevel = xpRequiredForLevel(level);
@@ -31,12 +30,13 @@ export function ProfilScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Profil</Text>
-          <View style={styles.pointsBadge}>
-            <Text style={styles.pointsBadgeLabel}>{skillPoints} puan</Text>
-          </View>
-        </View>
+        <Text style={styles.title}>Profil</Text>
+
+        <Card>
+          <Field label="OYUNCU ADI" value={playerName} onChange={setPlayerName} />
+          <View style={styles.fieldDivider} />
+          <Field label="DÜKKÂN ADI" value={shopName} onChange={setShopName} />
+        </Card>
 
         <LevelProgressCard
           level={level}
@@ -51,26 +51,29 @@ export function ProfilScreen() {
           <ReputationGauge score={wholesalerTrust} label="TOPTANCI GÜVENİ" align="flex-start" />
         </Card>
 
-        {BRANCHES.map((branch) => (
-          <View key={branch}>
-            <SectionLabel>{BRANCH_LABELS[branch].toUpperCase()}</SectionLabel>
-            <View style={styles.skillGroup}>
-              {skillTree
-                .filter((skill) => skill.branch === branch)
-                .map((skill) => (
-                  <SkillNodeCard
-                    key={skill.id}
-                    definition={skill}
-                    level={skillLevels[skill.id] ?? 0}
-                    canLevelUp={skillPoints > 0}
-                    onLevelUp={() => levelUpSkill(skill.id)}
-                  />
-                ))}
-            </View>
-          </View>
-        ))}
+        <Card>
+          <Text style={styles.statLabel}>TOPLAM ALIM-SATIM KÂRI</Text>
+          <Text
+            style={[
+              styles.statValue,
+              { color: realizedTradingProfitTl >= 0 ? colors.positive : colors.negative },
+            ]}
+          >
+            {realizedTradingProfitTl >= 0 ? '+' : ''}
+            {formatTl(realizedTradingProfitTl)}
+          </Text>
+        </Card>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <View>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <ShopNameHeader name={value} onChange={onChange} onDark={false} />
+    </View>
   );
 }
 
@@ -81,36 +84,39 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    gap: 10,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
+    gap: 14,
   },
   title: {
     fontFamily: fonts.headingBold,
     fontSize: fontSizes.xl,
     color: colors.inkOnDark,
+    marginBottom: 2,
   },
-  pointsBadge: {
-    backgroundColor: colors.accent,
-    borderRadius: 999,
-    paddingVertical: 5,
-    paddingHorizontal: 14,
+  fieldLabel: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: fontSizes.xs,
+    color: colors.inkMuted,
+    letterSpacing: 1,
+    marginBottom: 4,
   },
-  pointsBadgeLabel: {
-    fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.sm,
-    color: colors.white,
+  fieldDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 12,
   },
   gaugeCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
   },
-  skillGroup: {
-    gap: 10,
+  statLabel: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: fontSizes.xs,
+    color: colors.inkMuted,
+    letterSpacing: 1,
+  },
+  statValue: {
+    fontFamily: fonts.headingBold,
+    fontSize: fontSizes.xl,
+    marginTop: 4,
   },
 });

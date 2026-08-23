@@ -18,6 +18,7 @@ import {
   CRAFTED_GOOD_MIN_COUNTERFEIT_RISK,
   FOUR_X_AD_UNLOCK_MINUTES,
   GAME_MINUTES_PER_REAL_SECOND_AT_1X,
+  GULER_YUZ_PATIENCE_MINUTES_PER_LEVEL,
   INCOMING_CUSTOMER_CHECKS_PER_DAY,
   INCOMING_CUSTOMER_EXPIRY_MINUTES,
   INCOMING_CUSTOMER_TRIGGER_PROBABILITY,
@@ -47,6 +48,7 @@ import {
   RESTART_FLUCTUATION_MAX_PERCENT,
   RESTART_FLUCTUATION_MIN_PERCENT,
   SKILL_POINTS_PER_LEVEL,
+  SOGUKKANLI_PATIENCE_MINUTES_PER_LEVEL,
   STARTING_CAPITAL_GRAMS,
   STARTING_REFERENCE_PRICE,
   STARTING_WHOLESALER_TRUST,
@@ -135,7 +137,7 @@ function priceFromReferenceAndSpread(
 }
 
 /** Has altın karşılığı: karat 24 üzerinden orantılanmış gram. */
-function equivalentGrams(grams: number, karat: number): number {
+export function equivalentGrams(grams: number, karat: number): number {
   return grams * (karat / 24);
 }
 
@@ -307,6 +309,11 @@ export interface ActiveTakiPackage {
 }
 
 interface GameState {
+  /** Bölüm 31: Profil — oyuncunun özelleştirebildiği oyuncu ve dükkân adı. */
+  playerName: string;
+  setPlayerName: (name: string) => void;
+  shopName: string;
+  setShopName: (name: string) => void;
   capital: CapitalState;
   goldPrice: GoldPriceState;
   reputation: ReputationState;
@@ -489,6 +496,10 @@ const STARTING_MARKET_SPREAD_TL_PER_GRAM = randomInRange(
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
+  playerName: 'Oyuncu',
+  setPlayerName: (name) => set({ playerName: name.trim().length > 0 ? name.trim().slice(0, 40) : 'Oyuncu' }),
+  shopName: 'Kuyumcum',
+  setShopName: (name) => set({ shopName: name.trim().length > 0 ? name.trim().slice(0, 40) : 'Kuyumcum' }),
   capital: {
     cashTl: STARTING_CAPITAL_GRAMS * STARTING_REFERENCE_PRICE,
     stockValueTl: 0,
@@ -753,6 +764,12 @@ export const useGameStore = create<GameState>()(
           Math.random() < BOZDURMA_DIRECTION_PROBABILITY ? 'bozdurma' : 'satis';
         const customerName =
           INCOMING_CUSTOMER_NAMES[Math.floor(Math.random() * INCOMING_CUSTOMER_NAMES.length)];
+        // Bölüm 7: Soğukkanlı ve Güler Yüz müşterinin sabrını (oyun-dakikası
+        // cinsinden) uzatır — her iki yön için de geçerli.
+        const patienceMinutes =
+          INCOMING_CUSTOMER_EXPIRY_MINUTES +
+          (state.skillLevels['sogukkanli'] ?? 0) * SOGUKKANLI_PATIENCE_MINUTES_PER_LEVEL +
+          (state.skillLevels['guler-yuz'] ?? 0) * GULER_YUZ_PATIENCE_MINUTES_PER_LEVEL;
 
         if (direction === 'satis') {
           // Cumhuriyet (Tam) Altını değerce 4 Çeyrek'e, Yarım Altın 2
@@ -805,7 +822,7 @@ export const useGameStore = create<GameState>()(
                 bargainingStyle: archetype.bargainingStyle,
                 // Bölüm 4.3: satış modunda bu, müşterinin ödemeye razı olduğu
                 // TAVAN oranı olarak yorumlanır (alım modunda taban olarak
-                // yorumlanmasının simetriği) — bkz. PazarlikScreen satış modu.
+                // yorumlanmasının simetriği) — bkz. NegotiationPanel satış modu.
                 acceptanceThreshold: archetype.maxPayRatio,
               },
               product: {
@@ -818,7 +835,7 @@ export const useGameStore = create<GameState>()(
               },
               inventoryItemId: candidate.target.id,
               unitsRequired: candidate.unitsRequired,
-              expiresAtTotalMinutes: currentTotalMinutes + INCOMING_CUSTOMER_EXPIRY_MINUTES,
+              expiresAtTotalMinutes: currentTotalMinutes + patienceMinutes,
             };
           }
         } else if (Math.random() < CRAFTED_GOOD_CUSTOMER_PROBABILITY) {
@@ -860,7 +877,7 @@ export const useGameStore = create<GameState>()(
               stoneValueTl: good.stoneValueTl,
             },
             scaleReading,
-            expiresAtTotalMinutes: currentTotalMinutes + INCOMING_CUSTOMER_EXPIRY_MINUTES,
+            expiresAtTotalMinutes: currentTotalMinutes + patienceMinutes,
           };
         } else {
           // Bölüm 6/10: müşteriden alım (bozdurma) — stoktan bağımsız,
@@ -889,7 +906,7 @@ export const useGameStore = create<GameState>()(
                   : `${candidate.name} bozdurmak istiyorum.`,
               urgency: archetype.urgency,
               bargainingStyle: archetype.bargainingStyle,
-              // Bölüm 4.3: alım modunda (bkz. PazarlikScreen) bu, oyuncunun
+              // Bölüm 4.3: alım modunda (bkz. NegotiationPanel) bu, oyuncunun
               // teklif verebileceği asgari (taban) oran olarak yorumlanır.
               acceptanceThreshold: archetype.minAcceptRatio,
             },
@@ -903,7 +920,7 @@ export const useGameStore = create<GameState>()(
               marketValueTl,
             },
             scaleReading,
-            expiresAtTotalMinutes: currentTotalMinutes + INCOMING_CUSTOMER_EXPIRY_MINUTES,
+            expiresAtTotalMinutes: currentTotalMinutes + patienceMinutes,
           };
         }
       }
@@ -1466,12 +1483,14 @@ export const useGameStore = create<GameState>()(
   setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
     }),
     {
-      name: 'cepkaynak-save-v11',
+      name: 'cepkaynak-save-v12',
       storage: createJSONStorage(() => AsyncStorage),
       // Skill tanımları/oyun kodu değişse bile eski kayıtlar yüklenebilsin diye
       // sadece serileştirilebilir oyun verisi tutulur — aksiyon fonksiyonları
       // ve geçici alanlar (hasHydrated) hariç tutulur.
       partialize: (state) => ({
+        playerName: state.playerName,
+        shopName: state.shopName,
         capital: state.capital,
         goldPrice: state.goldPrice,
         reputation: state.reputation,

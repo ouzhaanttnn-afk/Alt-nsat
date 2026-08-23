@@ -1,7 +1,5 @@
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import type { CompositeNavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,31 +9,34 @@ import { CapitalSummary } from '../components/CapitalSummary';
 import { DailyGoalCard } from '../components/DailyGoalCard';
 import { FourXUnlockCard } from '../components/FourXUnlockCard';
 import { GoldTicker } from '../components/GoldTicker';
+import { NegotiationPanel } from '../components/NegotiationPanel';
 import { OFFER_STATUS_LABEL } from '../components/OfferCard';
-import { ReputationGauge } from '../components/ReputationGauge';
+import { QuickStatsRow } from '../components/QuickStatsRow';
 import { SectionLabel } from '../components/SectionLabel';
+import { ShopNameHeader } from '../components/ShopNameHeader';
 import { SpeedControl } from '../components/SpeedControl';
-import type { ClockSpeed } from '../store/useGameStore';
+import { StokOzetiCard } from '../components/StokOzetiCard';
 import { dailyGoalSteps } from '../data/mockHome';
-import type { MainTabsParamList, RootStackParamList } from '../navigation/types';
+import type { MainTabsParamList } from '../navigation/types';
+import type { ClockSpeed } from '../store/useGameStore';
 import { MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatGameTime } from '../utils/format';
+import type { IncomingCustomer } from '../types/incomingCustomer';
 
-// Ana ekrandan Teklifler gibi kardeş sekmelere de, Pazarlık gibi üstteki
-// modal Stack ekranına da gidebilmek için birleşik gezinme tipi.
-type DukkanNavigationProp = CompositeNavigationProp<
-  BottomTabNavigationProp<MainTabsParamList, 'Dükkân'>,
-  NativeStackNavigationProp<RootStackParamList>
->;
+type DukkanNavigationProp = BottomTabNavigationProp<MainTabsParamList, 'Dükkân'>;
 
-// Bölüm 4.1: Ana Ekran — Sermaye, gün sayacı, itibar, günün hedefi,
-// aktif teklif özeti, gram altın ticker, zaman hızı kontrolü.
+// Mockup birleşimi: Dükkân artık sadece sermaye/gün özeti değil — gelen
+// müşteriyle pazarlık (NegotiationPanel) doğrudan burada, ayrı bir modal
+// ekrana gitmeden yürüyor (bkz. Bölüm 4.1-4.3, artık tek ekranda).
 export function DukkanScreen() {
   const navigation = useNavigation<DukkanNavigationProp>();
+  const shopName = useGameStore((s) => s.shopName);
+  const setShopName = useGameStore((s) => s.setShopName);
   const capital = useGameStore((s) => s.capital);
   const goldPrice = useGameStore((s) => s.goldPrice);
   const reputation = useGameStore((s) => s.reputation);
+  const inventory = useGameStore((s) => s.inventory);
   const day = useGameStore((s) => s.day);
   const minuteOfDay = useGameStore((s) => s.minuteOfDay);
   const speed = useGameStore((s) => s.speed);
@@ -50,9 +51,21 @@ export function DukkanScreen() {
   const fourXUnlimited = useGameStore((s) => s.fourXUnlimited);
   const unlockFourXViaAd = useGameStore((s) => s.unlockFourXViaAd);
   const purchaseFourXUnlimited = useGameStore((s) => s.purchaseFourXUnlimited);
+  const incomingCustomer = useGameStore((s) => s.incomingCustomer);
 
   const currentTotalMinutes = day * MINUTES_PER_DAY + minuteOfDay;
   const brokerMinutesLeft = brokerDeal ? brokerDeal.expiresAtTotalMinutes - currentTotalMinutes : 0;
+
+  // Bölüm 6: dükkâna gelen müşteri belirdiğinde bir kez yakalanır — pazarlık
+  // paneli kendi sonuç ekranını gösterirken store'daki incomingCustomer
+  // (kabul/red/gönderildi anında) null'a dönse bile panel ekranda kalmaya
+  // devam eder, oyuncu "Devam Et"e basınca kapanır.
+  const [activeNegotiation, setActiveNegotiation] = useState<IncomingCustomer | null>(null);
+  useEffect(() => {
+    if (incomingCustomer && !activeNegotiation) {
+      setActiveNegotiation(incomingCustomer);
+    }
+  }, [incomingCustomer, activeNegotiation]);
 
   // Bölüm 22: 4x'in reklamla açılan penceresi GERÇEK DÜNYA süresiyle
   // ölçülür (oyun saatiyle değil) — canlı geri sayım için ayrı, saniyede
@@ -89,14 +102,17 @@ export function DukkanScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.wordmark}>CEPKAYNAK</Text>
-            <Text style={styles.dayLabel}>
-              Gün {day} · {formatGameTime(minuteOfDay)}
-            </Text>
-          </View>
-          <ReputationGauge score={reputation.score} onDark />
+          <ShopNameHeader name={shopName} onChange={setShopName} />
+          <Text style={styles.dayLabel}>
+            Gün {day} · {formatGameTime(minuteOfDay)}
+          </Text>
         </View>
+
+        <QuickStatsRow
+          cashTl={capital.cashTl}
+          buyPricePerGram={goldPrice.buyPricePerGram}
+          reputationScore={reputation.score}
+        />
 
         <View style={styles.speedRow}>
           <View style={styles.speedColumn}>
@@ -126,6 +142,13 @@ export function DukkanScreen() {
           <BrokerDealBanner minutesLeft={brokerMinutesLeft} onResolve={() => resolveBrokerDeal()} />
         )}
 
+        <SectionLabel>MÜŞTERİ</SectionLabel>
+        {activeNegotiation ? (
+          <NegotiationPanel incomingCustomer={activeNegotiation} onClose={() => setActiveNegotiation(null)} />
+        ) : (
+          <Text style={styles.emptyHint}>Şu an dükkânda müşteri yok — birazdan biri gelecek.</Text>
+        )}
+
         <CapitalSummary
           capital={capital}
           goldPrice={goldPrice}
@@ -138,10 +161,12 @@ export function DukkanScreen() {
 
         <DailyGoalCard steps={dailyGoalSteps} />
 
+        <StokOzetiCard items={inventory} onSeeAll={() => navigation.navigate('Stok')} />
+
         {activeOffer && (
           <>
             <SectionLabel>AKTİF TEKLİF</SectionLabel>
-            <ActiveOfferSummary offer={activeOffer} onContinue={() => navigation.navigate('Teklifler')} />
+            <ActiveOfferSummary offer={activeOffer} onContinue={() => navigation.navigate('Müşteriler')} />
           </>
         )}
       </ScrollView>
@@ -161,14 +186,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 2,
-  },
-  wordmark: {
-    fontFamily: fonts.headingBold,
-    fontSize: fontSizes.lg,
-    color: colors.brass,
-    letterSpacing: 1,
   },
   dayLabel: {
     fontFamily: fonts.mono,
@@ -187,5 +206,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.inkMutedOnDark,
     marginBottom: 4,
+  },
+  emptyHint: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.inkMutedOnDark,
   },
 });

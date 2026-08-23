@@ -57,6 +57,11 @@ export const MIN_TRUST_FOR_CREDIT = 30;
 export const INCOMING_CUSTOMER_CHECKS_PER_DAY = 20;
 export const INCOMING_CUSTOMER_TRIGGER_PROBABILITY = 1;
 export const INCOMING_CUSTOMER_EXPIRY_MINUTES = 90;
+// Bölüm 7: Soğukkanlı ve Güler Yüz müşteri sabrını (oyun-dakikası
+// cinsinden) uzatır — Pazarlık ekranındaki gerçek-zamanlı sayaçtan (bkz.
+// NegotiationPanel'in kendi sabitleri) bağımsız, oyun saatine bağlı ayrı bir etki.
+export const SOGUKKANLI_PATIENCE_MINUTES_PER_LEVEL = 15;
+export const GULER_YUZ_PATIENCE_MINUTES_PER_LEVEL = 10;
 // Yeni bir müşteri geldiğinde alım (satış) mı yoksa bozdurma mı istediği
 // yarı yarıya rastgele belirlenir.
 export const BOZDURMA_DIRECTION_PROBABILITY = 0.5;
@@ -74,7 +79,7 @@ export const OFFER_RESOLUTION_DELAY_MINUTES = 30;
 // ---- Pazarlık Teklif Aralığı + Hızlı Ön Ayarlar (Bölüm 7/8) --------------
 // Sadece müşteriden alım/bozdurma modunda (dükkân müşteriden alıyor):
 // teklif çubuğu piyasa değerinin %80-105'i aralığında (Ölücü skili tabanı
-// daha da aşağı çekebilir, bkz. PazarlikScreen). Üç hızlı ön ayar butonu
+// daha da aşağı çekebilir, bkz. NegotiationPanel). Üç hızlı ön ayar butonu
 // çubuğu doğrudan bu oranlara götürür.
 export const OFFER_RANGE_MIN_RATIO = 0.8;
 export const OFFER_RANGE_MAX_RATIO = 1.05;
