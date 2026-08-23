@@ -32,8 +32,6 @@ type Result = 'accepted' | 'rejected' | 'creditDenied' | 'timedOut' | 'sent' | n
 const MEASURE_DURATION_MS = 900;
 // Bölüm 7: Sıkı Pazarlıkçı kabul eşiğini düşürür (Sv.1 %5 → Sv.5 %25).
 const SIKI_PAZARLIKCI_THRESHOLD_REDUCTION_PER_LEVEL = 0.05;
-// Bölüm 7: Ölücü teklif tabanını daha da aşağı çeker.
-const OLUCU_MIN_RATIO_REDUCTION_PER_LEVEL = 0.04;
 const OLUCU_AGGRESSIVE_OFFER_RATIO = 0.65;
 const OLUCU_REPUTATION_PENALTY_PER_LEVEL = 2;
 const SIKI_PAZARLIKCI_REPUTATION_PENALTY = 1;
@@ -89,12 +87,10 @@ export function NegotiationPanel({
 
   // Satış modunda (dükkândan müşteriye) nakit sınırı yok — istediğin fiyatı
   // isteyebilirsin, tavan/taban sadece piyasa değerine göre makul bir aralık.
-  // Alım/bozdurma modunda ise Bölüm 7'nin %80-105 temel aralığı geçerli;
-  // Ölücü skili tabanı daha da aşağı çekebilir (Sv.5'te %60'a kadar).
-  const minRatio = Math.max(0.3, OFFER_RANGE_MIN_RATIO - oluluLevel * OLUCU_MIN_RATIO_REDUCTION_PER_LEVEL);
+  // Alım/bozdurma modunda ise Bölüm 7'nin %15-100 aralığı geçerli.
   const baseMin = isSale
     ? Math.round(product.marketValueTl * SALE_OFFER_MIN_RATIO)
-    : Math.round(product.marketValueTl * minRatio);
+    : Math.round(product.marketValueTl * OFFER_RANGE_MIN_RATIO);
   const baseMax = isSale
     ? Math.round(product.marketValueTl * SALE_OFFER_MAX_RATIO)
     : Math.round(product.marketValueTl * OFFER_RANGE_MAX_RATIO);
