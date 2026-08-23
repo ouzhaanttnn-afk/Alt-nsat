@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AtolyeCard } from '../components/AtolyeCard';
+import { BrandStageCard, type BrandStageStatus } from '../components/BrandStageCard';
 import { Card } from '../components/Card';
 import { CraftedGoodCard } from '../components/CraftedGoodCard';
 import { MeltingJobBanner } from '../components/MeltingJobBanner';
@@ -10,6 +11,7 @@ import { SectionLabel } from '../components/SectionLabel';
 import { TakiPackageCard } from '../components/TakiPackageCard';
 import { TradingPositionCard } from '../components/TradingPositionCard';
 import { ATOLYE_GRAMS_PER_DAY_PER_LEVEL, ATOLYE_MAX_LEVEL, ATOLYE_UPGRADE_BASE_COST_TL, ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL } from '../config/economyConfig';
+import { BRAND_STAGES } from '../data/brandStages';
 import { pirlantaCatalog } from '../data/mockPirlanta';
 import { TAKI_PACKAGE_TIERS } from '../data/takiPackageTiers';
 import { currentPositionValueTl, MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
@@ -37,6 +39,9 @@ export function KasamScreen() {
   const upgradeAtolye = useGameStore((s) => s.upgradeAtolye);
   const takiPackages = useGameStore((s) => s.takiPackages);
   const startTakiPackage = useGameStore((s) => s.startTakiPackage);
+  const level = useGameStore((s) => s.level);
+  const highestBrandStageIndex = useGameStore((s) => s.highestBrandStageIndex);
+  const purchaseBrandStage = useGameStore((s) => s.purchaseBrandStage);
 
   const [saleBanner, setSaleBanner] = useState<{ profitTl: number } | null>(null);
   const saleBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -189,6 +194,31 @@ export function KasamScreen() {
             onBuy={() => purchasePirlanta(catalogItem)}
           />
         ))}
+
+        <SectionLabel>KURUMSAL MARKA</SectionLabel>
+        <Text style={styles.emptyHint}>
+          Uç oyun merdiveni — Şubeleşme → Marka Yönetimi → Kurumsallaşma sırayla açılır, her
+          kademe seviye + nakit gerektirir ve kalıcı bir günlük gelir katar.
+        </Text>
+        {BRAND_STAGES.map((stage, index) => {
+          const status: BrandStageStatus =
+            index <= highestBrandStageIndex
+              ? 'owned'
+              : index !== highestBrandStageIndex + 1
+                ? 'sequence-locked'
+                : level < stage.requiredLevel
+                  ? 'level-locked'
+                  : 'available';
+          return (
+            <BrandStageCard
+              key={stage.id}
+              stage={stage}
+              status={status}
+              canAfford={stage.costTl <= cashTl}
+              onPurchase={() => purchaseBrandStage(stage.id)}
+            />
+          );
+        })}
       </ScrollView>
     </SafeAreaView>
   );

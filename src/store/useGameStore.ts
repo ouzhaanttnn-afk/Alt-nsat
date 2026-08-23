@@ -58,6 +58,7 @@ import {
   YENIDEN_DOGUS_TIME_REDUCTION_PER_LEVEL,
 } from '../config/economyConfig';
 import type { ScaleReading } from '../components/ScalePanel';
+import { BRAND_STAGES } from '../data/brandStages';
 import { CRAFTED_GOOD_CATALOG, REALISTIC_KARATS } from '../data/craftedGoodCatalog';
 import { TAKI_PACKAGE_TIERS } from '../data/takiPackageTiers';
 import {
@@ -339,6 +340,10 @@ interface GameState {
   fourXUnlockedUntilMs: number | null;
   /** Bölüm 22: küçük bir IAP ile alınan kalıcı sınırsız 4x hakkı. */
   fourXUnlimited: boolean;
+  /** Bölüm 28-29: Kurumsal Marka — sahip olunan en yüksek kademe sırası (-1 = hiçbiri, BRAND_STAGES.length-1 = Kurumsallaşma). */
+  highestBrandStageIndex: number;
+  /** Sıradaki Kurumsal Marka kademesini satın alır — sıra dışı, seviye yetersiz ya da nakit yetersizse false döner. */
+  purchaseBrandStage: (stageId: string) => boolean;
   /**
    * 1x/2x/duraklat her zaman serbest; 4x sadece reklam penceresi açıkken
    * ya da sınırsız hak alınmışsa uygulanır — aksi halde speed değişmez ve
@@ -514,6 +519,7 @@ export const useGameStore = create<GameState>()(
   takiPackages: [],
   fourXUnlockedUntilMs: null,
   fourXUnlimited: false,
+  highestBrandStageIndex: -1,
   realizedTradingProfitTl: 0,
   totalXp: 0,
   level: 1,
@@ -708,6 +714,18 @@ export const useGameStore = create<GameState>()(
       takiPackages = takiPackages.filter((p) => day < p.maturesDay);
     }
 
+    // Bölüm 28-29: Kurumsal Marka — sahip olunan her kademe kalıcı,
+    // kümülatif bir günlük nakit geliri katar (Kurumsallaşma'ya sahip olmak
+    // Şubeleşme/Marka Yönetimi'nin gelirini de korur, hepsi üst üste eklenir).
+    let brandStageCashDelta = 0;
+    if (daysElapsed > 0 && postOfferState.highestBrandStageIndex >= 0) {
+      const dailyBrandIncomeTl = BRAND_STAGES.slice(0, postOfferState.highestBrandStageIndex + 1).reduce(
+        (sum, s) => sum + s.dailyIncomeTl,
+        0,
+      );
+      brandStageCashDelta = dailyBrandIncomeTl * daysElapsed;
+    }
+
     // Piyasa: aktif müşterinin süresi dolduysa (ya da 'satis' yönünde
     // istediği ürün stoktan tükendiyse) müşteri elini boş dönüp gider;
     // aktif müşteri yoksa düşük bir olasılıkla yeni biri gelir — hem
@@ -893,7 +911,7 @@ export const useGameStore = create<GameState>()(
 
     const capital: CapitalState = {
       ...postOfferState.capital,
-      cashTl: postOfferState.capital.cashTl + meltingCashBonus + takiPackageCashDelta,
+      cashTl: postOfferState.capital.cashTl + meltingCashBonus + takiPackageCashDelta + brandStageCashDelta,
       stockValueTl: computeStockValueTl(inventory, nextBuyPrice),
     };
 
@@ -1147,6 +1165,23 @@ export const useGameStore = create<GameState>()(
     set({
       takiPackages: [...state.takiPackages, newPackage],
       capital: { ...state.capital, cashTl: state.capital.cashTl - tier.principalTl },
+    });
+    return true;
+  },
+
+  purchaseBrandStage: (stageId) => {
+    const state = get();
+    const stageIndex = BRAND_STAGES.findIndex((s) => s.id === stageId);
+    if (stageIndex === -1) return false;
+    // Bölüm 28-29: kademeler sırayla alınır — bir öncekine sahip olmadan sıradakine geçilemez.
+    if (stageIndex !== state.highestBrandStageIndex + 1) return false;
+    const stage = BRAND_STAGES[stageIndex];
+    if (state.level < stage.requiredLevel) return false;
+    if (stage.costTl > state.capital.cashTl) return false;
+
+    set({
+      highestBrandStageIndex: stageIndex,
+      capital: { ...state.capital, cashTl: state.capital.cashTl - stage.costTl },
     });
     return true;
   },
@@ -1431,7 +1466,7 @@ export const useGameStore = create<GameState>()(
   setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
     }),
     {
-      name: 'cepkaynak-save-v10',
+      name: 'cepkaynak-save-v11',
       storage: createJSONStorage(() => AsyncStorage),
       // Skill tanımları/oyun kodu değişse bile eski kayıtlar yüklenebilsin diye
       // sadece serileştirilebilir oyun verisi tutulur — aksiyon fonksiyonları
@@ -1458,6 +1493,7 @@ export const useGameStore = create<GameState>()(
         takiPackages: state.takiPackages,
         fourXUnlockedUntilMs: state.fourXUnlockedUntilMs,
         fourXUnlimited: state.fourXUnlimited,
+        highestBrandStageIndex: state.highestBrandStageIndex,
         realizedTradingProfitTl: state.realizedTradingProfitTl,
         totalXp: state.totalXp,
         level: state.level,
