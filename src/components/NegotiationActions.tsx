@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   warning: {
     fontFamily: fonts.body,
     fontSize: fontSizes.xs,
-    color: colors.inkMuted,
+    color: colors.inkMutedOnDark,
     textAlign: 'center',
     marginTop: 12,
   },

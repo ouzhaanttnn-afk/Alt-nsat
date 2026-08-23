@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   stepper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceSunken,
     borderRadius: radius.sm,
   },
   stepperButton: {

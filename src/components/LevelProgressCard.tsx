@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
   barTrack: {
     height: 8,
     borderRadius: radius.sm,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceSunken,
     marginTop: 10,
     overflow: 'hidden',
   },

@@ -19,7 +19,7 @@ export function MeltingJobBanner({ job, minutesLeft }: { job: MeltingJob; minute
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: colors.brass,
+    backgroundColor: colors.accent,
     borderRadius: radius.md,
     paddingVertical: 12,
     paddingHorizontal: 14,

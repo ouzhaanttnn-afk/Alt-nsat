@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     backgroundColor: `${colors.positive}17`,
   },
   statusTagPending: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceSunken,
   },
   statusTagLabel: {
     fontFamily: fonts.bodyBold,

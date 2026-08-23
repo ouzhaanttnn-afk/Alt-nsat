@@ -95,7 +95,7 @@ export function DukkanScreen() {
               Gün {day} · {formatGameTime(minuteOfDay)}
             </Text>
           </View>
-          <ReputationGauge score={reputation.score} />
+          <ReputationGauge score={reputation.score} onDark />
         </View>
 
         <View style={styles.speedRow}>
@@ -167,13 +167,13 @@ const styles = StyleSheet.create({
   wordmark: {
     fontFamily: fonts.headingBold,
     fontSize: fontSizes.lg,
-    color: colors.accentDark,
+    color: colors.brass,
     letterSpacing: 1,
   },
   dayLabel: {
     fontFamily: fonts.mono,
     fontSize: fontSizes.sm,
-    color: colors.inkMuted,
+    color: colors.inkMutedOnDark,
   },
   speedRow: {
     flexDirection: 'row',
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   fourXCountdown: {
     fontFamily: fonts.mono,
     fontSize: 11,
-    color: colors.inkMuted,
+    color: colors.inkMutedOnDark,
     marginBottom: 4,
   },
 });

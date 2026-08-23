@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   badge: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceSunken,
     borderRadius: 6,
     paddingVertical: 4,
     paddingHorizontal: 9,

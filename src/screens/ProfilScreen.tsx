@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.headingBold,
     fontSize: fontSizes.xl,
-    color: colors.ink,
+    color: colors.inkOnDark,
   },
   pointsBadge: {
     backgroundColor: colors.accent,

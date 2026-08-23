@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.headingBold,
     fontSize: fontSizes.xl,
-    color: colors.ink,
+    color: colors.inkOnDark,
   },
   banner: {
     borderRadius: 12,
@@ -270,6 +270,6 @@ const styles = StyleSheet.create({
   emptyHint: {
     fontFamily: fonts.body,
     fontSize: fontSizes.sm,
-    color: colors.inkMuted,
+    color: colors.inkMutedOnDark,
   },
 });

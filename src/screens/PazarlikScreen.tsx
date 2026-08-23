@@ -377,7 +377,7 @@ function ResultScreen({
       : result === 'creditDenied'
         ? colors.warning
         : result === 'sent'
-          ? colors.brass
+          ? colors.accent
           : colors.negative;
   const title =
     result === 'accepted'
@@ -473,12 +473,12 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.headingBold,
     fontSize: fontSizes.lg,
-    color: colors.ink,
+    color: colors.inkOnDark,
   },
   timer: {
     fontFamily: fonts.monoBold,
     fontSize: fontSizes.md,
-    color: colors.inkMuted,
+    color: colors.inkMutedOnDark,
   },
   timerWarning: {
     color: colors.negative,
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
   closeLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: fontSizes.sm,
-    color: colors.accent,
+    color: colors.brass,
   },
   content: {
     padding: 16,
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
   hint: {
     fontFamily: fonts.body,
     fontSize: fontSizes.xs,
-    color: colors.inkMuted,
+    color: colors.inkMutedOnDark,
     textAlign: 'center',
     marginTop: -6,
   },
@@ -521,13 +521,13 @@ const styles = StyleSheet.create({
   resultTitle: {
     fontFamily: fonts.headingBold,
     fontSize: fontSizes.xl,
-    color: colors.ink,
+    color: colors.inkOnDark,
     textAlign: 'center',
   },
   resultSubtitle: {
     fontFamily: fonts.body,
     fontSize: fontSizes.sm,
-    color: colors.inkMuted,
+    color: colors.inkMutedOnDark,
     textAlign: 'center',
     marginTop: 8,
   },
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
   brokerHint: {
     fontFamily: fonts.body,
     fontSize: fontSizes.xs,
-    color: colors.inkMuted,
+    color: colors.inkMutedOnDark,
     textAlign: 'center',
     marginTop: 14,
     paddingHorizontal: 12,

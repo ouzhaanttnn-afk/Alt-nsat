@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderRadius: radius.sm,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceSunken,
   },
   controlButtonPrimary: {
     backgroundColor: colors.ink,

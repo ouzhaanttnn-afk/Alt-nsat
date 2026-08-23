@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.headingBold,
     fontSize: fontSizes.xl,
-    color: colors.ink,
+    color: colors.inkOnDark,
   },
   pendingBadge: {
     backgroundColor: colors.accentSoft,
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontFamily: fonts.body,
     fontSize: fontSizes.sm,
-    color: colors.inkMuted,
+    color: colors.inkMutedOnDark,
     textAlign: 'center',
     maxWidth: 260,
   },

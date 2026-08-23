@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   typeTag: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceSunken,
     borderRadius: 6,
     paddingVertical: 2,
     paddingHorizontal: 7,

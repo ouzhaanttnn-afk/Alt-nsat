@@ -1,30 +1,39 @@
-// Bölüm 1 kimliği (bordo/pirinç/mühür) korunuyor, zemin "esnaf defteri"
-// kağıt dokusundan modern/fintech açık gri yüzeye taşındı.
-// Neon/glassmorphism/emoji hâlâ YOK — düz renk, hafif gölge, ince kontur.
+// Kuyumcu vitrini kimliği: koyu lacivert zemin + krem/fildişi kartlar +
+// antika altın vurgu. Neon/glassmorphism/emoji hâlâ YOK — düz renk, hafif
+// gölge, ince kontur; sadece palet ışıktan koyuya, bordodan altına taşındı.
 export const colors = {
-  // Zemin — açık, nötr gri (fintech dashboard hissi)
-  background: '#F2F3F5',
-  surface: '#FFFFFF',
+  // Zemin — koyu lacivert (vitrin/dükkân hissi)
+  background: '#101B2D',
+  // Kart yüzeyi — sıcak fildişi/krem (ekranın çoğu içerik burada yaşıyor)
+  surface: '#F6EEDD',
+  // Kart İÇİNDE çukur/ikincil panel (rozet, stepper, ilerleme çubuğu zemini) —
+  // arka plan lacivertinden bağımsız, surface'in biraz koyusu.
+  surfaceSunken: '#E9DDC0',
 
-  // Vurgu — bordo (marka rengi, korunuyor)
-  accent: '#7A2331',
-  accentDark: '#5E1B26',
-  accentSoft: '#F7E9EB',
+  // Vurgu — antika altın (marka rengi)
+  accent: '#7A5C0F',
+  accentDark: '#5C4509',
+  accentSoft: '#F1E6C8',
 
-  // Metal — pirinç/eski altın (mat, parlak sarı DEĞİL)
-  brass: '#8C6A21',
-  brassDark: '#6E5119',
+  // Metal — parlak altın (ikon/pırıltı, bölüm etiketleri)
+  brass: '#D4AF37',
+  brassDark: '#A8841F',
 
-  // Dijital ekran (terazi/LCD panelleri) — imza bileşen, korunuyor
-  lcdBg: '#AEBB92',
-  lcdText: '#20280F',
+  // Dijital ekran (terazi/LCD panelleri) — imza bileşen, artık altın/siyah
+  lcdBg: '#0B1220',
+  lcdText: '#D4AF37',
 
-  // Metin ve kontur — nötr gri skala
-  ink: '#1C1E21',
-  inkMuted: '#6B7280',
-  border: '#E3E5EA',
+  // Metin ve kontur — krem kartların üzerinde (uygulamanın çoğu metni)
+  ink: '#2A2113',
+  inkMuted: '#7A6F58',
+  border: '#DCCFA8',
 
-  // Durum renkleri (rozet/uyarı için, mat tonlarda)
+  // Metin — koyu lacivert zeminin ÜZERİNDE doğrudan duran metin (kart
+  // içine sarılmamış başlık/alt başlık/ipucu) için ayrı, açık tonlar.
+  inkOnDark: '#F3EAD3',
+  inkMutedOnDark: '#B4A67D',
+
+  // Durum renkleri (rozet/uyarı için, mat tonlarda) — krem kartlarda okunaklı
   positive: '#1F8A55',
   warning: '#B4791C',
   negative: '#C23B3B',

@@ -100,17 +100,17 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.headingBold,
     fontSize: fontSizes.xl,
-    color: colors.ink,
+    color: colors.inkOnDark,
   },
   subtitle: {
     fontFamily: fonts.body,
     fontSize: fontSizes.sm,
-    color: colors.inkMuted,
+    color: colors.inkMutedOnDark,
     marginTop: 2,
   },
   emptyHint: {
     fontFamily: fonts.body,
     fontSize: fontSizes.sm,
-    color: colors.inkMuted,
+    color: colors.inkMutedOnDark,
   },
 });

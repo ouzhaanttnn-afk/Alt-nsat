@@ -26,10 +26,10 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.inkMuted,
+        tabBarActiveTintColor: colors.brass,
+        tabBarInactiveTintColor: colors.inkMutedOnDark,
         tabBarStyle: {
-          backgroundColor: colors.surface,
+          backgroundColor: colors.lcdBg,
           borderTopWidth: 0,
           ...shadow,
           shadowOffset: { width: 0, height: -2 },
