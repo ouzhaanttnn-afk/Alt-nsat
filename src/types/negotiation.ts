@@ -19,8 +19,10 @@ export interface NegotiationProduct {
   source: string; // ürünün kaynağı (ör. "Müşteri getirdi")
   category: InventoryCategory;
   karat: number;
-  grams: number;
-  marketValueTl: number;
+  grams: number; // birim başına gram
+  marketValueTl: number; // TOPLAM işlem değeri (adet dahil)
+  /** Bölüm 10: büyük işlemler — 1'den fazlaysa "10 Çeyrek" gibi toplu bir lot. Belirtilmezse 1 kabul edilir. */
+  quantity?: number;
   /** Sadece takı: vitrin vadesi sonunda beklenen satış değeri (pasif gelir oranını belirler). */
   estimatedSellPriceTl?: number;
   sealVerified?: boolean;

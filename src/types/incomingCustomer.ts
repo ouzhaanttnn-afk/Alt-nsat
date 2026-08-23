@@ -1,22 +1,28 @@
+import type { ScaleReading } from '../components/ScalePanel';
 import type { NegotiationCustomer, NegotiationProduct } from './negotiation';
 
-// Bölüm 4.2/4.3 — sürekli akan müşteri: Piyasa artık statik, tek seferlik
-// "fırsat" listesi değil, dükkâna gerçek zamanlı gelen bir müşteri akışı.
-// İlk aşamada sadece dükkânın stoğundan bir şey almak isteyen müşteriler
-// geliyor (bkz. inventoryItemId — elindeki stoktan hangi kalemi istiyor);
-// müşteriden alım (bozdurma) ayrı bir aşamada açılacak.
+// Bölüm 4.2/6 — sürekli akan müşteri: dükkâna gerçek zamanlı gelen bir
+// müşteri akışı, oyunun ilk dakikasından itibaren iki yönlü çalışır:
+// 'satis' — müşteri dükkânın stoğundan bir şey almak istiyor (mevcut
+// davranış, Pazarlık ekranı 'satis' modunda açılır); 'bozdurma' —
+// müşteri elindeki altını dükkâna satmak/bozdurmak istiyor (Pazarlık
+// ekranının mevcut 'alis' modu — terazi + kredi mantığı — yeniden
+// kullanılır, hiçbir yeni ekran icat edilmedi).
 export interface IncomingCustomer {
   id: string;
   customer: NegotiationCustomer;
   product: NegotiationProduct;
-  /** Müşterinin almak istediği, dükkânın stoğundaki envanter kalemi. */
-  inventoryItemId: string;
+  direction: 'satis' | 'bozdurma';
+  /** Sadece direction:'satis' — müşterinin almak istediği, dükkânın stoğundaki envanter kalemi. */
+  inventoryItemId?: string;
   /**
-   * Satış tamamlanınca inventoryItemId'den düşülecek adet. Çoğu zaman 1;
-   * Cumhuriyet (Tam) Altını 4 Çeyrek'e, Yarım Altın 2 Çeyrek'e değerce eşit
-   * olduğundan bunlar için stok tutmak yerine Çeyrek stoğundan bu kadarı
-   * düşülür (bkz. useGameStore'daki bileşik ürün mantığı).
+   * Sadece direction:'satis' — satış tamamlanınca inventoryItemId'den
+   * düşülecek adet. Çoğu zaman 1; Cumhuriyet (Tam) Altını 4 Çeyrek'e,
+   * Yarım Altın 2 Çeyrek'e değerce eşit olduğundan bunlar için stok
+   * tutmak yerine Çeyrek stoğundan bu kadarı düşülür.
    */
-  unitsRequired: number;
+  unitsRequired?: number;
+  /** Sadece direction:'bozdurma' — Pazarlık ekranının terazi paneli için sahte ölçüm. */
+  scaleReading?: ScaleReading;
   expiresAtTotalMinutes: number;
 }

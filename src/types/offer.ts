@@ -18,6 +18,8 @@ export interface Offer {
   offerAmountTl: number;
   marketValueTl: number;
   estimatedSellPriceTl?: number;
+  /** Bölüm 10: büyük işlemler — 1'den fazlaysa toplu bir lot. Belirtilmezse 1 kabul edilir. */
+  quantity?: number;
   status: OfferStatus;
   willAccept: boolean;
   createdDay: number;

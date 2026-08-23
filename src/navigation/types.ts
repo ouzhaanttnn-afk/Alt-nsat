@@ -12,6 +12,13 @@ export interface PazarlikParams {
   product: NegotiationProduct;
   scaleReading?: ScaleReading;
   mode?: 'alis' | 'satis';
+  /**
+   * Bölüm 6: bu pazarlık, dükkâna gelen bir bozdurma müşterisinden
+   * (incomingCustomer) başladıysa onun id'si — pazarlık sonuçlandığında
+   * (kabul/red/gönderildi/süre doldu) store'daki incomingCustomer'ı
+   * temizlemek için kullanılır.
+   */
+  incomingCustomerId?: string;
 }
 
 export type RootStackParamList = {

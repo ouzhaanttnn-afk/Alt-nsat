@@ -6,11 +6,13 @@ import { calculateOpportunityScore } from '../utils/opportunityScore';
 import { AvatarInitial } from './icons/AvatarInitial';
 import { Badge } from './Badge';
 import { Card } from './Card';
-import { RingIcon } from './icons/RingIcon';
+import { ProductIcon } from './icons/ProductIcon';
 
-// Bölüm 4.2: dükkâna gelen, stoktan bir şey almak isteyen müşteri kartı.
-// Fırsat Skoru burada "bu müşteriye ne kadar iyi satabilirsin"i özetler —
-// kendi doğrulanmış stoğun olduğu için risk sabit düşük kabul edilir.
+// Bölüm 4.2/6: dükkâna gelen müşteri kartı — hem stoktan bir şey almak
+// (direction:'satis') hem elindekini bozdurmak (direction:'bozdurma')
+// isteyen müşteriler aynı kartla gösterilir. Fırsat Skoru sadece
+// direction:'satis' için anlamlı (customer.acceptanceThreshold orada
+// TAVAN oranı; bozdurmada TABAN oranı olduğundan aynı formül geçerli değil).
 export function CustomerArrivalCard({
   incomingCustomer,
   scoreVisible,
@@ -20,7 +22,7 @@ export function CustomerArrivalCard({
   scoreVisible: boolean;
   onPress: () => void;
 }) {
-  const { customer, product } = incomingCustomer;
+  const { customer, product, direction } = incomingCustomer;
   const ceilingTl = product.marketValueTl * customer.acceptanceThreshold;
   const score = calculateOpportunityScore(product.marketValueTl, ceilingTl, 'positive');
 
@@ -38,20 +40,25 @@ export function CustomerArrivalCard({
         </View>
 
         <View style={styles.productRow}>
-          <RingIcon size={22} />
-          <Text style={styles.productName}>{product.name}</Text>
+          <ProductIcon category={product.category} name={product.name} size={22} />
+          <Text style={styles.productName}>
+            {product.quantity && product.quantity > 1 ? `${product.quantity} adet ` : ''}
+            {product.name}
+          </Text>
           <Text style={styles.productMeta}>
             {product.karat} Ayar, {product.grams.toLocaleString('tr-TR')}g
+            {product.quantity && product.quantity > 1 ? '/adet' : ''}
           </Text>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.marketValue}>Piyasa değeri ≈ {formatTl(product.marketValueTl)}</Text>
-          {scoreVisible ? (
-            <Badge tone="positive" label={`Fırsat Skoru: ${score}/100`} />
-          ) : (
-            <Text style={styles.scoreLocked}>Kilitli — Piyasa Sezgisi ile aç</Text>
-          )}
+          {direction === 'satis' &&
+            (scoreVisible ? (
+              <Badge tone="positive" label={`Fırsat Skoru: ${score}/100`} />
+            ) : (
+              <Text style={styles.scoreLocked}>Kilitli — Piyasa Sezgisi ile aç</Text>
+            ))}
         </View>
 
         <Text style={styles.cta}>Dokun ve pazarlık yap →</Text>

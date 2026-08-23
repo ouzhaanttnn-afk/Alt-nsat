@@ -1,7 +1,42 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { INCOMING_CUSTOMER_ARCHETYPES, INCOMING_CUSTOMER_NAMES } from '../data/incomingCustomerPool';
+import {
+  BOZDURMA_BULK_LOT_MAX_GRAMS,
+  BOZDURMA_BULK_LOT_MIN_GRAMS,
+  BOZDURMA_BULK_LOT_PROBABILITY,
+  BOZDURMA_DIRECTION_PROBABILITY,
+  CAPITAL_TIERS,
+  GAME_MINUTES_PER_REAL_SECOND_AT_1X,
+  INCOMING_CUSTOMER_CHECKS_PER_DAY,
+  INCOMING_CUSTOMER_EXPIRY_MINUTES,
+  INCOMING_CUSTOMER_TRIGGER_PROBABILITY,
+  LATE_PAYMENT_TRUST_PENALTY,
+  LOAN_TERM_DAYS,
+  MARKET_SPREAD_MAX_TL_PER_GRAM,
+  MARKET_SPREAD_MIN_TL_PER_GRAM,
+  MARKET_STEP_MAX_PERCENT,
+  MARKET_STEP_MIN_PERCENT,
+  MARKET_STEP_MINUTES,
+  MAX_REAL_SECONDS_PER_TICK,
+  MIN_TRUST_FOR_CREDIT,
+  MINUTES_PER_DAY,
+  OFFER_RESOLUTION_DELAY_MINUTES,
+  RESTART_FLUCTUATION_MAX_PERCENT,
+  RESTART_FLUCTUATION_MIN_PERCENT,
+  STARTING_CAPITAL_GRAMS,
+  STARTING_REFERENCE_PRICE,
+  STARTING_WHOLESALER_TRUST,
+  WHOLESALER_MARGIN_MAX_TL_PER_GRAM,
+  WHOLESALER_MARGIN_MIN_TL_PER_GRAM,
+} from '../config/economyConfig';
+import type { ScaleReading } from '../components/ScalePanel';
+import {
+  BOZDURMA_CUSTOMER_ARCHETYPES,
+  INCOMING_CUSTOMER_ARCHETYPES,
+  INCOMING_CUSTOMER_NAMES,
+} from '../data/incomingCustomerPool';
+import { toptanciStock } from '../data/toptanciStock';
 import type { PirlantaCatalogItem } from '../data/mockPirlanta';
 import { skillTree } from '../data/skillTree';
 import type {
@@ -16,101 +51,11 @@ import type { Offer } from '../types/offer';
 
 export type ClockSpeed = 0 | 1 | 2 | 4;
 
-export interface JumpEvent {
-  percent: number;
-  day: number;
-  /** Sıçramanın "sebebi" olarak gösterilen haber başlığı — karar gerektirmez, salt bilgilendirme. */
-  headline: string;
-}
-
-export interface VitrinMaturityEvent {
-  count: number;
-  totalPayoutTl: number;
-  sampleName: string;
-}
-
-// Bölüm 2: Oyuncu 1 kg has altınla başlar — ayrı bir "rezerv" yok, tamamı
-// gün 1 fiyatından doğrudan kullanılabilir nakde çevrilir. "Sermayen X gram
-// altın" gösterimi artık sabit bir varlık değil, kasadaki nakit güncel
-// kurdan bölünerek her an yeniden hesaplanan bir gösterge (bkz. CapitalSummary).
-const STARTING_CAPITAL_GRAMS = 1000;
-const STARTING_REFERENCE_PRICE = 6845; // TL, gram altın referans (orta) fiyatı
-
-// ALIŞ (piyasa sizden düşük fiyattan alır) / SATIŞ (piyasa size yüksek
-// fiyattan satar) — referans fiyatın etrafında sabit bir spread.
-const SPREAD_RATIO = 0.01;
-
-export const MINUTES_PER_DAY = 1440;
-// Oyun saatinin gerçek zamana oranı: 1x hızda 1 gün ≈ 8 gerçek dakika.
-const GAME_MINUTES_PER_REAL_SECOND_AT_1X = 3;
-// Bölüm 2: "her oyun-dakikasında ±%0.3–%1.2 küçük dalgalanma". Bağımsız
-// dakika adımları tek seferde sqrt(n) ile ölçeklenerek uygulanıyor; bu
-// yüzden 1440 dakikalık bir günde spesifikasyondaki ham değer (%1.2)
-// günlük %25-30 gibi gerçekçi olmayan bir oynaklığa büyüyordu. Kripto
-// değil kuyumcu hissi için düşürüldü — günlük tipik hareket artık
-// birkaç puan, nadir sıçramalar (aşağıda) hâlâ göze çarpıyor.
-const MAX_PERCENT_PER_MINUTE = 0.15;
-// Bölüm 2: "Nadir büyük sıçrama (günde 1-2, %5-10 ihtimal): ±%5-15".
-const JUMP_CHECKS_PER_DAY = 1.5;
-const JUMP_TRIGGER_PROBABILITY = 0.075;
-const JUMP_PROBABILITY_PER_MINUTE = (JUMP_CHECKS_PER_DAY * JUMP_TRIGGER_PROBABILITY) / MINUTES_PER_DAY;
-// Uygulama arka planda uzun süre kaldıysa tek tick'te aşırı sıçramayı önler.
-const MAX_REAL_SECONDS_PER_TICK = 5;
-
-// Her sıçramanın bir "sebebi" var gibi görünsün diye yön bazlı haber
-// başlığı havuzu — karar gerektirmez, sadece fiyat hareketini bağlamlar.
-const POSITIVE_NEWS_HEADLINES = [
-  'Merkez Bankası faiz kararı sonrası altına talep arttı',
-  'Dolar/TL yükseldi, gram altın buna paralel yükseliyor',
-  'Külçe altın ithalatına ek vergi geldi, arz daraldı',
-  'Küresel piyasalarda güvenli liman talebi arttı',
-  'Enflasyon verileri beklentilerin üzerinde geldi',
-];
-const NEGATIVE_NEWS_HEADLINES = [
-  'Merkez Bankası faiz artırdı, altına talep zayıfladı',
-  'Dolar/TL geriledi, gram altın değer kaybediyor',
-  'Altın ithalat vergisi kaldırıldı, arz arttı',
-  'Küresel piyasalarda risk iştahı arttı, altından çıkış var',
-  'Güçlü istihdam verileri geldi, altın baskı altında',
-];
-
-// Piyasa: dükkâna sürekli akan müşteri. İlk aşamada müşteriler sadece
-// dükkânın stoğundan (toptancıdan alınan yatırım altını / takı) bir şey
-// almak isteyip geliyor — pazarlıkla satılıyor. Ortalama ~1.2 saatte bir
-// müşteri gelir; belirtilen süre içinde pazarlığa girilmezse müşteri ayrılır.
-const INCOMING_CUSTOMER_CHECKS_PER_DAY = 20;
-const INCOMING_CUSTOMER_TRIGGER_PROBABILITY = 1;
-const INCOMING_CUSTOMER_PROBABILITY_PER_MINUTE =
-  (INCOMING_CUSTOMER_CHECKS_PER_DAY * INCOMING_CUSTOMER_TRIGGER_PROBABILITY) / MINUTES_PER_DAY;
-const INCOMING_CUSTOMER_EXPIRY_MINUTES = 90;
-
-// Toptancı Güveni: borç aldığında bir vade başlar, vadeyi geç ödersen
-// güven düşer ve vade yeniden ötelenir (kronik geç ödeyen daha çok
-// puan kaybeder). Güven belirli bir eşiğin altına inerse toptancı
-// artık kredi (borçla tamamlama) vermez.
-const STARTING_WHOLESALER_TRUST = 65;
-const LOAN_TERM_DAYS = 5;
-const LATE_PAYMENT_TRUST_PENALTY = 15;
-const MIN_TRUST_FOR_CREDIT = 30;
-
-// Bölüm 4.6: Teklifler — kaydırma çubuğuyla gönderilen bir teklif anında
-// sonuçlanmaz, müşterinin düşünmesi için bir süre "bekleyen" kalır. 4 oyun
-// saati fazla uzun hissettirdiği için 30 oyun dakikasına düşürüldü.
-export const OFFER_RESOLUTION_DELAY_MINUTES = 30;
-
-// Kullanıcı kararı: takı (bilezik/yüzük/kolye) tek tek pazarlıkla
-// satılmıyor — vitrine girip kendi kâr potansiyeline göre sürekli pasif
-// gelir üretiyor (yüksek marjlı ürün günde daha çok kazandırır). 30 gün
-// (vitrin vadesi) dolunca ürün "satılmış" sayılır: o güne kadar zaten
-// beklenen kârının tamamını gün gün tahsil etmiştir, vade sonunda sadece
-// ödediği maliyet nakde döner ve vitrinden kalkar. Yatırım altını
-// (çeyrek/gram/vb.) ise doğrudan/aktif alınıp satılıyor, değeri güncel
-// kurla dalgalanır, vade kavramı yok.
-export const VITRIN_TERM_DAYS = 30;
-
-// Bölüm 2: Sermaye Kademeleri — "Her kademe yeni bir kilit açar". Burada
-// her yeni kademeye ulaşmak bir Yetenek Ağacı puanı kazandırıyor.
-export const CAPITAL_TIERS = [100000, 500000, 2000000, 10000000, 50000000, 250000000];
+export {
+  CAPITAL_TIERS,
+  MINUTES_PER_DAY,
+  OFFER_RESOLUTION_DELAY_MINUTES,
+} from '../config/economyConfig';
 
 function computeNetWorthTl(capital: CapitalState): number {
   return capital.cashTl + capital.stockValueTl - capital.debtTl;
@@ -124,10 +69,24 @@ function tierIndexForNetWorth(netWorthTl: number): number {
   return index;
 }
 
-function priceFromReference(reference: number): Pick<GoldPriceState, 'buyPricePerGram' | 'sellPricePerGram'> {
+/** [min, max] aralığında düzgün dağılımlı rastgele değer. */
+function randomInRange(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
+
+/** ±magnitude yüzdesinde, rastgele işaretli bir fiyat hareketi. */
+function randomSignedPercent(minMagnitude: number, maxMagnitude: number): number {
+  const magnitude = randomInRange(minMagnitude, maxMagnitude);
+  return Math.random() < 0.5 ? -magnitude : magnitude;
+}
+
+function priceFromReferenceAndSpread(
+  reference: number,
+  spreadTlPerGram: number,
+): Pick<GoldPriceState, 'buyPricePerGram' | 'sellPricePerGram'> {
   return {
-    buyPricePerGram: reference * (1 - SPREAD_RATIO),
-    sellPricePerGram: reference * (1 + SPREAD_RATIO),
+    buyPricePerGram: reference - spreadTlPerGram / 2,
+    sellPricePerGram: reference + spreadTlPerGram / 2,
   };
 }
 
@@ -146,19 +105,44 @@ export function currentPositionValueTl(item: InventoryItem, buyPricePerGram: num
   return hasEquivalentGrams(item) * item.quantity * buyPricePerGram;
 }
 
-/** Stok değerini envanterden yeniden hesaplar: takı/pırlanta sabit değerde, yatırım güncel kurda. */
+/** Stok değerini envanterden yeniden hesaplar: pırlanta sabit (sembolik) değerde, geri kalan (sarrafiye) güncel kurda mark-to-market. */
 function computeStockValueTl(inventory: InventoryItem[], buyPricePerGram: number): number {
   return inventory.reduce((sum, item) => {
-    if (item.category === 'yatirim') {
-      return sum + currentPositionValueTl(item, buyPricePerGram);
+    if (item.category === 'pirlanta') {
+      return sum + item.costBasisTl;
     }
-    return sum + item.costBasisTl;
+    return sum + currentPositionValueTl(item, buyPricePerGram);
   }, 0);
 }
 
 let nextInventoryId = 1;
 let nextOfferId = 1;
 let nextIncomingCustomerId = 1;
+
+interface BozdurmaCandidate {
+  name: string;
+  category: InventoryCategory;
+  karat: number;
+  gramsPerUnit: number;
+  quantity: number;
+}
+
+/** Bölüm 6/10: müşteriden alım (bozdurma) için ürün + miktar üretir — çoğunlukla stoktaki 3 kalemden biri (küçük/orta miktar), nadiren büyük karışık ayarlı bir hurda parti. */
+function pickBozdurmaCandidate(): BozdurmaCandidate {
+  if (Math.random() < BOZDURMA_BULK_LOT_PROBABILITY) {
+    const karat = [14, 18, 20, 22][Math.floor(Math.random() * 4)];
+    const grams = Math.round(randomInRange(BOZDURMA_BULK_LOT_MIN_GRAMS, BOZDURMA_BULK_LOT_MAX_GRAMS));
+    return { name: 'Karışık Hurda Altın', category: 'yatirim', karat, gramsPerUnit: grams, quantity: 1 };
+  }
+  const spec = toptanciStock[Math.floor(Math.random() * toptanciStock.length)];
+  const quantity =
+    spec.id === 'gram-altin'
+      ? 1 + Math.floor(Math.random() * 30)
+      : spec.id === 'ceyrek-altin'
+        ? 1 + Math.floor(Math.random() * 15)
+        : 1 + Math.floor(Math.random() * 4);
+  return { name: spec.name, category: spec.category, karat: spec.karat, gramsPerUnit: spec.grams, quantity };
+}
 
 interface GameState {
   capital: CapitalState;
@@ -167,25 +151,30 @@ interface GameState {
   inventory: InventoryItem[];
   /** Bölüm 4.6: Bekleyen/Kabul/Red durumundaki tüm pazarlık teklifleri. */
   offers: Offer[];
-  /** Piyasa: dükkânın stoğundan bir şey almak isteyip gelen, o an aktif müşteri. */
+  /** Piyasa: dükkâna gelmiş, o an aktif müşteri (alım ya da bozdurma isteyebilir). */
   incomingCustomer: IncomingCustomer | null;
   day: number;
   minuteOfDay: number;
   speed: ClockSpeed;
   referencePriceAtDayStart: number;
-  lastJumpEvent: JumpEvent | null;
+  /** Bölüm 4.4: genel piyasa ALIŞ/SATIŞ makası (TL/gram) — her 30 dakikalık piyasa adımında yeniden belirlenir. */
+  marketSpreadTlPerGram: number;
+  /** Bölüm 5: toptancının SATIŞ fiyatının şu kadar altından oyuncuya sattığı marj (TL/gram). */
+  wholesalerBuyMarginTlPerGram: number;
+  /** Bölüm 5: toptancının ALIŞ/bozdurma fiyatının şu kadar üstünden oyuncudan aldığı marj (TL/gram) — ileri fazlardaki Toptancı Bağlantısı için ayrılmış. */
+  wholesalerSellMarginTlPerGram: number;
   wholesalerTrust: number;
   /** Aktif borcun ödenmesi gereken oyun günü; borç yoksa null. */
   loanDueDay: number | null;
-  /** En son tick'te vadesi dolup vitrinden kalkan takı(lar) — banner için. */
-  lastVitrinMaturity: VitrinMaturityEvent | null;
   setSpeed: (speed: ClockSpeed) => void;
-  /** Gerçek zamanda geçen saniyeyi oyun saatine, altın fiyatına ve pasif gelire işler. */
+  /** Gerçek zamanda geçen saniyeyi oyun saatine, altın fiyatına ve müşteri akışına işler. */
   tick: (realSecondsElapsed: number) => void;
+  /** Uygulama yeniden açıldığında (rehydration) referans fiyata bir kez daha ekstra ±%3-5 dalgalanma uygular. */
+  applyRestartFluctuation: () => void;
   /**
    * Bir alımı kapatır: önce nakitten öder, yetmeyen kısmı borca yazar.
-   * Alınan ürün envantere eklenir (takı ise vitrine girip pasif gelir
-   * üretmeye başlar, yatırım ise doğrudan satılabilir olur).
+   * Alınan ürün envantere eklenir; aynı ürün (isim/kategori/ayar/gram)
+   * zaten stoktaysa mevcut pozisyona eklenip maliyet ortalaması güncellenir.
    * Toptancı Güveni eşiğin altındaysa ve nakit yetmiyorsa işlem reddedilir.
    */
   settleDeal: (
@@ -196,22 +185,23 @@ interface GameState {
       karat: number;
       grams: number;
       marketValueTl: number;
-      /** Sadece takı: vitrin vadesi sonunda beklenen satış değeri. */
       estimatedSellPriceTl?: number;
+      /** Bölüm 10: büyük işlemler — tek pazarlıkta N adet aynı SKU'nun toplu alımı. Belirtilmezse 1. */
+      quantity?: number;
     },
   ) => { success: true; borrowedTl: number } | { success: false; borrowedTl: 0 };
-  /** Bir yatırım pozisyonunun tamamını güncel kurdan nakde çevirir; alış-satış makasından gerçekleşen kârı döner. */
+  /** Bir pozisyonun tamamını güncel kurdan nakde çevirir; alış-satış makasından gerçekleşen kârı döner. */
   sellInventoryItem: (itemId: string) => { saleValueTl: number; profitTl: number; quantity: number } | null;
   /**
-   * Piyasa: Toptancıdan Stok Al — pazarlıksız, her an açık restok. Güncel
-   * SATIŞ kurundan, sadece nakit yettiği kadar (borç/kredi yok) anında
-   * satın alır.
+   * Piyasa: Toptancıdan Stok Al — pazarlıksız, her an açık restok. Genel
+   * piyasa SATIŞ kurunun toptancı marjı kadar altından, sadece nakit
+   * yettiği kadar (borç/kredi yok) anında satın alır.
    */
   buyInvestmentUnits: (
     spec: { name: string; karat: number; grams: number; category: InventoryCategory },
     quantity: number,
   ) => { success: true } | { success: false; reason: 'insufficient_cash' };
-  /** Bir yatırım pozisyonundan istenen adedi (kısmi olabilir) güncel ALIŞ kurundan anında nakde çevirir. */
+  /** Bir pozisyondan istenen adedi (kısmi olabilir) güncel ALIŞ kurundan anında nakde çevirir. */
   sellInvestmentUnits: (
     itemId: string,
     quantity: number,
@@ -233,14 +223,22 @@ interface GameState {
     offerAmountTl: number;
     marketValueTl: number;
     estimatedSellPriceTl?: number;
+    quantity?: number;
     willAccept: boolean;
   }) => void;
   /**
-   * Aktif gelen müşteriye yanıt verir. Kabulde (accepted=true, saleAmountTl
-   * ile) stoktan bir adet düşülür, karşılığında pazarlıkla anlaşılan tutar
-   * nakde eklenir. Reddde müşteri elini boş dönüp gider.
+   * Aktif gelen müşteriye (direction:'satis') yanıt verir. Kabulde
+   * (accepted=true, saleAmountTl ile) stoktan bir adet düşülür,
+   * karşılığında pazarlıkla anlaşılan tutar nakde eklenir. Reddde
+   * müşteri elini boş dönüp gider.
    */
   resolveIncomingCustomer: (accepted: boolean, saleAmountTl?: number) => { profitTl: number } | null;
+  /**
+   * Bölüm 6: direction:'bozdurma' bir müşterinin pazarlığı (mevcut 'alis'
+   * modu, settleDeal üzerinden) sonuçlandığında aktif müşteriyi temizler
+   * — sadece hâlâ aynı müşteri aktifse (id eşleşirse) etkilidir.
+   */
+  clearIncomingCustomer: (id: string) => void;
   /** Alım-satım makasından bugüne kadar gerçekleşen toplam kâr/zarar. */
   realizedTradingProfitTl: number;
   /**
@@ -270,6 +268,10 @@ interface GameState {
 // (1kg altınla başlamak zaten bir birikimi temsil ediyor).
 const STARTING_NET_WORTH_TL = STARTING_CAPITAL_GRAMS * STARTING_REFERENCE_PRICE;
 const STARTING_CAPITAL_TIER_INDEX = tierIndexForNetWorth(STARTING_NET_WORTH_TL);
+const STARTING_MARKET_SPREAD_TL_PER_GRAM = randomInRange(
+  MARKET_SPREAD_MIN_TL_PER_GRAM,
+  MARKET_SPREAD_MAX_TL_PER_GRAM,
+);
 
 export const useGameStore = create<GameState>()(
   persist(
@@ -280,7 +282,7 @@ export const useGameStore = create<GameState>()(
     debtTl: 0,
   },
   goldPrice: {
-    ...priceFromReference(STARTING_REFERENCE_PRICE),
+    ...priceFromReferenceAndSpread(STARTING_REFERENCE_PRICE, STARTING_MARKET_SPREAD_TL_PER_GRAM),
     dailyChangePercent: 0,
   },
   reputation: {
@@ -293,10 +295,11 @@ export const useGameStore = create<GameState>()(
   minuteOfDay: 0,
   speed: 1,
   referencePriceAtDayStart: STARTING_REFERENCE_PRICE,
-  lastJumpEvent: null,
+  marketSpreadTlPerGram: STARTING_MARKET_SPREAD_TL_PER_GRAM,
+  wholesalerBuyMarginTlPerGram: randomInRange(WHOLESALER_MARGIN_MIN_TL_PER_GRAM, WHOLESALER_MARGIN_MAX_TL_PER_GRAM),
+  wholesalerSellMarginTlPerGram: randomInRange(WHOLESALER_MARGIN_MIN_TL_PER_GRAM, WHOLESALER_MARGIN_MAX_TL_PER_GRAM),
   wholesalerTrust: STARTING_WHOLESALER_TRUST,
   loanDueDay: null,
-  lastVitrinMaturity: null,
   realizedTradingProfitTl: 0,
   skillPoints: STARTING_CAPITAL_TIER_INDEX + 1,
   skillLevels: {},
@@ -312,23 +315,49 @@ export const useGameStore = create<GameState>()(
     const gameMinutes = realSecondsElapsed * state.speed * GAME_MINUTES_PER_REAL_SECOND_AT_1X;
     if (gameMinutes <= 0) return;
 
-    const currentReference = (state.goldPrice.buyPricePerGram + state.goldPrice.sellPricePerGram) / 2;
-    const walkPercent = (Math.random() * 2 - 1) * MAX_PERCENT_PER_MINUTE * Math.sqrt(gameMinutes);
-    let nextReference = currentReference * (1 + walkPercent / 100);
+    // Bölüm 4.4: referans fiyat her 30 oyun-dakikasında bir ±%3-5 hareket
+    // eder. Bir tick birden fazla 30 dakikalık eşiği aşabileceğinden
+    // (yüksek hız), kaç bağımsız adımın uygulanması gerektiği hesaplanır.
+    const totalMinutesBefore = state.day * MINUTES_PER_DAY + state.minuteOfDay;
+    const totalMinutesAfterRaw = totalMinutesBefore + gameMinutes;
+    const stepsToApply = Math.max(
+      0,
+      Math.floor(totalMinutesAfterRaw / MARKET_STEP_MINUTES) - Math.floor(totalMinutesBefore / MARKET_STEP_MINUTES),
+    );
 
-    let jumpEvent = state.lastJumpEvent;
-    const jumpProbability = JUMP_PROBABILITY_PER_MINUTE * gameMinutes;
-    if (Math.random() < jumpProbability) {
-      const magnitude = 5 + Math.random() * 10; // %5-15
-      const jumpPercent = Math.random() < 0.5 ? -magnitude : magnitude;
-      nextReference *= 1 + jumpPercent / 100;
-      const headlines = jumpPercent >= 0 ? POSITIVE_NEWS_HEADLINES : NEGATIVE_NEWS_HEADLINES;
-      const headline = headlines[Math.floor(Math.random() * headlines.length)];
-      jumpEvent = { percent: jumpPercent, day: state.day, headline };
+    const currentReference = (state.goldPrice.buyPricePerGram + state.goldPrice.sellPricePerGram) / 2;
+    let nextReference = currentReference;
+    for (let i = 0; i < stepsToApply; i++) {
+      const percent = randomSignedPercent(MARKET_STEP_MIN_PERCENT, MARKET_STEP_MAX_PERCENT);
+      // Not: çarpımsal bir süreçte ardışık aritmetik yüzde uygulamak
+      // (fiyat *= 1+p/100) simetrik ±p olsa bile sistematik aşağı yönlü
+      // bir sapma (volatilite sürüklenmesi) yaratır — binlerce 30 dakikalık
+      // adım boyunca fiyatı sıfıra doğru çeker. Logaritmik (exp) uygulama
+      // bu sapmayı ortadan kaldırıp fiyatı başlangıç seviyesi etrafında
+      // sürüklenmesiz rastgele gezindirir; GDD'nin "±%3-5 hareket" tarifini
+      // tek adımda pratikte aynı büyüklükte karşılar (fark <%0.15).
+      nextReference *= Math.exp(percent / 100);
     }
     nextReference = Math.max(nextReference, 100);
-    const nextBuyPrice = nextReference * (1 - SPREAD_RATIO);
-    const nextSellPrice = nextReference * (1 + SPREAD_RATIO);
+
+    // Makas ve toptancı marjları da piyasa adımıyla birlikte yeniden belirlenir.
+    const marketSpreadTlPerGram =
+      stepsToApply > 0
+        ? randomInRange(MARKET_SPREAD_MIN_TL_PER_GRAM, MARKET_SPREAD_MAX_TL_PER_GRAM)
+        : state.marketSpreadTlPerGram;
+    const wholesalerBuyMarginTlPerGram =
+      stepsToApply > 0
+        ? randomInRange(WHOLESALER_MARGIN_MIN_TL_PER_GRAM, WHOLESALER_MARGIN_MAX_TL_PER_GRAM)
+        : state.wholesalerBuyMarginTlPerGram;
+    const wholesalerSellMarginTlPerGram =
+      stepsToApply > 0
+        ? randomInRange(WHOLESALER_MARGIN_MIN_TL_PER_GRAM, WHOLESALER_MARGIN_MAX_TL_PER_GRAM)
+        : state.wholesalerSellMarginTlPerGram;
+
+    const { buyPricePerGram: nextBuyPrice, sellPricePerGram: nextSellPrice } = priceFromReferenceAndSpread(
+      nextReference,
+      marketSpreadTlPerGram,
+    );
 
     let minuteOfDay = state.minuteOfDay + gameMinutes;
     let day = state.day;
@@ -361,6 +390,7 @@ export const useGameStore = create<GameState>()(
         grams: offer.grams,
         marketValueTl: offer.marketValueTl,
         estimatedSellPriceTl: offer.estimatedSellPriceTl,
+        quantity: offer.quantity,
       });
       return { ...offer, status: result.success ? ('kabul' as const) : ('red' as const) };
     });
@@ -380,126 +410,150 @@ export const useGameStore = create<GameState>()(
       loanDueDay = null;
     }
 
-    // Her takı kendi kâr potansiyeline göre günlük pasif gelir üretir;
-    // vitrin vadesi (30 gün) dolan ürün "satılmış" sayılıp maliyeti
-    // nakde döner ve envanterden kalkar.
-    let vitrinIncomeTl = 0;
-    let maturedCount = 0;
-    let maturedPayoutTl = 0;
-    let maturedSampleName = '';
-    const inventory: InventoryItem[] = [];
-    for (const item of postOfferState.inventory) {
-      if (item.category === 'pirlanta') {
-        // Kalıcı vitrin parçası: vade yok, sabit günlük gelir sonsuza kadar sürer.
-        vitrinIncomeTl += (item.dailyIncomeTl ?? 0) * item.quantity * (gameMinutes / MINUTES_PER_DAY);
-        inventory.push(item);
-        continue;
-      }
-      if (item.category !== 'taki') {
-        inventory.push(item);
-        continue;
-      }
-      const ageInDays = day - item.acquiredDay;
-      if (ageInDays >= VITRIN_TERM_DAYS) {
-        maturedCount += 1;
-        maturedPayoutTl += item.costBasisTl;
-        maturedSampleName = item.name;
-        continue;
-      }
-      const expectedProfitTl = (item.estimatedValueTl ?? item.costBasisTl) - item.costBasisTl;
-      const dailyIncomeTl = expectedProfitTl / VITRIN_TERM_DAYS;
-      vitrinIncomeTl += dailyIncomeTl * (gameMinutes / MINUTES_PER_DAY);
-      inventory.push(item);
-    }
-    const lastVitrinMaturity: VitrinMaturityEvent | null =
-      maturedCount > 0
-        ? { count: maturedCount, totalPayoutTl: maturedPayoutTl, sampleName: maturedSampleName }
-        : state.lastVitrinMaturity;
+    const inventory = postOfferState.inventory;
 
-    // Piyasa: aktif müşterinin süresi dolduysa ya da istediği ürün stoktan
-    // tükendiyse müşteri elini boş dönüp gider; aktif müşteri yoksa stokta
-    // satılabilir bir şey varken düşük bir olasılıkla yeni bir müşteri gelir.
+    // Piyasa: aktif müşterinin süresi dolduysa (ya da 'satis' yönünde
+    // istediği ürün stoktan tükendiyse) müşteri elini boş dönüp gider;
+    // aktif müşteri yoksa düşük bir olasılıkla yeni biri gelir — hem
+    // "almak istiyorum" hem "bozdurmak istiyorum" müşterileri oyunun
+    // ilk dakikasından itibaren aynı havuzdan, yapay bir kilit olmadan.
     let incomingCustomer = postOfferState.incomingCustomer;
     if (incomingCustomer) {
-      const target = inventory.find((i) => i.id === incomingCustomer!.inventoryItemId);
-      if (
-        !target ||
-        target.quantity < incomingCustomer.unitsRequired ||
-        currentTotalMinutes >= incomingCustomer.expiresAtTotalMinutes
-      ) {
+      const expired = currentTotalMinutes >= incomingCustomer.expiresAtTotalMinutes;
+      const staleSatisTarget =
+        incomingCustomer.direction === 'satis' &&
+        (() => {
+          const target = inventory.find((i) => i.id === incomingCustomer!.inventoryItemId);
+          return !target || target.quantity < (incomingCustomer!.unitsRequired ?? 1);
+        })();
+      if (expired || staleSatisTarget) {
         incomingCustomer = null;
       }
     } else {
-      // Cumhuriyet (Tam) Altını değerce 4 Çeyrek'e, Yarım Altın 2 Çeyrek'e
-      // eşit olduğundan ayrı stok tutulmuyor — müşteri isteği Çeyrek
-      // stoğundan bu kadarı düşülerek karşılanıyor.
-      const candidates = inventory
-        .filter((i) => (i.category === 'taki' || i.category === 'yatirim') && i.quantity > 0)
-        .map((item) => ({
-          target: item,
-          unitsRequired: 1,
-          displayName: item.name,
-          displayKarat: item.karat,
-          displayGrams: item.grams,
-        }));
-      const ceyrek = inventory.find((i) => i.category === 'yatirim' && i.name === 'Çeyrek Altın');
-      if (ceyrek && ceyrek.quantity >= 2) {
-        candidates.push({
-          target: ceyrek,
-          unitsRequired: 2,
-          displayName: 'Yarım Altın',
-          displayKarat: 22,
-          displayGrams: 3.5,
-        });
-      }
-      if (ceyrek && ceyrek.quantity >= 4) {
-        candidates.push({
-          target: ceyrek,
-          unitsRequired: 4,
-          displayName: 'Cumhuriyet Altını (Tam Altın)',
-          displayKarat: 22,
-          displayGrams: 7.02,
-        });
-      }
+      const willTrigger =
+        Math.random() <
+        ((INCOMING_CUSTOMER_CHECKS_PER_DAY * INCOMING_CUSTOMER_TRIGGER_PROBABILITY) / MINUTES_PER_DAY) * gameMinutes;
 
-      if (candidates.length > 0 && Math.random() < INCOMING_CUSTOMER_PROBABILITY_PER_MINUTE * gameMinutes) {
-        const candidate = candidates[Math.floor(Math.random() * candidates.length)];
-        const archetype =
-          INCOMING_CUSTOMER_ARCHETYPES[Math.floor(Math.random() * INCOMING_CUSTOMER_ARCHETYPES.length)];
+      if (willTrigger) {
+        const direction: 'satis' | 'bozdurma' =
+          Math.random() < BOZDURMA_DIRECTION_PROBABILITY ? 'bozdurma' : 'satis';
         const customerName =
           INCOMING_CUSTOMER_NAMES[Math.floor(Math.random() * INCOMING_CUSTOMER_NAMES.length)];
-        const marketValueTl = equivalentGrams(candidate.displayGrams, candidate.displayKarat) * nextSellPrice;
-        incomingCustomer = {
-          id: String(nextIncomingCustomerId++),
-          customer: {
-            name: customerName,
-            type: archetype.type,
-            request: `${candidate.displayName} almak istiyorum, elindeki en iyi fiyatı öğrenmek isterim.`,
-            urgency: archetype.urgency,
-            bargainingStyle: archetype.bargainingStyle,
-            // Bölüm 4.3: satış modunda bu, müşterinin ödemeye razı olduğu
-            // TAVAN oranı olarak yorumlanır (alım modunda taban olarak
-            // yorumlanmasının simetriği) — bkz. PazarlikScreen satış modu.
-            acceptanceThreshold: archetype.maxPayRatio,
-          },
-          product: {
-            name: candidate.displayName,
-            source: 'Dükkân stoğu',
-            category: candidate.target.category,
-            karat: candidate.displayKarat,
-            grams: candidate.displayGrams,
-            marketValueTl,
-          },
-          inventoryItemId: candidate.target.id,
-          unitsRequired: candidate.unitsRequired,
-          expiresAtTotalMinutes: currentTotalMinutes + INCOMING_CUSTOMER_EXPIRY_MINUTES,
-        };
+
+        if (direction === 'satis') {
+          // Cumhuriyet (Tam) Altını değerce 4 Çeyrek'e, Yarım Altın 2
+          // Çeyrek'e eşit olduğundan ayrı stok tutulmuyor — müşteri isteği
+          // Çeyrek stoğundan bu kadarı düşülerek karşılanıyor.
+          const candidates = inventory
+            .filter((i) => i.category !== 'pirlanta' && i.quantity > 0)
+            .map((item) => ({
+              target: item,
+              unitsRequired: 1,
+              displayName: item.name,
+              displayKarat: item.karat,
+              displayGrams: item.grams,
+            }));
+          const ceyrek = inventory.find((i) => i.category === 'yatirim' && i.name === 'Çeyrek Altın');
+          if (ceyrek && ceyrek.quantity >= 2) {
+            candidates.push({
+              target: ceyrek,
+              unitsRequired: 2,
+              displayName: 'Yarım Altın',
+              displayKarat: 22,
+              displayGrams: 3.5,
+            });
+          }
+          if (ceyrek && ceyrek.quantity >= 4) {
+            candidates.push({
+              target: ceyrek,
+              unitsRequired: 4,
+              displayName: 'Cumhuriyet Altını (Tam Altın)',
+              displayKarat: 22,
+              displayGrams: 7.02,
+            });
+          }
+
+          if (candidates.length > 0) {
+            const candidate = candidates[Math.floor(Math.random() * candidates.length)];
+            const archetype =
+              INCOMING_CUSTOMER_ARCHETYPES[Math.floor(Math.random() * INCOMING_CUSTOMER_ARCHETYPES.length)];
+            const marketValueTl = equivalentGrams(candidate.displayGrams, candidate.displayKarat) * nextSellPrice;
+            incomingCustomer = {
+              id: String(nextIncomingCustomerId++),
+              direction: 'satis',
+              customer: {
+                name: customerName,
+                type: archetype.type,
+                request: `${candidate.displayName} almak istiyorum, elindeki en iyi fiyatı öğrenmek isterim.`,
+                urgency: archetype.urgency,
+                bargainingStyle: archetype.bargainingStyle,
+                // Bölüm 4.3: satış modunda bu, müşterinin ödemeye razı olduğu
+                // TAVAN oranı olarak yorumlanır (alım modunda taban olarak
+                // yorumlanmasının simetriği) — bkz. PazarlikScreen satış modu.
+                acceptanceThreshold: archetype.maxPayRatio,
+              },
+              product: {
+                name: candidate.displayName,
+                source: 'Dükkân stoğu',
+                category: candidate.target.category,
+                karat: candidate.displayKarat,
+                grams: candidate.displayGrams,
+                marketValueTl,
+              },
+              inventoryItemId: candidate.target.id,
+              unitsRequired: candidate.unitsRequired,
+              expiresAtTotalMinutes: currentTotalMinutes + INCOMING_CUSTOMER_EXPIRY_MINUTES,
+            };
+          }
+        } else {
+          // Bölüm 6/10: müşteriden alım (bozdurma) — stoktan bağımsız,
+          // dükkânın nakdi/kredisi yettiği sürece her zaman mümkün
+          // (mevcut 'alis' modu Pazarlık ekranı + settleDeal zaten bu
+          // kredi/borç mantığını işletiyor, yeni bir sistem gerekmiyor).
+          const candidate = pickBozdurmaCandidate();
+          const archetype =
+            BOZDURMA_CUSTOMER_ARCHETYPES[Math.floor(Math.random() * BOZDURMA_CUSTOMER_ARCHETYPES.length)];
+          const totalEquivGrams = equivalentGrams(candidate.gramsPerUnit, candidate.karat) * candidate.quantity;
+          const marketValueTl = totalEquivGrams * nextBuyPrice;
+          const scaleReading: ScaleReading = {
+            grams: candidate.gramsPerUnit * candidate.quantity,
+            karat: candidate.karat,
+            cleanliness: candidate.name === 'Karışık Hurda Altın' ? 'Karışık, ayrıştırma gerekiyor' : 'Temiz',
+          };
+          incomingCustomer = {
+            id: String(nextIncomingCustomerId++),
+            direction: 'bozdurma',
+            customer: {
+              name: customerName,
+              type: archetype.type,
+              request:
+                candidate.quantity > 1
+                  ? `${candidate.quantity} adet ${candidate.name} bozdurmak istiyorum.`
+                  : `${candidate.name} bozdurmak istiyorum.`,
+              urgency: archetype.urgency,
+              bargainingStyle: archetype.bargainingStyle,
+              // Bölüm 4.3: alım modunda (bkz. PazarlikScreen) bu, oyuncunun
+              // teklif verebileceği asgari (taban) oran olarak yorumlanır.
+              acceptanceThreshold: archetype.minAcceptRatio,
+            },
+            product: {
+              name: candidate.name,
+              source: 'Müşteri getirdi',
+              category: candidate.category,
+              karat: candidate.karat,
+              grams: candidate.gramsPerUnit,
+              quantity: candidate.quantity,
+              marketValueTl,
+            },
+            scaleReading,
+            expiresAtTotalMinutes: currentTotalMinutes + INCOMING_CUSTOMER_EXPIRY_MINUTES,
+          };
+        }
       }
     }
 
     const capital: CapitalState = {
       ...postOfferState.capital,
-      cashTl: postOfferState.capital.cashTl + vitrinIncomeTl + maturedPayoutTl,
       stockValueTl: computeStockValueTl(inventory, nextBuyPrice),
     };
 
@@ -511,19 +565,42 @@ export const useGameStore = create<GameState>()(
       minuteOfDay,
       day,
       referencePriceAtDayStart,
-      lastJumpEvent: jumpEvent,
+      marketSpreadTlPerGram,
+      wholesalerBuyMarginTlPerGram,
+      wholesalerSellMarginTlPerGram,
       wholesalerTrust,
       loanDueDay,
       inventory,
       offers,
       incomingCustomer,
-      lastVitrinMaturity,
       capital,
       highestCapitalTierIndex: gainedTiers > 0 ? newTierIndex : postOfferState.highestCapitalTierIndex,
       skillPoints: postOfferState.skillPoints + gainedTiers,
       goldPrice: {
-        ...priceFromReference(nextReference),
+        buyPricePerGram: nextBuyPrice,
+        sellPricePerGram: nextSellPrice,
         dailyChangePercent,
+      },
+    });
+  },
+
+  applyRestartFluctuation: () => {
+    const state = get();
+    const currentReference = (state.goldPrice.buyPricePerGram + state.goldPrice.sellPricePerGram) / 2;
+    const percent = randomSignedPercent(RESTART_FLUCTUATION_MIN_PERCENT, RESTART_FLUCTUATION_MAX_PERCENT);
+    const nextReference = Math.max(100, currentReference * Math.exp(percent / 100));
+    const { buyPricePerGram, sellPricePerGram } = priceFromReferenceAndSpread(
+      nextReference,
+      state.marketSpreadTlPerGram,
+    );
+    const dailyChangePercent =
+      ((nextReference - state.referencePriceAtDayStart) / state.referencePriceAtDayStart) * 100;
+
+    set({
+      goldPrice: { buyPricePerGram, sellPricePerGram, dailyChangePercent },
+      capital: {
+        ...state.capital,
+        stockValueTl: computeStockValueTl(state.inventory, buyPricePerGram),
       },
     });
   },
@@ -536,30 +613,22 @@ export const useGameStore = create<GameState>()(
       return { success: false, borrowedTl: 0 };
     }
 
+    const quantity = Math.max(1, item.quantity ?? 1);
     const cashTl = Math.max(0, state.capital.cashTl - paidAmountTl);
     const loanDueDay =
       shortfall > 0 && state.loanDueDay === null ? state.day + LOAN_TERM_DAYS : state.loanDueDay;
 
-    // Yatırım altını fungible olduğu için aynı ürün (isim/kategori/ayar/
-    // gram eşleşen) zaten envanterdeyse yeni alım o pozisyona eklenir ve
-    // maliyet ortalaması güncellenir. Takı ise her parça kendi 30 günlük
-    // vitrin vadesini ayrı işletmesi gerektiğinden hiçbir zaman birleşmez.
-    const existingIndex =
-      item.category === 'yatirim'
-        ? state.inventory.findIndex(
-            (i) =>
-              i.name === item.name &&
-              i.category === item.category &&
-              i.karat === item.karat &&
-              i.grams === item.grams,
-          )
-        : -1;
+    // Fungible ürünler (aynı isim/kategori/ayar/gram) zaten envanterdeyse
+    // yeni alım o pozisyona eklenir, maliyet ortalaması güncellenir.
+    const existingIndex = state.inventory.findIndex(
+      (i) => i.name === item.name && i.category === item.category && i.karat === item.karat && i.grams === item.grams,
+    );
 
     const inventory =
       existingIndex >= 0
         ? state.inventory.map((i, idx) =>
             idx === existingIndex
-              ? { ...i, quantity: i.quantity + 1, costBasisTl: i.costBasisTl + paidAmountTl }
+              ? { ...i, quantity: i.quantity + quantity, costBasisTl: i.costBasisTl + paidAmountTl }
               : i,
           )
         : [
@@ -570,7 +639,7 @@ export const useGameStore = create<GameState>()(
               category: item.category,
               karat: item.karat,
               grams: item.grams,
-              quantity: 1,
+              quantity,
               costBasisTl: paidAmountTl,
               acquiredDay: state.day,
               estimatedValueTl: item.estimatedSellPriceTl,
@@ -593,7 +662,7 @@ export const useGameStore = create<GameState>()(
   sellInventoryItem: (itemId) => {
     const state = get();
     const item = state.inventory.find((i) => i.id === itemId);
-    if (!item || item.category !== 'yatirim') return null;
+    if (!item || item.category === 'pirlanta') return null;
 
     const saleValueTl = currentPositionValueTl(item, state.goldPrice.buyPricePerGram);
     const profitTl = saleValueTl - item.costBasisTl;
@@ -615,7 +684,12 @@ export const useGameStore = create<GameState>()(
     const state = get();
     if (quantity <= 0) return { success: false, reason: 'insufficient_cash' };
 
-    const unitPriceTl = equivalentGrams(spec.grams, spec.karat) * state.goldPrice.sellPricePerGram;
+    // Bölüm 5: toptancı, genel piyasa SATIŞ fiyatının marjı kadar altından satar.
+    const wholesalerUnitPriceTlPerGram = Math.max(
+      1,
+      state.goldPrice.sellPricePerGram - state.wholesalerBuyMarginTlPerGram,
+    );
+    const unitPriceTl = equivalentGrams(spec.grams, spec.karat) * wholesalerUnitPriceTlPerGram;
     const totalCostTl = unitPriceTl * quantity;
     if (totalCostTl > state.capital.cashTl) {
       return { success: false, reason: 'insufficient_cash' };
@@ -719,6 +793,7 @@ export const useGameStore = create<GameState>()(
       offerAmountTl: offer.offerAmountTl,
       marketValueTl: offer.marketValueTl,
       estimatedSellPriceTl: offer.estimatedSellPriceTl,
+      quantity: offer.quantity,
       status: 'bekleyen',
       willAccept: offer.willAccept,
       createdDay: state.day,
@@ -731,7 +806,7 @@ export const useGameStore = create<GameState>()(
   resolveIncomingCustomer: (accepted, saleAmountTl) => {
     const state = get();
     const customer = state.incomingCustomer;
-    if (!customer) return null;
+    if (!customer || customer.direction !== 'satis') return null;
 
     if (!accepted) {
       set({ incomingCustomer: null });
@@ -739,16 +814,17 @@ export const useGameStore = create<GameState>()(
     }
 
     const item = state.inventory.find((i) => i.id === customer.inventoryItemId);
-    if (!item || item.quantity < customer.unitsRequired) {
+    const unitsRequired = customer.unitsRequired ?? 1;
+    if (!item || item.quantity < unitsRequired) {
       set({ incomingCustomer: null });
       return null;
     }
 
     const amountTl = saleAmountTl ?? 0;
     const costBasisPerUnit = item.costBasisTl / item.quantity;
-    const soldCostBasisTl = costBasisPerUnit * customer.unitsRequired;
+    const soldCostBasisTl = costBasisPerUnit * unitsRequired;
     const profitTl = amountTl - soldCostBasisTl;
-    const remainingQuantity = item.quantity - customer.unitsRequired;
+    const remainingQuantity = item.quantity - unitsRequired;
 
     const inventory =
       remainingQuantity > 0
@@ -770,6 +846,13 @@ export const useGameStore = create<GameState>()(
       },
     });
     return { profitTl };
+  },
+
+  clearIncomingCustomer: (id) => {
+    const state = get();
+    if (state.incomingCustomer?.id === id) {
+      set({ incomingCustomer: null });
+    }
   },
 
   purchasePirlanta: (catalogItem) => {
@@ -836,12 +919,11 @@ export const useGameStore = create<GameState>()(
   setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
     }),
     {
-      name: 'cepkaynak-save-v4',
+      name: 'cepkaynak-save-v5',
       storage: createJSONStorage(() => AsyncStorage),
       // Skill tanımları/oyun kodu değişse bile eski kayıtlar yüklenebilsin diye
       // sadece serileştirilebilir oyun verisi tutulur — aksiyon fonksiyonları
-      // ve geçici banner alanları (lastJumpEvent/lastVitrinMaturity/hasHydrated)
-      // hariç tutulur.
+      // ve geçici alanlar (hasHydrated) hariç tutulur.
       partialize: (state) => ({
         capital: state.capital,
         goldPrice: state.goldPrice,
@@ -853,6 +935,9 @@ export const useGameStore = create<GameState>()(
         minuteOfDay: state.minuteOfDay,
         speed: state.speed,
         referencePriceAtDayStart: state.referencePriceAtDayStart,
+        marketSpreadTlPerGram: state.marketSpreadTlPerGram,
+        wholesalerBuyMarginTlPerGram: state.wholesalerBuyMarginTlPerGram,
+        wholesalerSellMarginTlPerGram: state.wholesalerSellMarginTlPerGram,
         wholesalerTrust: state.wholesalerTrust,
         loanDueDay: state.loanDueDay,
         realizedTradingProfitTl: state.realizedTradingProfitTl,
@@ -862,6 +947,8 @@ export const useGameStore = create<GameState>()(
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
+        // Bölüm 4.4: "oyun kapatılıp açıldığında ekstra dalgalanma".
+        state?.applyRestartFluctuation();
       },
     },
   ),

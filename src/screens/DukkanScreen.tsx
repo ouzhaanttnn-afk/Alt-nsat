@@ -2,25 +2,22 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActiveOfferSummary, type ActiveOffer } from '../components/ActiveOfferSummary';
 import { CapitalSummary } from '../components/CapitalSummary';
 import { DailyGoalCard } from '../components/DailyGoalCard';
 import { GoldTicker } from '../components/GoldTicker';
-import { JumpEventBanner } from '../components/JumpEventBanner';
 import { OFFER_STATUS_LABEL } from '../components/OfferCard';
 import { ReputationGauge } from '../components/ReputationGauge';
 import { SectionLabel } from '../components/SectionLabel';
 import { SpeedControl } from '../components/SpeedControl';
 import { dailyGoalSteps } from '../data/mockHome';
 import type { MainTabsParamList, RootStackParamList } from '../navigation/types';
-import { useGameStore, type JumpEvent } from '../store/useGameStore';
+import { useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatGameTime } from '../utils/format';
-
-const JUMP_BANNER_VISIBLE_MS = 4000;
 
 // Ana ekrandan Teklifler gibi kardeş sekmelere de, Pazarlık gibi üstteki
 // modal Stack ekranına da gidebilmek için birleşik gezinme tipi.
@@ -40,7 +37,6 @@ export function DukkanScreen() {
   const minuteOfDay = useGameStore((s) => s.minuteOfDay);
   const speed = useGameStore((s) => s.speed);
   const setSpeed = useGameStore((s) => s.setSpeed);
-  const lastJumpEvent = useGameStore((s) => s.lastJumpEvent);
   const wholesalerTrust = useGameStore((s) => s.wholesalerTrust);
   const loanDueDay = useGameStore((s) => s.loanDueDay);
   const repayDebt = useGameStore((s) => s.repayDebt);
@@ -59,18 +55,6 @@ export function DukkanScreen() {
     };
   }, [offers]);
 
-  const [visibleJump, setVisibleJump] = useState<JumpEvent | null>(null);
-  const seenJumpRef = useRef<JumpEvent | null>(null);
-
-  useEffect(() => {
-    if (lastJumpEvent && lastJumpEvent !== seenJumpRef.current) {
-      seenJumpRef.current = lastJumpEvent;
-      setVisibleJump(lastJumpEvent);
-      const timer = setTimeout(() => setVisibleJump(null), JUMP_BANNER_VISIBLE_MS);
-      return () => clearTimeout(timer);
-    }
-  }, [lastJumpEvent]);
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -87,8 +71,6 @@ export function DukkanScreen() {
         <View style={styles.speedRow}>
           <SpeedControl speed={speed} onChange={setSpeed} />
         </View>
-
-        {visibleJump && <JumpEventBanner event={visibleJump} />}
 
         <CapitalSummary
           capital={capital}

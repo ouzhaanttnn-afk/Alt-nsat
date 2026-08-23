@@ -41,11 +41,13 @@ export function PazarlikScreen() {
   const customer = route.params?.customer ?? negotiationCustomer;
   const product = route.params?.product ?? negotiationProduct;
   const reading = route.params?.scaleReading ?? scaleReading;
+  const incomingCustomerId = route.params?.incomingCustomerId;
 
   const cashTl = useGameStore((s) => s.capital.cashTl);
   const settleDeal = useGameStore((s) => s.settleDeal);
   const sendPendingOffer = useGameStore((s) => s.sendPendingOffer);
   const resolveIncomingCustomer = useGameStore((s) => s.resolveIncomingCustomer);
+  const clearIncomingCustomer = useGameStore((s) => s.clearIncomingCustomer);
   const adjustReputation = useGameStore((s) => s.adjustReputation);
   const skillLevels = useGameStore((s) => s.skillLevels);
 
@@ -85,12 +87,13 @@ export function PazarlikScreen() {
     if (result !== null) return;
     if (secondsLeft <= 0) {
       if (isSale) resolveIncomingCustomer(false);
+      else if (incomingCustomerId) clearIncomingCustomer(incomingCustomerId);
       setResult('timedOut');
       return;
     }
     const timer = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
     return () => clearTimeout(timer);
-  }, [secondsLeft, result, isSale, resolveIncomingCustomer]);
+  }, [secondsLeft, result, isSale, resolveIncomingCustomer, incomingCustomerId, clearIncomingCustomer]);
 
   const handleTare = () => {
     if (held) return;
@@ -118,8 +121,10 @@ export function PazarlikScreen() {
       grams: product.grams,
       marketValueTl: product.marketValueTl,
       estimatedSellPriceTl: product.estimatedSellPriceTl,
+      quantity: product.quantity,
     });
     setOffer(amount);
+    if (incomingCustomerId) clearIncomingCustomer(incomingCustomerId);
     if (!outcome.success) {
       setResult('creditDenied');
       return;
@@ -135,6 +140,9 @@ export function PazarlikScreen() {
     const ceiling = product.marketValueTl * customer.acceptanceThreshold;
     setOffer(amount);
     if (amount > ceiling) {
+      // Müşteri gerçekten dükkândan ayrılıyor — store'daki aktif müşteri de
+      // temizlenmeli, yoksa Piyasa'da aynı müşteri asılı kalır.
+      resolveIncomingCustomer(false);
       setResult('rejected');
       return;
     }
@@ -172,8 +180,10 @@ export function PazarlikScreen() {
       offerAmountTl: amount,
       marketValueTl: product.marketValueTl,
       estimatedSellPriceTl: product.estimatedSellPriceTl,
+      quantity: product.quantity,
       willAccept,
     });
+    if (incomingCustomerId) clearIncomingCustomer(incomingCustomerId);
     setResult('sent');
   };
 
@@ -256,7 +266,10 @@ export function PazarlikScreen() {
             disabled={!canAct}
             onSendOffer={() => resolveOffer(offer)}
             onPayFull={() => completeDeal(product.marketValueTl)}
-            onReject={() => setResult('rejected')}
+            onReject={() => {
+              if (incomingCustomerId) clearIncomingCustomer(incomingCustomerId);
+              setResult('rejected');
+            }}
             payFullHint={
               fullPriceShortfall > 0
                 ? `Nakdin yetmiyor — ${formatTl(fullPriceShortfall)} borç alınacak`

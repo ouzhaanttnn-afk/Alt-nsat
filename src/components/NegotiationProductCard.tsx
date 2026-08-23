@@ -2,12 +2,13 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { NegotiationProduct } from '../types/negotiation';
 import { colors, fonts, fontSizes } from '../theme';
 import { Card } from './Card';
-import { RingIcon } from './icons/RingIcon';
+import { ProductIcon } from './icons/ProductIcon';
 import { SealIcon } from './icons/SealIcon';
 
-// Bölüm 4.3: Ürün kartı — ürün adı, kaynağı, ayar/gram rozetleri,
-// varsa ayar onaylı mührü.
+// Bölüm 4.3/10: Ürün kartı — ürün adı, kaynağı, ayar/gram rozetleri,
+// varsa ayar onaylı mührü, büyük işlemlerde ("10 Çeyrek" gibi) adet.
 export function NegotiationProductCard({ product }: { product: NegotiationProduct }) {
+  const hasQuantity = (product.quantity ?? 1) > 1;
   return (
     <Card style={styles.card}>
       {product.sealVerified && (
@@ -16,9 +17,11 @@ export function NegotiationProductCard({ product }: { product: NegotiationProduc
         </View>
       )}
       <View style={styles.row}>
-        <RingIcon size={30} />
+        <ProductIcon category={product.category} name={product.name} size={30} />
         <View style={styles.info}>
-          <Text style={styles.name}>{product.name}</Text>
+          <Text style={styles.name}>
+            {hasQuantity ? `${product.quantity} adet ${product.name}` : product.name}
+          </Text>
           <Text style={styles.source}>{product.source}</Text>
         </View>
       </View>
@@ -27,7 +30,9 @@ export function NegotiationProductCard({ product }: { product: NegotiationProduc
           <Text style={styles.badgeLabel}>{product.karat} Ayar</Text>
         </View>
         <View style={styles.badge}>
-          <Text style={styles.badgeLabel}>{product.grams.toLocaleString('tr-TR')} g</Text>
+          <Text style={styles.badgeLabel}>
+            {product.grams.toLocaleString('tr-TR')} g{hasQuantity ? '/adet' : ''}
+          </Text>
         </View>
       </View>
     </Card>

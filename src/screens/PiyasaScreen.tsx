@@ -9,15 +9,16 @@ import type { RootStackParamList } from '../navigation/types';
 import { useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 
-// Bölüm 4.2: Piyasa — artık tek seferlik statik fırsat listesi değil, iki
-// bölümden oluşuyor: (1) Toptancıdan Stok Al — sarrafiye stoğu (gram/çeyrek
-// altın + bilezik) için her an açık, pazarlıksız restok masası; (2)
-// dükkâna sürekli akan, stoktan bir şey almak isteyen müşteri — dokununca
-// Pazarlık ekranını satış modunda açar.
+// Bölüm 4.2/6: Piyasa — iki bölümden oluşuyor: (1) Toptancıdan Stok Al —
+// sarrafiye stoğu (gram/çeyrek altın + bilezik) için her an açık,
+// pazarlıksız restok masası; (2) dükkâna sürekli akan, oyunun ilk
+// dakikasından itibaren hem "almak" hem "bozdurmak" isteyen müşteri —
+// dokununca yönüne göre Pazarlık ekranını satış ya da alış modunda açar.
 export function PiyasaScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const inventory = useGameStore((s) => s.inventory);
   const goldPrice = useGameStore((s) => s.goldPrice);
+  const wholesalerBuyMarginTlPerGram = useGameStore((s) => s.wholesalerBuyMarginTlPerGram);
   const cashTl = useGameStore((s) => s.capital.cashTl);
   const buyInvestmentUnits = useGameStore((s) => s.buyInvestmentUnits);
   const incomingCustomer = useGameStore((s) => s.incomingCustomer);
@@ -28,7 +29,7 @@ export function PiyasaScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>Piyasa</Text>
-          <Text style={styles.subtitle}>Toptancıdan stokla, gelen müşterilere pazarlıkla sat</Text>
+          <Text style={styles.subtitle}>Toptancıdan stokla, gelen müşterilere pazarlıkla al/sat</Text>
         </View>
 
         <SectionLabel>TOPTANCIDAN STOK AL</SectionLabel>
@@ -45,6 +46,7 @@ export function PiyasaScreen() {
               key={spec.id}
               spec={spec}
               goldPrice={goldPrice}
+              wholesalerBuyMarginTlPerGram={wholesalerBuyMarginTlPerGram}
               cashTl={cashTl}
               ownedItem={ownedItem}
               onBuy={(quantity) => buyInvestmentUnits(spec, quantity)}
@@ -58,11 +60,19 @@ export function PiyasaScreen() {
             incomingCustomer={incomingCustomer}
             scoreVisible={hasPiyasaSezgisi}
             onPress={() =>
-              navigation.navigate('Pazarlik', {
-                mode: 'satis',
-                customer: incomingCustomer.customer,
-                product: incomingCustomer.product,
-              })
+              incomingCustomer.direction === 'bozdurma'
+                ? navigation.navigate('Pazarlik', {
+                    mode: 'alis',
+                    customer: incomingCustomer.customer,
+                    product: incomingCustomer.product,
+                    scaleReading: incomingCustomer.scaleReading,
+                    incomingCustomerId: incomingCustomer.id,
+                  })
+                : navigation.navigate('Pazarlik', {
+                    mode: 'satis',
+                    customer: incomingCustomer.customer,
+                    product: incomingCustomer.product,
+                  })
             }
           />
         ) : (

@@ -6,19 +6,24 @@ import { colors, fonts, fontSizes, radius } from '../theme';
 import { formatTl } from '../utils/format';
 import { Badge } from './Badge';
 import { Card } from './Card';
-import { RingIcon } from './icons/RingIcon';
+import { ProductIcon } from './icons/ProductIcon';
 
 // Piyasa: Toptancıdan Stok Al — pazarlıksız, her an açık restok satırı.
 // Sadece alım var; stok müşteriye pazarlıkla satılır (bkz. Pazarlık satış modu).
+// Bölüm 5: toptancı, genel piyasa SATIŞ fiyatının bir marj kadar
+// altından satar — bu marj genel ticker'dan bağımsız, kendi başına
+// dalgalanan bir değer (bkz. useGameStore'daki wholesalerBuyMarginTlPerGram).
 export function StockCard({
   spec,
   goldPrice,
+  wholesalerBuyMarginTlPerGram,
   cashTl,
   ownedItem,
   onBuy,
 }: {
   spec: StockSpec;
   goldPrice: GoldPriceState;
+  wholesalerBuyMarginTlPerGram: number;
   cashTl: number;
   ownedItem?: InventoryItem;
   onBuy: (quantity: number) => void;
@@ -26,7 +31,8 @@ export function StockCard({
   const [quantity, setQuantity] = useState(1);
 
   const equivGrams = spec.grams * (spec.karat / 24);
-  const unitPriceTl = equivGrams * goldPrice.sellPricePerGram;
+  const wholesalerPricePerGram = Math.max(1, goldPrice.sellPricePerGram - wholesalerBuyMarginTlPerGram);
+  const unitPriceTl = equivGrams * wholesalerPricePerGram;
   const totalCostTl = unitPriceTl * quantity;
 
   const ownedQuantity = ownedItem?.quantity ?? 0;
@@ -35,7 +41,7 @@ export function StockCard({
   return (
     <Card style={styles.card}>
       <View style={styles.header}>
-        <RingIcon size={26} />
+        <ProductIcon category={spec.category} name={spec.name} size={26} />
         <View style={styles.info}>
           <Text style={styles.name}>{spec.name}</Text>
           <Text style={styles.meta}>
@@ -46,7 +52,7 @@ export function StockCard({
       </View>
 
       <View style={styles.priceRow}>
-        <Text style={styles.priceLabel}>SATIŞ (alırsın)</Text>
+        <Text style={styles.priceLabel}>TOPTANCI FİYATI (alırsın)</Text>
         <Text style={styles.priceValue}>{formatTl(unitPriceTl)}</Text>
       </View>
 

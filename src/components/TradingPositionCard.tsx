@@ -4,7 +4,7 @@ import { colors, fonts, fontSizes, radius } from '../theme';
 import { formatTl } from '../utils/format';
 import { Badge } from './Badge';
 import { Card } from './Card';
-import { RingIcon } from './icons/RingIcon';
+import { ProductIcon } from './icons/ProductIcon';
 
 // Kasam / Yatırım Ürünlerin: alım-satım pozisyonu — adet, maliyet
 // ortalaması, güncel değer ve aradaki makastan doğan kâr/zarar.
@@ -27,7 +27,7 @@ export function TradingPositionCard({
   return (
     <Card style={styles.card}>
       <View style={styles.header}>
-        <RingIcon size={26} />
+        <ProductIcon category={item.category} name={item.name} size={26} />
         <View style={styles.info}>
           <Text style={styles.name}>{item.name}</Text>
           <Text style={styles.meta}>
