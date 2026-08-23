@@ -23,30 +23,25 @@ export function LevelProgressCard({
 
   return (
     <Card>
-      <View style={styles.headerRow}>
-        <Text style={styles.levelLabel}>SEVİYE {level}</Text>
+      <Text style={styles.levelLabel}>SEVİYE {level}</Text>
+      <View style={styles.barTrack}>
+        <View style={[styles.barFill, { width: `${Math.round(progress * 100)}%` }]} />
+      </View>
+      <View style={styles.footerRow}>
+        <Text style={styles.xpLabel}>
+          {isMaxLevel
+            ? 'Maksimum seviyedesin'
+            : `${Math.round(xpIntoLevel).toLocaleString('tr-TR')} / ${Math.round(xpNeededForLevel).toLocaleString('tr-TR')} XP`}
+        </Text>
         <Pressable onPress={onResetSkills} hitSlop={8}>
           <Text style={styles.resetLabel}>Yetenekleri Sıfırla (Reklam) ↻</Text>
         </Pressable>
       </View>
-      <View style={styles.barTrack}>
-        <View style={[styles.barFill, { width: `${Math.round(progress * 100)}%` }]} />
-      </View>
-      <Text style={styles.xpLabel}>
-        {isMaxLevel
-          ? 'Maksimum seviyedesin'
-          : `${Math.round(xpIntoLevel).toLocaleString('tr-TR')} / ${Math.round(xpNeededForLevel).toLocaleString('tr-TR')} XP`}
-      </Text>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   levelLabel: {
     fontFamily: fonts.headingBold,
     fontSize: fontSizes.md,
@@ -69,11 +64,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderRadius: radius.sm,
   },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+  },
   xpLabel: {
     fontFamily: fonts.mono,
     fontSize: fontSizes.xs,
     color: colors.inkMuted,
-    marginTop: 6,
-    textAlign: 'right',
   },
 });
