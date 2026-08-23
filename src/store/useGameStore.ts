@@ -8,6 +8,10 @@ import {
   BOZDURMA_DIRECTION_PROBABILITY,
   BROKER_DEAL_TIMEOUT_TRUST_PENALTY,
   BROKER_DEAL_WINDOW_MINUTES,
+  CRAFTED_GOOD_BASE_COUNTERFEIT_RISK,
+  CRAFTED_GOOD_CUSTOMER_PROBABILITY,
+  CRAFTED_GOOD_KARAT_MISMATCH,
+  CRAFTED_GOOD_MIN_COUNTERFEIT_RISK,
   GAME_MINUTES_PER_REAL_SECOND_AT_1X,
   INCOMING_CUSTOMER_CHECKS_PER_DAY,
   INCOMING_CUSTOMER_EXPIRY_MINUTES,
@@ -24,6 +28,13 @@ import {
   MARKET_STEP_MIN_PERCENT,
   MARKET_STEP_MINUTES,
   MAX_REAL_SECONDS_PER_TICK,
+  MELTING_EFFICIENCY_MAX,
+  MELTING_EFFICIENCY_MIN,
+  MELTING_SMALL_LARGE_THRESHOLD_GRAMS,
+  MELTING_TIME_LARGE_MAX_MINUTES,
+  MELTING_TIME_LARGE_MIN_MINUTES,
+  MELTING_TIME_SMALL_MAX_MINUTES,
+  MELTING_TIME_SMALL_MIN_MINUTES,
   MILESTONE_BONUS_SKILL_POINTS,
   MIN_TRUST_FOR_CREDIT,
   MINUTES_PER_DAY,
@@ -37,8 +48,10 @@ import {
   WHOLESALER_MARGIN_MAX_TL_PER_GRAM,
   WHOLESALER_MARGIN_MIN_TL_PER_GRAM,
   XP_PER_EQUIVALENT_GRAM_TRADED,
+  YENIDEN_DOGUS_TIME_REDUCTION_PER_LEVEL,
 } from '../config/economyConfig';
 import type { ScaleReading } from '../components/ScalePanel';
+import { CRAFTED_GOOD_CATALOG, REALISTIC_KARATS } from '../data/craftedGoodCatalog';
 import {
   BOZDURMA_CUSTOMER_ARCHETYPES,
   INCOMING_CUSTOMER_ARCHETYPES,
@@ -182,6 +195,39 @@ function applyXpGain(
   return { totalXp, level, skillPoints: state.skillPoints + gainedSkillPoints };
 }
 
+interface CraftedGoodCandidate {
+  productType: string;
+  claimedKarat: number;
+  actualKarat: number;
+  grams: number;
+  hasHiddenFlaw: boolean;
+  stoneValueTl: number;
+}
+
+/**
+ * Bölüm 11/14: müşteriden gelen işçilikli ürün üretir — beyan edilen ayar
+ * her zaman gerçek olmayabilir (sahtecilik/yanlış beyan riski), gizli
+ * kusur ve taş değeri de saklı tutulur (Uzman Görüşü ile açığa çıkar).
+ * `uzmanGorusuLevel` arttıkça şüpheli müşterilerin denk gelme ihtimali
+ * azalır (Bölüm 37: sahtecilik riski %10-20 → skil ile %2-5).
+ */
+function pickCraftedGoodCandidate(uzmanGorusuLevel: number): CraftedGoodCandidate {
+  const spec = CRAFTED_GOOD_CATALOG[Math.floor(Math.random() * CRAFTED_GOOD_CATALOG.length)];
+  const claimedKarat = REALISTIC_KARATS[Math.floor(Math.random() * REALISTIC_KARATS.length)];
+  const grams = Math.round(randomInRange(spec.minGrams, spec.maxGrams) * 10) / 10;
+
+  const counterfeitRisk = Math.max(
+    CRAFTED_GOOD_MIN_COUNTERFEIT_RISK,
+    CRAFTED_GOOD_BASE_COUNTERFEIT_RISK - (CRAFTED_GOOD_BASE_COUNTERFEIT_RISK - CRAFTED_GOOD_MIN_COUNTERFEIT_RISK) * (uzmanGorusuLevel / 5),
+  );
+  const isMismatched = Math.random() < counterfeitRisk;
+  const actualKarat = isMismatched ? Math.max(8, claimedKarat - CRAFTED_GOOD_KARAT_MISMATCH) : claimedKarat;
+  const hasHiddenFlaw = isMismatched && Math.random() < 0.5;
+  const stoneValueTl = spec.hasStone ? Math.round(randomInRange(2000, 15000)) : 0;
+
+  return { productType: spec.productType, claimedKarat, actualKarat, grams, hasHiddenFlaw, stoneValueTl };
+}
+
 // Bölüm 9: büyük bozdurmalar + Toptancı Bağlantısı — müşteriden nakit
 // yetmeyen bir alım borca yazıldığında, o alımın tam bu miktarı sınırlı
 // bir süre için toptancıya kâr marjıyla anında satılabilir hale gelir.
@@ -190,6 +236,18 @@ export interface BrokerDeal {
   /** Bu bağlantıyla korunan, bu işlemden gelen adet (envanterdeki toplam adet değil). */
   quantity: number;
   expiresAtTotalMinutes: number;
+}
+
+// Bölüm 12: eritme — işçilikli bir ürün, envanterden çıkıp bir süreliğine
+// "ocakta" kalır; süre dolunca gerçek ayar/kusur/verim üzerinden hesaplanan
+// has altın Gram Altın stoğuna, varsa taş değeri nakit olarak kasaya eklenir.
+export interface MeltingJob {
+  productName: string;
+  recoveredGrams: number;
+  stoneValueTl: number;
+  /** Eritilen işçilikli ürün için orijinal ödenen tutar — geri kazanılan altının maliyet tabanı (kâr/zarar burada gizli kalmaz). */
+  costBasisTl: number;
+  completesAtTotalMinutes: number;
 }
 
 interface GameState {
@@ -216,6 +274,8 @@ interface GameState {
   loanDueDay: number | null;
   /** Bölüm 9: açık Toptancı Bağlantısı — süresi içinde toptancıya satılmazsa güven düşer. */
   brokerDeal: BrokerDeal | null;
+  /** Bölüm 12: aktif eritme işi — tamamlanınca has altın Gram Altın stoğuna eklenir. */
+  meltingJob: MeltingJob | null;
   setSpeed: (speed: ClockSpeed) => void;
   /** Gerçek zamanda geçen saniyeyi oyun saatine, altın fiyatına ve müşteri akışına işler. */
   tick: (realSecondsElapsed: number) => void;
@@ -238,6 +298,10 @@ interface GameState {
       estimatedSellPriceTl?: number;
       /** Bölüm 10: büyük işlemler — tek pazarlıkta N adet aynı SKU'nun toplu alımı. Belirtilmezse 1. */
       quantity?: number;
+      /** Bölüm 11-16: sadece category:'iscilikli' — karat/grams beyan, bunlar gizli gerçek değerler. */
+      actualKarat?: number;
+      hasHiddenFlaw?: boolean;
+      stoneValueTl?: number;
     },
   ) => { success: true; borrowedTl: number } | { success: false; borrowedTl: 0 };
   /**
@@ -246,6 +310,14 @@ interface GameState {
    * kesin bir kâr cebe atar. Bağlantı yoksa ya da süresi geçmişse null döner.
    */
   resolveBrokerDeal: () => { saleValueTl: number; profitTl: number } | null;
+  /**
+   * Bölüm 12/16: bir işçilikli ürünü eritmeye başlar — envanterden hemen
+   * kalkar, bir süre sonra (Yeniden Doğuş kısaltır) gerçek ayar/kusur
+   * üzerinden hesaplanan has altın Gram Altın stoğuna, taş değeri (Taş
+   * Ustası şartıyla) nakit olarak eklenir. İşçilikli ürün asla başka bir
+   * müşteriye satılmaz — tek çıkış yolu budur.
+   */
+  meltCraftedGood: (itemId: string) => boolean;
   /** Bir pozisyonun tamamını güncel kurdan nakde çevirir; alış-satış makasından gerçekleşen kârı döner. */
   sellInventoryItem: (itemId: string) => { saleValueTl: number; profitTl: number; quantity: number } | null;
   /**
@@ -280,6 +352,9 @@ interface GameState {
     marketValueTl: number;
     estimatedSellPriceTl?: number;
     quantity?: number;
+    actualKarat?: number;
+    hasHiddenFlaw?: boolean;
+    stoneValueTl?: number;
     willAccept: boolean;
   }) => void;
   /**
@@ -358,6 +433,7 @@ export const useGameStore = create<GameState>()(
   wholesalerTrust: STARTING_WHOLESALER_TRUST,
   loanDueDay: null,
   brokerDeal: null,
+  meltingJob: null,
   realizedTradingProfitTl: 0,
   totalXp: 0,
   level: 1,
@@ -450,6 +526,9 @@ export const useGameStore = create<GameState>()(
         marketValueTl: offer.marketValueTl,
         estimatedSellPriceTl: offer.estimatedSellPriceTl,
         quantity: offer.quantity,
+        actualKarat: offer.actualKarat,
+        hasHiddenFlaw: offer.hasHiddenFlaw,
+        stoneValueTl: offer.stoneValueTl,
       });
       return { ...offer, status: result.success ? ('kabul' as const) : ('red' as const) };
     });
@@ -477,7 +556,42 @@ export const useGameStore = create<GameState>()(
       brokerDeal = null;
     }
 
-    const inventory = postOfferState.inventory;
+    // Bölüm 12: eritme süresi dolduysa geri kazanılan has altın, mevcut
+    // Gram Altın pozisyonuyla (fungible) birleşerek stoğa eklenir; orijinal
+    // işçilikli ürüne ödenen tutar maliyet tabanı olarak taşınır (kâr/zarar
+    // gizlenmez). Taş değeri varsa (Taş Ustası şartıyla) doğrudan nakde girer.
+    let inventory = postOfferState.inventory;
+    let meltingJob = postOfferState.meltingJob;
+    let meltingCashBonus = 0;
+    if (meltingJob && currentTotalMinutes >= meltingJob.completesAtTotalMinutes) {
+      const gramSpec = toptanciStock.find((s) => s.id === 'gram-altin')!;
+      const existingGramIndex = inventory.findIndex(
+        (i) =>
+          i.name === gramSpec.name && i.category === gramSpec.category && i.karat === gramSpec.karat && i.grams === gramSpec.grams,
+      );
+      inventory =
+        existingGramIndex >= 0
+          ? inventory.map((i, idx) =>
+              idx === existingGramIndex
+                ? { ...i, quantity: i.quantity + meltingJob!.recoveredGrams, costBasisTl: i.costBasisTl + meltingJob!.costBasisTl }
+                : i,
+            )
+          : [
+              ...inventory,
+              {
+                id: String(nextInventoryId++),
+                name: gramSpec.name,
+                category: gramSpec.category,
+                karat: gramSpec.karat,
+                grams: gramSpec.grams,
+                quantity: meltingJob.recoveredGrams,
+                costBasisTl: meltingJob.costBasisTl,
+                acquiredDay: day,
+              } satisfies InventoryItem,
+            ];
+      meltingCashBonus = meltingJob.stoneValueTl;
+      meltingJob = null;
+    }
 
     // Piyasa: aktif müşterinin süresi dolduysa (ya da 'satis' yönünde
     // istediği ürün stoktan tükendiyse) müşteri elini boş dönüp gider;
@@ -511,8 +625,10 @@ export const useGameStore = create<GameState>()(
           // Cumhuriyet (Tam) Altını değerce 4 Çeyrek'e, Yarım Altın 2
           // Çeyrek'e eşit olduğundan ayrı stok tutulmuyor — müşteri isteği
           // Çeyrek stoğundan bu kadarı düşülerek karşılanıyor.
+          // İşçilikli ürün (Bölüm 16) hariç — GDD'nin kararı gereği asla
+          // başka bir müşteriye işçilikli ürün olarak satılmaz.
           const candidates = inventory
-            .filter((i) => i.category !== 'pirlanta' && i.quantity > 0)
+            .filter((i) => i.category !== 'pirlanta' && i.category !== 'iscilikli' && i.quantity > 0)
             .map((item) => ({
               target: item,
               unitsRequired: 1,
@@ -572,6 +688,47 @@ export const useGameStore = create<GameState>()(
               expiresAtTotalMinutes: currentTotalMinutes + INCOMING_CUSTOMER_EXPIRY_MINUTES,
             };
           }
+        } else if (Math.random() < CRAFTED_GOOD_CUSTOMER_PROBABILITY) {
+          // Bölüm 11/14: işçilikli ürün müşterisi — beyan edilen ayar
+          // (karat) her zaman gerçek olmayabilir; gerçek ayar/kusur/taş
+          // değeri Uzman Görüşü ile açığa çıkana kadar gizli kalır.
+          const uzmanGorusuLevel = state.skillLevels['uzman-gorusu'] ?? 0;
+          const good = pickCraftedGoodCandidate(uzmanGorusuLevel);
+          const archetype =
+            BOZDURMA_CUSTOMER_ARCHETYPES[Math.floor(Math.random() * BOZDURMA_CUSTOMER_ARCHETYPES.length)];
+          // Piyasa değeri, oyuncunun görebildiği tek bilgi olan BEYAN edilen
+          // ayar üzerinden hesaplanır — gerçek değer eritmede ortaya çıkar.
+          const marketValueTl = equivalentGrams(good.grams, good.claimedKarat) * nextBuyPrice + good.stoneValueTl;
+          const scaleReading: ScaleReading = {
+            grams: good.grams,
+            karat: good.claimedKarat,
+            cleanliness: good.hasHiddenFlaw ? 'Şüpheli, dikkatli incelenmeli' : 'Temiz',
+          };
+          incomingCustomer = {
+            id: String(nextIncomingCustomerId++),
+            direction: 'bozdurma',
+            customer: {
+              name: customerName,
+              type: archetype.type,
+              request: `${good.productType} bozdurmak istiyorum, ${good.claimedKarat} ayar diyorum.`,
+              urgency: archetype.urgency,
+              bargainingStyle: archetype.bargainingStyle,
+              acceptanceThreshold: archetype.minAcceptRatio,
+            },
+            product: {
+              name: good.productType,
+              source: 'Müşteri getirdi',
+              category: 'iscilikli',
+              karat: good.claimedKarat,
+              grams: good.grams,
+              marketValueTl,
+              actualKarat: good.actualKarat,
+              hasHiddenFlaw: good.hasHiddenFlaw,
+              stoneValueTl: good.stoneValueTl,
+            },
+            scaleReading,
+            expiresAtTotalMinutes: currentTotalMinutes + INCOMING_CUSTOMER_EXPIRY_MINUTES,
+          };
         } else {
           // Bölüm 6/10: müşteriden alım (bozdurma) — stoktan bağımsız,
           // dükkânın nakdi/kredisi yettiği sürece her zaman mümkün
@@ -621,6 +778,7 @@ export const useGameStore = create<GameState>()(
 
     const capital: CapitalState = {
       ...postOfferState.capital,
+      cashTl: postOfferState.capital.cashTl + meltingCashBonus,
       stockValueTl: computeStockValueTl(inventory, nextBuyPrice),
     };
 
@@ -634,6 +792,7 @@ export const useGameStore = create<GameState>()(
       wholesalerTrust,
       loanDueDay,
       brokerDeal,
+      meltingJob,
       inventory,
       offers,
       incomingCustomer,
@@ -682,9 +841,14 @@ export const useGameStore = create<GameState>()(
 
     // Fungible ürünler (aynı isim/kategori/ayar/gram) zaten envanterdeyse
     // yeni alım o pozisyona eklenir, maliyet ortalaması güncellenir.
-    const existingIndex = state.inventory.findIndex(
-      (i) => i.name === item.name && i.category === item.category && i.karat === item.karat && i.grams === item.grams,
-    );
+    // İşçilikli ürün (Bölüm 11/16) hiçbir zaman birleşmez — her parça
+    // kendine has gerçek ayar/kusur/taş değeri taşıyan benzersiz bir kayıt.
+    const existingIndex =
+      item.category === 'iscilikli'
+        ? -1
+        : state.inventory.findIndex(
+            (i) => i.name === item.name && i.category === item.category && i.karat === item.karat && i.grams === item.grams,
+          );
 
     const settledItemId = existingIndex >= 0 ? state.inventory[existingIndex].id : String(nextInventoryId);
     const inventory =
@@ -706,16 +870,21 @@ export const useGameStore = create<GameState>()(
               costBasisTl: paidAmountTl,
               acquiredDay: state.day,
               estimatedValueTl: item.estimatedSellPriceTl,
+              actualKarat: item.actualKarat,
+              hasHiddenFlaw: item.hasHiddenFlaw,
+              stoneValueTl: item.stoneValueTl,
             } satisfies InventoryItem,
           ];
 
     // Bölüm 9: nakit yetmeyip borca yazıldıysa, bu işlemin tam bu miktarı
     // sınırlı bir süre için toptancıya kâr marjıyla anında satılabilir
     // hale gelir ("Toptancı Bağlantısı") — açık bir bağlantı varsa yenisi
-    // onun yerine geçer (basitleştirme, bkz. yorum).
+    // onun yerine geçer (basitleştirme, bkz. yorum). İşçilikli ürün hariç:
+    // GDD'nin "asla işlenmemiş satılmaz" kuralı gereği doğrudan toptancıya
+    // devredilemez, önce eritilmesi şart.
     const totalMinutesNow = state.day * MINUTES_PER_DAY + state.minuteOfDay;
     const brokerDeal: BrokerDeal | null =
-      shortfall > 0
+      shortfall > 0 && item.category !== 'iscilikli'
         ? { inventoryItemId: settledItemId, quantity, expiresAtTotalMinutes: totalMinutesNow + BROKER_DEAL_WINDOW_MINUTES }
         : state.brokerDeal;
 
@@ -783,10 +952,57 @@ export const useGameStore = create<GameState>()(
     return { saleValueTl, profitTl };
   },
 
+  meltCraftedGood: (itemId) => {
+    const state = get();
+    // v1 basitleştirmesi: aynı anda tek eritme işi — GDD'nin süre/verim
+    // mekaniğini bozmadan basit tutar; ikinci bir ürün ilki bitene kadar bekler.
+    if (state.meltingJob) return false;
+    const item = state.inventory.find((i) => i.id === itemId);
+    if (!item || item.category !== 'iscilikli') return false;
+
+    const actualKarat = item.actualKarat ?? item.karat;
+    const hasHiddenFlaw = item.hasHiddenFlaw ?? false;
+    const yenidenDogusLevel = state.skillLevels['yeniden-dogus'] ?? 0;
+    // Bölüm 15: Taş Ustası olmadan taşın ayrı değeri eritmede kaybolur.
+    const tasUstasiLevel = state.skillLevels['tas-ustasi'] ?? 0;
+
+    // Bölüm 12/14: gizli kusurlu bir parça eritmede ekstra kayıp verir.
+    const efficiency = randomInRange(MELTING_EFFICIENCY_MIN, MELTING_EFFICIENCY_MAX) * (hasHiddenFlaw ? 0.85 : 1);
+    const recoveredGrams = Math.round(equivalentGrams(item.grams, actualKarat) * efficiency * 100) / 100;
+    const stoneValueTl = tasUstasiLevel > 0 ? (item.stoneValueTl ?? 0) : 0;
+
+    const isSmall = item.grams <= MELTING_SMALL_LARGE_THRESHOLD_GRAMS;
+    const baseMinutes = isSmall
+      ? randomInRange(MELTING_TIME_SMALL_MIN_MINUTES, MELTING_TIME_SMALL_MAX_MINUTES)
+      : randomInRange(MELTING_TIME_LARGE_MIN_MINUTES, MELTING_TIME_LARGE_MAX_MINUTES);
+    const timeReduction = Math.min(0.75, yenidenDogusLevel * YENIDEN_DOGUS_TIME_REDUCTION_PER_LEVEL);
+    const minutes = Math.max(1, Math.round(baseMinutes * (1 - timeReduction)));
+
+    const inventory = state.inventory.filter((i) => i.id !== itemId);
+    const totalMinutesNow = state.day * MINUTES_PER_DAY + state.minuteOfDay;
+
+    set({
+      inventory,
+      capital: {
+        ...state.capital,
+        stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
+      },
+      meltingJob: {
+        productName: item.name,
+        recoveredGrams,
+        stoneValueTl,
+        costBasisTl: item.costBasisTl,
+        completesAtTotalMinutes: totalMinutesNow + minutes,
+      },
+    });
+    return true;
+  },
+
   sellInventoryItem: (itemId) => {
     const state = get();
     const item = state.inventory.find((i) => i.id === itemId);
-    if (!item || item.category === 'pirlanta') return null;
+    // İşçilikli ürün (Bölüm 16) burada da hariç: asla doğrudan satılmaz, tek çıkış yolu eritme.
+    if (!item || item.category === 'pirlanta' || item.category === 'iscilikli') return null;
 
     const saleValueTl = currentPositionValueTl(item, state.goldPrice.buyPricePerGram);
     const profitTl = saleValueTl - item.costBasisTl;
@@ -926,6 +1142,9 @@ export const useGameStore = create<GameState>()(
       marketValueTl: offer.marketValueTl,
       estimatedSellPriceTl: offer.estimatedSellPriceTl,
       quantity: offer.quantity,
+      actualKarat: offer.actualKarat,
+      hasHiddenFlaw: offer.hasHiddenFlaw,
+      stoneValueTl: offer.stoneValueTl,
       status: 'bekleyen',
       willAccept: offer.willAccept,
       createdDay: state.day,
@@ -1059,7 +1278,7 @@ export const useGameStore = create<GameState>()(
   setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
     }),
     {
-      name: 'cepkaynak-save-v7',
+      name: 'cepkaynak-save-v8',
       storage: createJSONStorage(() => AsyncStorage),
       // Skill tanımları/oyun kodu değişse bile eski kayıtlar yüklenebilsin diye
       // sadece serileştirilebilir oyun verisi tutulur — aksiyon fonksiyonları
@@ -1081,6 +1300,7 @@ export const useGameStore = create<GameState>()(
         wholesalerTrust: state.wholesalerTrust,
         loanDueDay: state.loanDueDay,
         brokerDeal: state.brokerDeal,
+        meltingJob: state.meltingJob,
         realizedTradingProfitTl: state.realizedTradingProfitTl,
         totalXp: state.totalXp,
         level: state.level,

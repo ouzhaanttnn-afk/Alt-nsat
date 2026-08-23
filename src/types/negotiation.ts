@@ -26,4 +26,8 @@ export interface NegotiationProduct {
   /** Sadece takı: vitrin vadesi sonunda beklenen satış değeri (pasif gelir oranını belirler). */
   estimatedSellPriceTl?: number;
   sealVerified?: boolean;
+  /** Bölüm 11-16: sadece işçilikli ürün — `karat`/`grams` müşterinin beyanı, bunlar gizli gerçek değerler (settleDeal ile envantere aynen taşınır). */
+  actualKarat?: number;
+  hasHiddenFlaw?: boolean;
+  stoneValueTl?: number;
 }

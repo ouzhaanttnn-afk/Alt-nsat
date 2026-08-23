@@ -1,14 +1,39 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { UZMAN_GORUSU_BASE_ERROR_PERCENT, UZMAN_GORUSU_ERROR_REDUCTION_PER_LEVEL } from '../config/economyConfig';
 import type { NegotiationProduct } from '../types/negotiation';
 import { colors, fonts, fontSizes } from '../theme';
 import { Card } from './Card';
 import { ProductIcon } from './icons/ProductIcon';
 import { SealIcon } from './icons/SealIcon';
 
-// Bölüm 4.3/10: Ürün kartı — ürün adı, kaynağı, ayar/gram rozetleri,
+// Bölüm 4.3/10/11: Ürün kartı — ürün adı, kaynağı, ayar/gram rozetleri,
 // varsa ayar onaylı mührü, büyük işlemlerde ("10 Çeyrek" gibi) adet.
-export function NegotiationProductCard({ product }: { product: NegotiationProduct }) {
+// İşçilikli ürünlerde (Bölüm 13-14) `karat` alanı müşterinin BEYANI —
+// Uzman Görüşü yatırılmadıkça gerçek ayar/kusur gizli kalır.
+export function NegotiationProductCard({
+  product,
+  uzmanGorusuLevel = 0,
+}: {
+  product: NegotiationProduct;
+  uzmanGorusuLevel?: number;
+}) {
   const hasQuantity = (product.quantity ?? 1) > 1;
+  const isCraftedGood = product.category === 'iscilikli';
+
+  let expertRange: { min: number; max: number } | null = null;
+  if (isCraftedGood && uzmanGorusuLevel > 0 && product.actualKarat !== undefined) {
+    const errorPercent = Math.max(
+      0,
+      UZMAN_GORUSU_BASE_ERROR_PERCENT - (uzmanGorusuLevel - 1) * UZMAN_GORUSU_ERROR_REDUCTION_PER_LEVEL,
+    );
+    const errorMagnitude = Math.round(product.actualKarat * (errorPercent / 100));
+    expertRange = {
+      min: Math.max(8, product.actualKarat - errorMagnitude),
+      max: Math.min(24, product.actualKarat + errorMagnitude),
+    };
+  }
+  const revealsFlaw = isCraftedGood && uzmanGorusuLevel >= 5;
+
   return (
     <Card style={styles.card}>
       {product.sealVerified && (
@@ -27,7 +52,7 @@ export function NegotiationProductCard({ product }: { product: NegotiationProduc
       </View>
       <View style={styles.badgeRow}>
         <View style={styles.badge}>
-          <Text style={styles.badgeLabel}>{product.karat} Ayar</Text>
+          <Text style={styles.badgeLabel}>{product.karat} Ayar {isCraftedGood ? '(beyan)' : ''}</Text>
         </View>
         <View style={styles.badge}>
           <Text style={styles.badgeLabel}>
@@ -35,6 +60,26 @@ export function NegotiationProductCard({ product }: { product: NegotiationProduc
           </Text>
         </View>
       </View>
+
+      {isCraftedGood && (
+        <View style={styles.expertBox}>
+          {expertRange ? (
+            <>
+              <Text style={styles.expertLabel}>UZMAN GÖRÜŞÜ</Text>
+              <Text style={styles.expertValue}>
+                Tahmini gerçek ayar: {expertRange.min}–{expertRange.max}
+              </Text>
+              {revealsFlaw && (
+                <Text style={styles.expertValue}>
+                  {product.hasHiddenFlaw ? 'Gizli kusur tespit edildi.' : 'Gizli kusur yok, sağlam.'}
+                </Text>
+              )}
+            </>
+          ) : (
+            <Text style={styles.expertLocked}>Kilitli — Uzman Görüşü ile gerçek ayarı gör</Text>
+          )}
+        </View>
+      )}
     </Card>
   );
 }
@@ -82,5 +127,29 @@ const styles = StyleSheet.create({
     fontFamily: fonts.mono,
     fontSize: 12,
     color: colors.ink,
+  },
+  expertBox: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  expertLabel: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 10,
+    letterSpacing: 1,
+    color: colors.inkMuted,
+    marginBottom: 2,
+  },
+  expertValue: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.ink,
+  },
+  expertLocked: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.inkMuted,
+    fontStyle: 'italic',
   },
 });

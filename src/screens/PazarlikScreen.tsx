@@ -67,6 +67,7 @@ export function PazarlikScreen() {
   const oluluLevel = skillLevels['olucu'] ?? 0;
   const sogukkanliLevel = skillLevels['sogukkanli'] ?? 0;
   const gulerYuzLevel = skillLevels['guler-yuz'] ?? 0;
+  const uzmanGorusuLevel = skillLevels['uzman-gorusu'] ?? 0;
 
   const [tested, setTested] = useState(false);
   const [measuring, setMeasuring] = useState(false);
@@ -141,6 +142,9 @@ export function PazarlikScreen() {
       marketValueTl: product.marketValueTl,
       estimatedSellPriceTl: product.estimatedSellPriceTl,
       quantity: product.quantity,
+      actualKarat: product.actualKarat,
+      hasHiddenFlaw: product.hasHiddenFlaw,
+      stoneValueTl: product.stoneValueTl,
     });
     setOffer(amount);
     if (incomingCustomerId) clearIncomingCustomer(incomingCustomerId);
@@ -210,6 +214,9 @@ export function PazarlikScreen() {
       marketValueTl: product.marketValueTl,
       estimatedSellPriceTl: product.estimatedSellPriceTl,
       quantity: product.quantity,
+      actualKarat: product.actualKarat,
+      hasHiddenFlaw: product.hasHiddenFlaw,
+      stoneValueTl: product.stoneValueTl,
       willAccept,
     });
     if (incomingCustomerId) clearIncomingCustomer(incomingCustomerId);
@@ -252,7 +259,7 @@ export function PazarlikScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <CustomerNoteCard customer={customer} />
-        <NegotiationProductCard product={product} />
+        <NegotiationProductCard product={product} uzmanGorusuLevel={uzmanGorusuLevel} />
 
         {!isSale && (
           <>

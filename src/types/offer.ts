@@ -20,6 +20,10 @@ export interface Offer {
   estimatedSellPriceTl?: number;
   /** Bölüm 10: büyük işlemler — 1'den fazlaysa toplu bir lot. Belirtilmezse 1 kabul edilir. */
   quantity?: number;
+  /** Bölüm 11-16: sadece işçilikli ürün — karat/grams beyan, bunlar gizli gerçek değerler. */
+  actualKarat?: number;
+  hasHiddenFlaw?: boolean;
+  stoneValueTl?: number;
   status: OfferStatus;
   willAccept: boolean;
   createdDay: number;

@@ -2,11 +2,13 @@ import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
+import { CraftedGoodCard } from '../components/CraftedGoodCard';
+import { MeltingJobBanner } from '../components/MeltingJobBanner';
 import { PirlantaCard } from '../components/PirlantaCard';
 import { SectionLabel } from '../components/SectionLabel';
 import { TradingPositionCard } from '../components/TradingPositionCard';
 import { pirlantaCatalog } from '../data/mockPirlanta';
-import { currentPositionValueTl, useGameStore } from '../store/useGameStore';
+import { currentPositionValueTl, MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatTl } from '../utils/format';
 
@@ -22,12 +24,20 @@ export function KasamScreen() {
   const sellInventoryItem = useGameStore((s) => s.sellInventoryItem);
   const realizedTradingProfitTl = useGameStore((s) => s.realizedTradingProfitTl);
   const purchasePirlanta = useGameStore((s) => s.purchasePirlanta);
+  const meltingJob = useGameStore((s) => s.meltingJob);
+  const meltCraftedGood = useGameStore((s) => s.meltCraftedGood);
+  const day = useGameStore((s) => s.day);
+  const minuteOfDay = useGameStore((s) => s.minuteOfDay);
 
   const [saleBanner, setSaleBanner] = useState<{ profitTl: number } | null>(null);
   const saleBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const sarrafiyeItems = inventory.filter((item) => item.category !== 'pirlanta');
+  const sarrafiyeItems = inventory.filter((item) => item.category !== 'pirlanta' && item.category !== 'iscilikli');
+  const craftedGoodItems = inventory.filter((item) => item.category === 'iscilikli');
   const pirlantaItems = inventory.filter((item) => item.category === 'pirlanta');
+  const meltingMinutesLeft = meltingJob
+    ? meltingJob.completesAtTotalMinutes - (day * MINUTES_PER_DAY + minuteOfDay)
+    : 0;
 
   const handleSell = (itemId: string) => {
     const result = sellInventoryItem(itemId);
@@ -83,6 +93,25 @@ export function KasamScreen() {
               item={item}
               currentValueTl={currentPositionValueTl(item, goldPrice.buyPricePerGram)}
               onSell={() => handleSell(item.id)}
+            />
+          ))
+        )}
+
+        <SectionLabel>İŞÇİLİKLİ ÜRÜNLER (ERİTİLECEK)</SectionLabel>
+        <Text style={styles.emptyHint}>
+          Müşteriden bozdurma yoluyla gelen kolye/yüzük/küpe gibi parçalar — GDD kararı gereği
+          başka bir müşteriye asla işçilikli ürün olarak satılmaz, tek çıkış yolu eritmek.
+        </Text>
+        {meltingJob && <MeltingJobBanner job={meltingJob} minutesLeft={meltingMinutesLeft} />}
+        {craftedGoodItems.length === 0 ? (
+          <Text style={styles.emptyHint}>Elinde henüz eritilecek işçilikli ürün yok.</Text>
+        ) : (
+          craftedGoodItems.map((item) => (
+            <CraftedGoodCard
+              key={item.id}
+              item={item}
+              disabled={meltingJob !== null}
+              onMelt={() => meltCraftedGood(item.id)}
             />
           ))
         )}

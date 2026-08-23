@@ -103,6 +103,38 @@ export const SKILL_POINTS_PER_LEVEL = 1;
 export const LEVEL_MILESTONES = [10, 20, 30, 40, 50];
 export const MILESTONE_BONUS_SKILL_POINTS = 1;
 
+// ---- İşçilikli Ürün + Eritme (Bölüm 11-16) -------------------------------
+// Kolye/yüzük/küpe/işlemeli bilezik/taşlı gibi işçilikli ürünler müşteriden
+// bozdurma yoluyla alınır ve GDD'nin açık kararı gereği ASLA başka bir
+// müşteriye işçilikli ürün olarak satılmaz — her zaman eritilip has altın
+// karşılığı sarrafiye stoğuna (Gram Altın) geri kazandırılır.
+// Bozdurma müşterisi geldiğinde, bunun standart sarrafiye yerine işçilikli
+// bir ürün getirme ihtimali:
+export const CRAFTED_GOOD_CUSTOMER_PROBABILITY = 0.3;
+// Uzman Görüşü yatırılmamışsa (Sv.0) müşterinin beyan ettiği ayardan farklı
+// çıkma (yanlış ayar/sahtecilik) ihtimali en yüksek; skil arttıkça iddialı
+// müşteriler daha az denk gelir (deneyimli kuyumcu şüpheli malı daha baştan
+// eler) — Bölüm 37: "sahtecilik riski %10-20 → skil ile %2-5".
+export const CRAFTED_GOOD_BASE_COUNTERFEIT_RISK = 0.2;
+export const CRAFTED_GOOD_MIN_COUNTERFEIT_RISK = 0.03;
+// Beyan edilenle gerçek ayar arasındaki fark, sahtecilik durumunda kaç ayar.
+export const CRAFTED_GOOD_KARAT_MISMATCH = 4;
+// Uzman Görüşü: Sv.1'de gerçek değeri ±%15 hata payıyla tahmin eder, her
+// seviyede hata payı daralır; Sv.5'te gizli kusur/taş durumu da açığa çıkar.
+export const UZMAN_GORUSU_BASE_ERROR_PERCENT = 15;
+export const UZMAN_GORUSU_ERROR_REDUCTION_PER_LEVEL = 3;
+// Eritme verimi (Bölüm 37 placeholder): geri kazanılan has altının oranı.
+export const MELTING_EFFICIENCY_MIN = 0.92;
+export const MELTING_EFFICIENCY_MAX = 0.98;
+// Eritme süresi: küçük parçalar (≤50g) 1-2 dk, büyük parçalar 5-10 dk (oyun-içi).
+export const MELTING_SMALL_LARGE_THRESHOLD_GRAMS = 50;
+export const MELTING_TIME_SMALL_MIN_MINUTES = 1;
+export const MELTING_TIME_SMALL_MAX_MINUTES = 2;
+export const MELTING_TIME_LARGE_MIN_MINUTES = 5;
+export const MELTING_TIME_LARGE_MAX_MINUTES = 10;
+// Yeniden Doğuş: eritme süresini seviye başına kısaltır.
+export const YENIDEN_DOGUS_TIME_REDUCTION_PER_LEVEL = 0.15;
+
 // ---- Büyük Bozdurmalar + Toptancı Bağlantısı (Bölüm 9) -------------------
 // Müşteriden nakit yetmeyen bir alım yapılıp borca yazıldığında, oyuncu
 // az önce aldığı malı hemen toptancıya (kâr marjıyla) satıp borcu
