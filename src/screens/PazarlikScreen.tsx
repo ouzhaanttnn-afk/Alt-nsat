@@ -5,9 +5,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomerNoteCard } from '../components/CustomerNoteCard';
 import { NegotiationActions } from '../components/NegotiationActions';
 import { NegotiationProductCard } from '../components/NegotiationProductCard';
+import { OfferPresets } from '../components/OfferPresets';
 import { PriceBlock } from '../components/PriceBlock';
 import { SaleActions } from '../components/SaleActions';
 import { ScalePanel } from '../components/ScalePanel';
+import {
+  GENEROUS_OFFER_REPUTATION_BONUS,
+  LOW_OFFER_REPUTATION_PENALTY,
+  OFFER_PRESET_COMERT_RATIO,
+  OFFER_PRESET_MAKUL_RATIO,
+  OFFER_PRESET_OLUCU_RATIO,
+  OFFER_RANGE_MAX_RATIO,
+  OFFER_RANGE_MIN_RATIO,
+} from '../config/economyConfig';
 import { negotiationCustomer, negotiationProduct, scaleReading } from '../data/mockNegotiation';
 import type { RootStackParamList } from '../navigation/types';
 import { useGameStore } from '../store/useGameStore';
@@ -69,15 +79,22 @@ export function PazarlikScreen() {
 
   // Satış modunda (dükkândan müşteriye) nakit sınırı yok — istediğin fiyatı
   // isteyebilirsin, tavan/taban sadece piyasa değerine göre makul bir aralık.
-  const minRatio = Math.max(0.3, 0.5 - oluluLevel * OLUCU_MIN_RATIO_REDUCTION_PER_LEVEL);
+  // Alım/bozdurma modunda ise Bölüm 7'nin %80-105 temel aralığı geçerli;
+  // Ölücü skili tabanı daha da aşağı çekebilir (Sv.5'te %60'a kadar).
+  const minRatio = Math.max(0.3, OFFER_RANGE_MIN_RATIO - oluluLevel * OLUCU_MIN_RATIO_REDUCTION_PER_LEVEL);
   const baseMin = isSale ? Math.round(product.marketValueTl * 0.7) : Math.round(product.marketValueTl * minRatio);
-  const baseMax = isSale ? Math.round(product.marketValueTl * 1.3) : Math.round(product.marketValueTl * 0.95);
+  const baseMax = isSale
+    ? Math.round(product.marketValueTl * 1.3)
+    : Math.round(product.marketValueTl * OFFER_RANGE_MAX_RATIO);
   const sliderMax = isSale ? baseMax : Math.max(1, Math.min(baseMax, Math.round(cashTl)));
   const sliderMin = Math.min(baseMin, sliderMax);
   const cashLimited = !isSale && sliderMax < baseMax;
+  const clampOffer = (amount: number) => Math.max(sliderMin, Math.min(sliderMax, amount));
 
   const [offer, setOffer] = useState(() =>
-    isSale ? Math.round(product.marketValueTl) : Math.min(Math.round(product.marketValueTl * 0.85), sliderMax),
+    isSale
+      ? Math.round(product.marketValueTl)
+      : clampOffer(Math.round(product.marketValueTl * OFFER_PRESET_OLUCU_RATIO)),
   );
 
   const [result, setResult] = useState<Result>(null);
@@ -161,6 +178,16 @@ export function PazarlikScreen() {
     setOffer(amount);
 
     if (willAccept) {
+      // Bölüm 8: Karizma — çubuğun kendi temel davranışı, skill'lerden
+      // bağımsız. Düşük (Ölücü eşiğinin altı) bir teklif kabul edilirse
+      // hafif itibar riski; cömert (Cömert eşiğinin üstü) bir teklif
+      // kabul edilirse hafif itibar kazancı.
+      const offerRatio = amount / product.marketValueTl;
+      if (offerRatio < OFFER_PRESET_OLUCU_RATIO) {
+        adjustReputation(-LOW_OFFER_REPUTATION_PENALTY);
+      } else if (offerRatio >= OFFER_PRESET_COMERT_RATIO) {
+        adjustReputation(GENEROUS_OFFER_REPUTATION_BONUS);
+      }
       // Bölüm 7: Sıkı Pazarlıkçı normalde reddedilecek bir teklifi kurtardıysa itibar hafif düşer.
       if (amount < originalThreshold && sikiPazarlikciLevel > 0) {
         adjustReputation(-SIKI_PAZARLIKCI_REPUTATION_PENALTY);
@@ -251,6 +278,32 @@ export function PazarlikScreen() {
           disabled={!canAct}
           cashLimited={cashLimited}
         />
+
+        {!isSale && (
+          <OfferPresets
+            disabled={!canAct}
+            presets={[
+              {
+                key: 'olucu',
+                label: 'Ölücü',
+                sublabel: `%${Math.round(OFFER_PRESET_OLUCU_RATIO * 100)}`,
+                onPress: () => setOffer(clampOffer(Math.round(product.marketValueTl * OFFER_PRESET_OLUCU_RATIO))),
+              },
+              {
+                key: 'makul',
+                label: 'Makul',
+                sublabel: `%${Math.round(OFFER_PRESET_MAKUL_RATIO * 100)}`,
+                onPress: () => setOffer(clampOffer(Math.round(product.marketValueTl * OFFER_PRESET_MAKUL_RATIO))),
+              },
+              {
+                key: 'comert',
+                label: 'Cömert',
+                sublabel: `%${Math.round(OFFER_PRESET_COMERT_RATIO * 100)}`,
+                onPress: () => setOffer(clampOffer(Math.round(product.marketValueTl * OFFER_PRESET_COMERT_RATIO))),
+              },
+            ]}
+          />
+        )}
 
         {isSale ? (
           <SaleActions

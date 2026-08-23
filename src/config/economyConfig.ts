@@ -70,3 +70,19 @@ export const BOZDURMA_BULK_LOT_MAX_GRAMS = 2000;
 // Kaydırma çubuğuyla gönderilen bir teklif anında sonuçlanmaz, müşterinin
 // düşünmesi için bir süre "bekleyen" kalır.
 export const OFFER_RESOLUTION_DELAY_MINUTES = 30;
+
+// ---- Pazarlık Teklif Aralığı + Hızlı Ön Ayarlar (Bölüm 7/8) --------------
+// Sadece müşteriden alım/bozdurma modunda (dükkân müşteriden alıyor):
+// teklif çubuğu piyasa değerinin %80-105'i aralığında (Ölücü skili tabanı
+// daha da aşağı çekebilir, bkz. PazarlikScreen). Üç hızlı ön ayar butonu
+// çubuğu doğrudan bu oranlara götürür.
+export const OFFER_RANGE_MIN_RATIO = 0.8;
+export const OFFER_RANGE_MAX_RATIO = 1.05;
+export const OFFER_PRESET_OLUCU_RATIO = 0.85;
+export const OFFER_PRESET_MAKUL_RATIO = 0.95;
+export const OFFER_PRESET_COMERT_RATIO = 1.02;
+// Bölüm 8: Karizma — düşük bir teklif kabul edilirse hafif itibar riski,
+// cömert bir teklif kabul edilirse hafif itibar kazancı. Skill'lerden
+// (Sıkı Pazarlıkçı/Ölücü) bağımsız, çubuğun kendi temel davranışı.
+export const LOW_OFFER_REPUTATION_PENALTY = 1;
+export const GENEROUS_OFFER_REPUTATION_BONUS = 1;
