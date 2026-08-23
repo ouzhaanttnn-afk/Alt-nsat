@@ -6,6 +6,8 @@ import {
   BOZDURMA_BULK_LOT_MIN_GRAMS,
   BOZDURMA_BULK_LOT_PROBABILITY,
   BOZDURMA_DIRECTION_PROBABILITY,
+  BROKER_DEAL_TIMEOUT_TRUST_PENALTY,
+  BROKER_DEAL_WINDOW_MINUTES,
   CAPITAL_TIERS,
   GAME_MINUTES_PER_REAL_SECOND_AT_1X,
   INCOMING_CUSTOMER_CHECKS_PER_DAY,
@@ -144,6 +146,16 @@ function pickBozdurmaCandidate(): BozdurmaCandidate {
   return { name: spec.name, category: spec.category, karat: spec.karat, gramsPerUnit: spec.grams, quantity };
 }
 
+// Bölüm 9: büyük bozdurmalar + Toptancı Bağlantısı — müşteriden nakit
+// yetmeyen bir alım borca yazıldığında, o alımın tam bu miktarı sınırlı
+// bir süre için toptancıya kâr marjıyla anında satılabilir hale gelir.
+export interface BrokerDeal {
+  inventoryItemId: string;
+  /** Bu bağlantıyla korunan, bu işlemden gelen adet (envanterdeki toplam adet değil). */
+  quantity: number;
+  expiresAtTotalMinutes: number;
+}
+
 interface GameState {
   capital: CapitalState;
   goldPrice: GoldPriceState;
@@ -166,6 +178,8 @@ interface GameState {
   wholesalerTrust: number;
   /** Aktif borcun ödenmesi gereken oyun günü; borç yoksa null. */
   loanDueDay: number | null;
+  /** Bölüm 9: açık Toptancı Bağlantısı — süresi içinde toptancıya satılmazsa güven düşer. */
+  brokerDeal: BrokerDeal | null;
   setSpeed: (speed: ClockSpeed) => void;
   /** Gerçek zamanda geçen saniyeyi oyun saatine, altın fiyatına ve müşteri akışına işler. */
   tick: (realSecondsElapsed: number) => void;
@@ -190,6 +204,12 @@ interface GameState {
       quantity?: number;
     },
   ) => { success: true; borrowedTl: number } | { success: false; borrowedTl: 0 };
+  /**
+   * Bölüm 9: açık Toptancı Bağlantısı'nı hemen kullanır — o işlemden gelen
+   * malı toptancıya (genel ALIŞ + toptancı marjı üzerinden) anında satar,
+   * kesin bir kâr cebe atar. Bağlantı yoksa ya da süresi geçmişse null döner.
+   */
+  resolveBrokerDeal: () => { saleValueTl: number; profitTl: number } | null;
   /** Bir pozisyonun tamamını güncel kurdan nakde çevirir; alış-satış makasından gerçekleşen kârı döner. */
   sellInventoryItem: (itemId: string) => { saleValueTl: number; profitTl: number; quantity: number } | null;
   /**
@@ -300,6 +320,7 @@ export const useGameStore = create<GameState>()(
   wholesalerSellMarginTlPerGram: randomInRange(WHOLESALER_MARGIN_MIN_TL_PER_GRAM, WHOLESALER_MARGIN_MAX_TL_PER_GRAM),
   wholesalerTrust: STARTING_WHOLESALER_TRUST,
   loanDueDay: null,
+  brokerDeal: null,
   realizedTradingProfitTl: 0,
   skillPoints: STARTING_CAPITAL_TIER_INDEX + 1,
   skillLevels: {},
@@ -408,6 +429,14 @@ export const useGameStore = create<GameState>()(
       }
     } else if (postOfferState.capital.debtTl <= 0) {
       loanDueDay = null;
+    }
+
+    // Bölüm 9: Toptancı Bağlantısı'nın süresi doldu ama kullanılmadıysa —
+    // toptancı güveni düşer, bağlantı kapanır (mal normal stokta kalır).
+    let brokerDeal = postOfferState.brokerDeal;
+    if (brokerDeal && currentTotalMinutes >= brokerDeal.expiresAtTotalMinutes) {
+      wholesalerTrust = Math.max(0, wholesalerTrust - BROKER_DEAL_TIMEOUT_TRUST_PENALTY);
+      brokerDeal = null;
     }
 
     const inventory = postOfferState.inventory;
@@ -570,6 +599,7 @@ export const useGameStore = create<GameState>()(
       wholesalerSellMarginTlPerGram,
       wholesalerTrust,
       loanDueDay,
+      brokerDeal,
       inventory,
       offers,
       incomingCustomer,
@@ -624,6 +654,7 @@ export const useGameStore = create<GameState>()(
       (i) => i.name === item.name && i.category === item.category && i.karat === item.karat && i.grams === item.grams,
     );
 
+    const settledItemId = existingIndex >= 0 ? state.inventory[existingIndex].id : String(nextInventoryId);
     const inventory =
       existingIndex >= 0
         ? state.inventory.map((i, idx) =>
@@ -646,6 +677,16 @@ export const useGameStore = create<GameState>()(
             } satisfies InventoryItem,
           ];
 
+    // Bölüm 9: nakit yetmeyip borca yazıldıysa, bu işlemin tam bu miktarı
+    // sınırlı bir süre için toptancıya kâr marjıyla anında satılabilir
+    // hale gelir ("Toptancı Bağlantısı") — açık bir bağlantı varsa yenisi
+    // onun yerine geçer (basitleştirme, bkz. yorum).
+    const totalMinutesNow = state.day * MINUTES_PER_DAY + state.minuteOfDay;
+    const brokerDeal: BrokerDeal | null =
+      shortfall > 0
+        ? { inventoryItemId: settledItemId, quantity, expiresAtTotalMinutes: totalMinutesNow + BROKER_DEAL_WINDOW_MINUTES }
+        : state.brokerDeal;
+
     set({
       inventory,
       capital: {
@@ -655,8 +696,52 @@ export const useGameStore = create<GameState>()(
         stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
       },
       loanDueDay,
+      brokerDeal,
     });
     return { success: true, borrowedTl: shortfall };
+  },
+
+  resolveBrokerDeal: () => {
+    const state = get();
+    const deal = state.brokerDeal;
+    if (!deal) return null;
+    const item = state.inventory.find((i) => i.id === deal.inventoryItemId);
+    const sellQuantity = item ? Math.min(deal.quantity, item.quantity) : 0;
+    if (!item || sellQuantity <= 0) {
+      set({ brokerDeal: null });
+      return null;
+    }
+
+    // Bölüm 5/9: toptancı, genel piyasa ALIŞ fiyatının marjı kadar
+    // üstünden alır — az önce müşteriden alınan malı buraya anında
+    // devretmek, aradaki farkı kesin kâr olarak cebe atar.
+    const wholesalerPricePerGram = state.goldPrice.buyPricePerGram + state.wholesalerSellMarginTlPerGram;
+    const unitPriceTl = equivalentGrams(item.grams, item.karat) * wholesalerPricePerGram;
+    const saleValueTl = unitPriceTl * sellQuantity;
+    const soldCostBasisTl = (item.costBasisTl / item.quantity) * sellQuantity;
+    const profitTl = saleValueTl - soldCostBasisTl;
+    const remainingQuantity = item.quantity - sellQuantity;
+
+    const inventory =
+      remainingQuantity > 0
+        ? state.inventory.map((i) =>
+            i.id === item.id
+              ? { ...i, quantity: remainingQuantity, costBasisTl: i.costBasisTl - soldCostBasisTl }
+              : i,
+          )
+        : state.inventory.filter((i) => i.id !== item.id);
+
+    set({
+      inventory,
+      brokerDeal: null,
+      realizedTradingProfitTl: state.realizedTradingProfitTl + profitTl,
+      capital: {
+        ...state.capital,
+        cashTl: state.capital.cashTl + saleValueTl,
+        stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
+      },
+    });
+    return { saleValueTl, profitTl };
   },
 
   sellInventoryItem: (itemId) => {
@@ -919,7 +1004,7 @@ export const useGameStore = create<GameState>()(
   setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
     }),
     {
-      name: 'cepkaynak-save-v5',
+      name: 'cepkaynak-save-v6',
       storage: createJSONStorage(() => AsyncStorage),
       // Skill tanımları/oyun kodu değişse bile eski kayıtlar yüklenebilsin diye
       // sadece serileştirilebilir oyun verisi tutulur — aksiyon fonksiyonları
@@ -940,6 +1025,7 @@ export const useGameStore = create<GameState>()(
         wholesalerSellMarginTlPerGram: state.wholesalerSellMarginTlPerGram,
         wholesalerTrust: state.wholesalerTrust,
         loanDueDay: state.loanDueDay,
+        brokerDeal: state.brokerDeal,
         realizedTradingProfitTl: state.realizedTradingProfitTl,
         skillPoints: state.skillPoints,
         skillLevels: state.skillLevels,

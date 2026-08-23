@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActiveOfferSummary, type ActiveOffer } from '../components/ActiveOfferSummary';
+import { BrokerDealBanner } from '../components/BrokerDealBanner';
 import { CapitalSummary } from '../components/CapitalSummary';
 import { DailyGoalCard } from '../components/DailyGoalCard';
 import { GoldTicker } from '../components/GoldTicker';
@@ -15,7 +16,7 @@ import { SectionLabel } from '../components/SectionLabel';
 import { SpeedControl } from '../components/SpeedControl';
 import { dailyGoalSteps } from '../data/mockHome';
 import type { MainTabsParamList, RootStackParamList } from '../navigation/types';
-import { useGameStore } from '../store/useGameStore';
+import { MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatGameTime } from '../utils/format';
 
@@ -41,6 +42,11 @@ export function DukkanScreen() {
   const loanDueDay = useGameStore((s) => s.loanDueDay);
   const repayDebt = useGameStore((s) => s.repayDebt);
   const offers = useGameStore((s) => s.offers);
+  const brokerDeal = useGameStore((s) => s.brokerDeal);
+  const resolveBrokerDeal = useGameStore((s) => s.resolveBrokerDeal);
+
+  const currentTotalMinutes = day * MINUTES_PER_DAY + minuteOfDay;
+  const brokerMinutesLeft = brokerDeal ? brokerDeal.expiresAtTotalMinutes - currentTotalMinutes : 0;
 
   // En son gönderilen bekleyen teklif öncelikli gösterilir; bekleyen yoksa
   // en son sonuçlanan teklif gösterilir (offers dizisi en yeniden en eskiye sıralı).
@@ -71,6 +77,10 @@ export function DukkanScreen() {
         <View style={styles.speedRow}>
           <SpeedControl speed={speed} onChange={setSpeed} />
         </View>
+
+        {brokerDeal && brokerMinutesLeft > 0 && (
+          <BrokerDealBanner minutesLeft={brokerMinutesLeft} onResolve={() => resolveBrokerDeal()} />
+        )}
 
         <CapitalSummary
           capital={capital}

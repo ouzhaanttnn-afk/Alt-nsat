@@ -86,3 +86,11 @@ export const OFFER_PRESET_COMERT_RATIO = 1.02;
 // (Sıkı Pazarlıkçı/Ölücü) bağımsız, çubuğun kendi temel davranışı.
 export const LOW_OFFER_REPUTATION_PENALTY = 1;
 export const GENEROUS_OFFER_REPUTATION_BONUS = 1;
+
+// ---- Büyük Bozdurmalar + Toptancı Bağlantısı (Bölüm 9) -------------------
+// Müşteriden nakit yetmeyen bir alım yapılıp borca yazıldığında, oyuncu
+// az önce aldığı malı hemen toptancıya (kâr marjıyla) satıp borcu
+// doğuran işlemi anında kapatabilir. Bu "bağlantı" sınırlı bir oyun-içi
+// süre için açık kalır; süresi dolarsa toptancı güveni düşer.
+export const BROKER_DEAL_WINDOW_MINUTES = 10;
+export const BROKER_DEAL_TIMEOUT_TRUST_PENALTY = 10;

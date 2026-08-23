@@ -60,6 +60,8 @@ export function PazarlikScreen() {
   const clearIncomingCustomer = useGameStore((s) => s.clearIncomingCustomer);
   const adjustReputation = useGameStore((s) => s.adjustReputation);
   const skillLevels = useGameStore((s) => s.skillLevels);
+  const brokerDeal = useGameStore((s) => s.brokerDeal);
+  const resolveBrokerDeal = useGameStore((s) => s.resolveBrokerDeal);
 
   const sikiPazarlikciLevel = skillLevels['siki-pazarlikci'] ?? 0;
   const oluluLevel = skillLevels['olucu'] ?? 0;
@@ -227,6 +229,8 @@ export function PazarlikScreen() {
         borrowedTl={borrowedTl}
         customerName={customer.name}
         productName={product.name}
+        hasBrokerDeal={!isSale && borrowedTl > 0 && brokerDeal !== null}
+        onResolveBrokerDeal={resolveBrokerDeal}
         onClose={() => navigation.goBack()}
       />
     );
@@ -342,6 +346,8 @@ function ResultScreen({
   borrowedTl,
   customerName,
   productName,
+  hasBrokerDeal,
+  onResolveBrokerDeal,
   onClose,
 }: {
   result: 'accepted' | 'rejected' | 'creditDenied' | 'timedOut' | 'sent';
@@ -350,8 +356,13 @@ function ResultScreen({
   borrowedTl: number;
   customerName: string;
   productName: string;
+  /** Bölüm 9: bu işlem borca yazıldıysa, toptancıya hemen satılabilir bir bağlantı açık mı. */
+  hasBrokerDeal: boolean;
+  onResolveBrokerDeal: () => { saleValueTl: number; profitTl: number } | null;
   onClose: () => void;
 }) {
+  const [brokerOutcome, setBrokerOutcome] = useState<{ profitTl: number } | null>(null);
+  const [brokerResolved, setBrokerResolved] = useState(false);
   const accepted = result === 'accepted';
   const badgeColor =
     result === 'accepted'
@@ -403,6 +414,28 @@ function ResultScreen({
         {accepted && borrowedTl > 0 && (
           <Text style={styles.borrowedNote}>
             Kasadaki nakit yetmediği için {formatTl(borrowedTl)} borca yazıldı.
+          </Text>
+        )}
+        {accepted && hasBrokerDeal && !brokerResolved && (
+          <>
+            <Text style={styles.brokerHint}>
+              Toptancı Bağlantısı açık: az önce aldığını hemen toptancıya devredip kesin kâr cebe atabilirsin.
+            </Text>
+            <Pressable
+              style={styles.brokerButton}
+              onPress={() => {
+                const outcome = onResolveBrokerDeal();
+                setBrokerResolved(true);
+                if (outcome) setBrokerOutcome(outcome);
+              }}
+            >
+              <Text style={styles.brokerButtonLabel}>Toptancıya Hemen Sat</Text>
+            </Pressable>
+          </>
+        )}
+        {brokerOutcome && (
+          <Text style={styles.brokerOutcomeNote}>
+            Toptancıya devredildi: +{formatTl(brokerOutcome.profitTl)} kâr cebe girdi.
           </Text>
         )}
         <Pressable style={styles.resultButton} onPress={onClose}>
@@ -495,6 +528,33 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyMedium,
     fontSize: fontSizes.sm,
     color: colors.warning,
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  brokerHint: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xs,
+    color: colors.inkMuted,
+    textAlign: 'center',
+    marginTop: 14,
+    paddingHorizontal: 12,
+  },
+  brokerButton: {
+    marginTop: 10,
+    backgroundColor: colors.ink,
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  brokerButtonLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.sm,
+    color: colors.white,
+  },
+  brokerOutcomeNote: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: fontSizes.sm,
+    color: colors.positive,
     textAlign: 'center',
     marginTop: 10,
   },
