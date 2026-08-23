@@ -8,12 +8,15 @@ import {
   BOZDURMA_DIRECTION_PROBABILITY,
   BROKER_DEAL_TIMEOUT_TRUST_PENALTY,
   BROKER_DEAL_WINDOW_MINUTES,
-  CAPITAL_TIERS,
   GAME_MINUTES_PER_REAL_SECOND_AT_1X,
   INCOMING_CUSTOMER_CHECKS_PER_DAY,
   INCOMING_CUSTOMER_EXPIRY_MINUTES,
   INCOMING_CUSTOMER_TRIGGER_PROBABILITY,
   LATE_PAYMENT_TRUST_PENALTY,
+  LEVEL_MAX,
+  LEVEL_MILESTONES,
+  LEVEL_XP_BASE,
+  LEVEL_XP_INCREMENT,
   LOAN_TERM_DAYS,
   MARKET_SPREAD_MAX_TL_PER_GRAM,
   MARKET_SPREAD_MIN_TL_PER_GRAM,
@@ -21,16 +24,19 @@ import {
   MARKET_STEP_MIN_PERCENT,
   MARKET_STEP_MINUTES,
   MAX_REAL_SECONDS_PER_TICK,
+  MILESTONE_BONUS_SKILL_POINTS,
   MIN_TRUST_FOR_CREDIT,
   MINUTES_PER_DAY,
   OFFER_RESOLUTION_DELAY_MINUTES,
   RESTART_FLUCTUATION_MAX_PERCENT,
   RESTART_FLUCTUATION_MIN_PERCENT,
+  SKILL_POINTS_PER_LEVEL,
   STARTING_CAPITAL_GRAMS,
   STARTING_REFERENCE_PRICE,
   STARTING_WHOLESALER_TRUST,
   WHOLESALER_MARGIN_MAX_TL_PER_GRAM,
   WHOLESALER_MARGIN_MIN_TL_PER_GRAM,
+  XP_PER_EQUIVALENT_GRAM_TRADED,
 } from '../config/economyConfig';
 import type { ScaleReading } from '../components/ScalePanel';
 import {
@@ -54,21 +60,35 @@ import type { Offer } from '../types/offer';
 export type ClockSpeed = 0 | 1 | 2 | 4;
 
 export {
-  CAPITAL_TIERS,
   MINUTES_PER_DAY,
   OFFER_RESOLUTION_DELAY_MINUTES,
 } from '../config/economyConfig';
 
-function computeNetWorthTl(capital: CapitalState): number {
-  return capital.cashTl + capital.stockValueTl - capital.debtTl;
+// Bölüm 23-24: seviye n'e ulaşmak için gereken TOPLAM (kümülatif) XP —
+// kapalı formül: sum_{i=1}^{n-1} [BASE + (i-1)*INCREMENT].
+export function xpRequiredForLevel(level: number): number {
+  const n = level - 1;
+  if (n <= 0) return 0;
+  return n * LEVEL_XP_BASE + (LEVEL_XP_INCREMENT * (n * (n - 1))) / 2;
 }
 
-function tierIndexForNetWorth(netWorthTl: number): number {
-  let index = -1;
-  for (let i = 0; i < CAPITAL_TIERS.length; i++) {
-    if (netWorthTl >= CAPITAL_TIERS[i]) index = i;
+/** Toplam ömür boyu XP'den güncel seviyeyi türetir (LEVEL_MAX'ta sınırlanır). */
+export function levelForTotalXp(totalXp: number): number {
+  let level = 1;
+  while (level < LEVEL_MAX && xpRequiredForLevel(level + 1) <= totalXp) {
+    level += 1;
   }
-  return index;
+  return level;
+}
+
+/** Belirli bir seviyeye kadar (dahil) kazanılan toplam yetenek puanı — 1/seviye + kilometre taşı bonusu. */
+export function skillPointsForLevel(level: number): number {
+  let points = 0;
+  for (let lvl = 2; lvl <= level; lvl++) {
+    points += SKILL_POINTS_PER_LEVEL;
+    if (LEVEL_MILESTONES.includes(lvl)) points += MILESTONE_BONUS_SKILL_POINTS;
+  }
+  return points;
 }
 
 /** [min, max] aralığında düzgün dağılımlı rastgele değer. */
@@ -144,6 +164,22 @@ function pickBozdurmaCandidate(): BozdurmaCandidate {
         ? 1 + Math.floor(Math.random() * 15)
         : 1 + Math.floor(Math.random() * 4);
   return { name: spec.name, category: spec.category, karat: spec.karat, gramsPerUnit: spec.grams, quantity };
+}
+
+/**
+ * Bölüm 23-24: bir aktif alım-satım işlemi tamamlandığında çağrılır —
+ * kazanılan XP toplam XP'ye eklenir, seviye atlandıysa yetenek puanı(ları)
+ * kazanılır. Saf bir hesaplama: çağıran, döndürülen alanları kendi set()
+ * çağrısına ekler (ayrı bir set() tetiklemez, tek işlemde birleşir).
+ */
+function applyXpGain(
+  state: Pick<GameState, 'totalXp' | 'level' | 'skillPoints'>,
+  xpGained: number,
+): { totalXp: number; level: number; skillPoints: number } {
+  const totalXp = state.totalXp + Math.max(0, xpGained);
+  const level = levelForTotalXp(totalXp);
+  const gainedSkillPoints = level > state.level ? skillPointsForLevel(level) - skillPointsForLevel(state.level) : 0;
+  return { totalXp, level, skillPoints: state.skillPoints + gainedSkillPoints };
 }
 
 // Bölüm 9: büyük bozdurmalar + Toptancı Bağlantısı — müşteriden nakit
@@ -269,13 +305,18 @@ interface GameState {
    */
   purchasePirlanta: (catalogItem: PirlantaCatalogItem) => void;
 
-  // Bölüm 7: Yetenek Ağacı. Her yeni Sermaye Kademesi'ne (Bölüm 2) ulaşmak
-  // bir puan kazandırır; puanlar skillTree'deki yeteneklere harcanır.
+  // Bölüm 23-24: Seviye — paradan bağımsız, yalnızca aktif alım-satımdan
+  // (asla pasif gelirden) kazanılan XP ile ilerler. Her seviye bir yetenek
+  // puanı, Sv.10/20/30/40/50'de ekstra puan kazandırır.
+  totalXp: number;
+  level: number;
+  // Bölüm 7: Yetenek Ağacı — puanlar skillTree'deki yeteneklere harcanır.
   skillPoints: number;
   skillLevels: Record<string, number>;
-  highestCapitalTierIndex: number;
   /** Bir yeteneği bir seviye yükseltir; puan yoksa ya da zaten maksimumdaysa false döner. */
   levelUpSkill: (skillId: string) => boolean;
+  /** Bölüm 30: Yetenekleri sıfırlar, o seviyeye kadar kazanılan tüm puanları iade eder. YER TUTUCU: reklam SDK'sı bağlanınca burası gerçek "reklam izlendi" onayından sonra çağrılacak. */
+  resetSkills: () => void;
   /** İtibarı 0-100 aralığında sınırlayarak değiştirir (skill etkileri, gelecekte olaylar vb. için). */
   adjustReputation: (delta: number) => void;
 
@@ -284,10 +325,6 @@ interface GameState {
   setHasHydrated: (hydrated: boolean) => void;
 }
 
-// Oyuncu zaten bu kademeleri geçmiş sayılıp buna karşılık gelen puanla başlıyor
-// (1kg altınla başlamak zaten bir birikimi temsil ediyor).
-const STARTING_NET_WORTH_TL = STARTING_CAPITAL_GRAMS * STARTING_REFERENCE_PRICE;
-const STARTING_CAPITAL_TIER_INDEX = tierIndexForNetWorth(STARTING_NET_WORTH_TL);
 const STARTING_MARKET_SPREAD_TL_PER_GRAM = randomInRange(
   MARKET_SPREAD_MIN_TL_PER_GRAM,
   MARKET_SPREAD_MAX_TL_PER_GRAM,
@@ -322,9 +359,10 @@ export const useGameStore = create<GameState>()(
   loanDueDay: null,
   brokerDeal: null,
   realizedTradingProfitTl: 0,
-  skillPoints: STARTING_CAPITAL_TIER_INDEX + 1,
+  totalXp: 0,
+  level: 1,
+  skillPoints: 0,
   skillLevels: {},
-  highestCapitalTierIndex: STARTING_CAPITAL_TIER_INDEX,
 
   setSpeed: (speed) => set({ speed }),
 
@@ -586,10 +624,6 @@ export const useGameStore = create<GameState>()(
       stockValueTl: computeStockValueTl(inventory, nextBuyPrice),
     };
 
-    // Bölüm 2/7: yeni bir Sermaye Kademesi'ne ulaşınca Yetenek Ağacı puanı kazanılır.
-    const newTierIndex = tierIndexForNetWorth(computeNetWorthTl(capital));
-    const gainedTiers = Math.max(0, newTierIndex - postOfferState.highestCapitalTierIndex);
-
     set({
       minuteOfDay,
       day,
@@ -604,8 +638,6 @@ export const useGameStore = create<GameState>()(
       offers,
       incomingCustomer,
       capital,
-      highestCapitalTierIndex: gainedTiers > 0 ? newTierIndex : postOfferState.highestCapitalTierIndex,
-      skillPoints: postOfferState.skillPoints + gainedTiers,
       goldPrice: {
         buyPricePerGram: nextBuyPrice,
         sellPricePerGram: nextSellPrice,
@@ -687,6 +719,9 @@ export const useGameStore = create<GameState>()(
         ? { inventoryItemId: settledItemId, quantity, expiresAtTotalMinutes: totalMinutesNow + BROKER_DEAL_WINDOW_MINUTES }
         : state.brokerDeal;
 
+    // Bölüm 23-24: aktif alım — XP, işlemdeki has altın karşılığı hacme göre kazanılır.
+    const xpGained = equivalentGrams(item.grams, item.karat) * quantity * XP_PER_EQUIVALENT_GRAM_TRADED;
+
     set({
       inventory,
       capital: {
@@ -697,6 +732,7 @@ export const useGameStore = create<GameState>()(
       },
       loanDueDay,
       brokerDeal,
+      ...applyXpGain(state, xpGained),
     });
     return { success: true, borrowedTl: shortfall };
   },
@@ -731,6 +767,8 @@ export const useGameStore = create<GameState>()(
           )
         : state.inventory.filter((i) => i.id !== item.id);
 
+    const xpGained = equivalentGrams(item.grams, item.karat) * sellQuantity * XP_PER_EQUIVALENT_GRAM_TRADED;
+
     set({
       inventory,
       brokerDeal: null,
@@ -740,6 +778,7 @@ export const useGameStore = create<GameState>()(
         cashTl: state.capital.cashTl + saleValueTl,
         stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
       },
+      ...applyXpGain(state, xpGained),
     });
     return { saleValueTl, profitTl };
   },
@@ -752,6 +791,7 @@ export const useGameStore = create<GameState>()(
     const saleValueTl = currentPositionValueTl(item, state.goldPrice.buyPricePerGram);
     const profitTl = saleValueTl - item.costBasisTl;
     const inventory = state.inventory.filter((i) => i.id !== itemId);
+    const xpGained = equivalentGrams(item.grams, item.karat) * item.quantity * XP_PER_EQUIVALENT_GRAM_TRADED;
 
     set({
       inventory,
@@ -761,6 +801,7 @@ export const useGameStore = create<GameState>()(
         cashTl: state.capital.cashTl + saleValueTl,
         stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
       },
+      ...applyXpGain(state, xpGained),
     });
     return { saleValueTl, profitTl, quantity: item.quantity };
   },
@@ -805,6 +846,8 @@ export const useGameStore = create<GameState>()(
             } satisfies InventoryItem,
           ];
 
+    const xpGained = equivalentGrams(spec.grams, spec.karat) * quantity * XP_PER_EQUIVALENT_GRAM_TRADED;
+
     set({
       inventory,
       capital: {
@@ -812,6 +855,7 @@ export const useGameStore = create<GameState>()(
         cashTl: state.capital.cashTl - totalCostTl,
         stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
       },
+      ...applyXpGain(state, xpGained),
     });
     return { success: true };
   },
@@ -838,6 +882,8 @@ export const useGameStore = create<GameState>()(
           )
         : state.inventory.filter((i) => i.id !== itemId);
 
+    const xpGained = equivalentGrams(item.grams, item.karat) * sellQuantity * XP_PER_EQUIVALENT_GRAM_TRADED;
+
     set({
       inventory,
       realizedTradingProfitTl: state.realizedTradingProfitTl + profitTl,
@@ -846,6 +892,7 @@ export const useGameStore = create<GameState>()(
         cashTl: state.capital.cashTl + saleValueTl,
         stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
       },
+      ...applyXpGain(state, xpGained),
     });
     return { saleValueTl, profitTl, quantity: sellQuantity };
   },
@@ -920,6 +967,8 @@ export const useGameStore = create<GameState>()(
           )
         : state.inventory.filter((i) => i.id !== item.id);
 
+    const xpGained = equivalentGrams(item.grams, item.karat) * unitsRequired * XP_PER_EQUIVALENT_GRAM_TRADED;
+
     set({
       inventory,
       incomingCustomer: null,
@@ -929,6 +978,7 @@ export const useGameStore = create<GameState>()(
         cashTl: state.capital.cashTl + amountTl,
         stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
       },
+      ...applyXpGain(state, xpGained),
     });
     return { profitTl };
   },
@@ -994,6 +1044,11 @@ export const useGameStore = create<GameState>()(
     return true;
   },
 
+  resetSkills: () => {
+    const state = get();
+    set({ skillLevels: {}, skillPoints: skillPointsForLevel(state.level) });
+  },
+
   adjustReputation: (delta) => {
     set((state) => ({
       reputation: { score: Math.max(0, Math.min(100, state.reputation.score + delta)) },
@@ -1004,7 +1059,7 @@ export const useGameStore = create<GameState>()(
   setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
     }),
     {
-      name: 'cepkaynak-save-v6',
+      name: 'cepkaynak-save-v7',
       storage: createJSONStorage(() => AsyncStorage),
       // Skill tanımları/oyun kodu değişse bile eski kayıtlar yüklenebilsin diye
       // sadece serileştirilebilir oyun verisi tutulur — aksiyon fonksiyonları
@@ -1027,9 +1082,10 @@ export const useGameStore = create<GameState>()(
         loanDueDay: state.loanDueDay,
         brokerDeal: state.brokerDeal,
         realizedTradingProfitTl: state.realizedTradingProfitTl,
+        totalXp: state.totalXp,
+        level: state.level,
         skillPoints: state.skillPoints,
         skillLevels: state.skillLevels,
-        highestCapitalTierIndex: state.highestCapitalTierIndex,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

@@ -87,6 +87,22 @@ export const OFFER_PRESET_COMERT_RATIO = 1.02;
 export const LOW_OFFER_REPUTATION_PENALTY = 1;
 export const GENEROUS_OFFER_REPUTATION_BONUS = 1;
 
+// ---- XP / Seviye + Yetenek Sıfırlama (Bölüm 23-24/30) --------------------
+// Seviye tamamen paradan bağımsız — sadece aktif alım-satımdan (toptancıdan
+// restok, müşteriyle pazarlık, envanterden satış, Toptancı Bağlantısı)
+// kazanılan XP ile ilerler; pasif gelirden (pırlanta vb.) asla XP gelmez.
+// Hedef 50 seviye; her seviyede 1 yetenek puanı + kilometre taşlarında
+// (Sv.10/20/30/40/50) ekstra puan. Sayılar Bölüm 37'nin dediği gibi
+// dengeleme amaçlı başlangıç placeholder'ları.
+export const LEVEL_MAX = 50;
+export const XP_PER_EQUIVALENT_GRAM_TRADED = 1;
+// Seviye n'e ulaşmak için gereken toplam XP: (n-1)*BASE + INCREMENT*artan basamak.
+export const LEVEL_XP_BASE = 50;
+export const LEVEL_XP_INCREMENT = 15;
+export const SKILL_POINTS_PER_LEVEL = 1;
+export const LEVEL_MILESTONES = [10, 20, 30, 40, 50];
+export const MILESTONE_BONUS_SKILL_POINTS = 1;
+
 // ---- Büyük Bozdurmalar + Toptancı Bağlantısı (Bölüm 9) -------------------
 // Müşteriden nakit yetmeyen bir alım yapılıp borca yazıldığında, oyuncu
 // az önce aldığı malı hemen toptancıya (kâr marjıyla) satıp borcu

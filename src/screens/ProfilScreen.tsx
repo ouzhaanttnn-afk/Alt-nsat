@@ -1,23 +1,32 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
+import { LevelProgressCard } from '../components/LevelProgressCard';
 import { ReputationGauge } from '../components/ReputationGauge';
 import { SectionLabel } from '../components/SectionLabel';
 import { SkillNodeCard } from '../components/SkillNodeCard';
+import { LEVEL_MAX } from '../config/economyConfig';
 import { BRANCH_LABELS, skillTree, type SkillBranch } from '../data/skillTree';
-import { useGameStore } from '../store/useGameStore';
+import { useGameStore, xpRequiredForLevel } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 
 const BRANCHES: SkillBranch[] = ['tuccar', 'usta', 'esnaf'];
 
-// Bölüm 7: Yetenek Ağacı — Tüccar / Usta / Esnaf. Her yeni Sermaye
-// Kademesi'ne (Bölüm 2) ulaşmak bir puan kazandırır.
+// Bölüm 7/23-24: Yetenek Ağacı (Tüccar / Usta / Esnaf) + Seviye — seviye
+// paradan bağımsız, yalnızca aktif alım-satımdan kazanılan XP ile ilerler.
 export function ProfilScreen() {
   const reputation = useGameStore((s) => s.reputation);
   const wholesalerTrust = useGameStore((s) => s.wholesalerTrust);
+  const level = useGameStore((s) => s.level);
+  const totalXp = useGameStore((s) => s.totalXp);
   const skillPoints = useGameStore((s) => s.skillPoints);
   const skillLevels = useGameStore((s) => s.skillLevels);
   const levelUpSkill = useGameStore((s) => s.levelUpSkill);
+  const resetSkills = useGameStore((s) => s.resetSkills);
+
+  const isMaxLevel = level >= LEVEL_MAX;
+  const xpForCurrentLevel = xpRequiredForLevel(level);
+  const xpForNextLevel = xpRequiredForLevel(level + 1);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -28,6 +37,14 @@ export function ProfilScreen() {
             <Text style={styles.pointsBadgeLabel}>{skillPoints} puan</Text>
           </View>
         </View>
+
+        <LevelProgressCard
+          level={level}
+          isMaxLevel={isMaxLevel}
+          xpIntoLevel={totalXp - xpForCurrentLevel}
+          xpNeededForLevel={xpForNextLevel - xpForCurrentLevel}
+          onResetSkills={resetSkills}
+        />
 
         <Card style={styles.gaugeCard}>
           <ReputationGauge score={reputation.score} label="İTİBAR" align="flex-start" />
