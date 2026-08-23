@@ -16,6 +16,7 @@ import {
   CRAFTED_GOOD_CUSTOMER_PROBABILITY,
   CRAFTED_GOOD_KARAT_MISMATCH,
   CRAFTED_GOOD_MIN_COUNTERFEIT_RISK,
+  FOUR_X_AD_UNLOCK_MINUTES,
   GAME_MINUTES_PER_REAL_SECOND_AT_1X,
   INCOMING_CUSTOMER_CHECKS_PER_DAY,
   INCOMING_CUSTOMER_EXPIRY_MINUTES,
@@ -334,7 +335,20 @@ interface GameState {
   atolyeLevel: number;
   /** Bölüm 18-20: aktif Takı Yatırım Paketleri (30 gün kilitli). */
   takiPackages: ActiveTakiPackage[];
-  setSpeed: (speed: ClockSpeed) => void;
+  /** Bölüm 22: 4x hızın açık olduğu GERÇEK DÜNYA epoch ms'i (Date.now() ile karşılaştırılır) — reklamla kazanılır, yoksa null. */
+  fourXUnlockedUntilMs: number | null;
+  /** Bölüm 22: küçük bir IAP ile alınan kalıcı sınırsız 4x hakkı. */
+  fourXUnlimited: boolean;
+  /**
+   * 1x/2x/duraklat her zaman serbest; 4x sadece reklam penceresi açıkken
+   * ya da sınırsız hak alınmışsa uygulanır — aksi halde speed değişmez ve
+   * false döner (arayüz bunu reklam/IAP teklifini göstermek için kullanır).
+   */
+  setSpeed: (speed: ClockSpeed) => boolean;
+  /** Bölüm 22 YER TUTUCU: "reklam izlendi" onayından sonra çağrılır — 4x'i FOUR_X_AD_UNLOCK_MINUTES kadar (üst üste eklenerek) açar. */
+  unlockFourXViaAd: () => void;
+  /** Bölüm 22 YER TUTUCU: "satın alındı" onayından sonra çağrılır — 4x'i kalıcı ve sınırsız açar. */
+  purchaseFourXUnlimited: () => void;
   /** Gerçek zamanda geçen saniyeyi oyun saatine, altın fiyatına ve müşteri akışına işler. */
   tick: (realSecondsElapsed: number) => void;
   /** Uygulama yeniden açıldığında (rehydration) referans fiyata bir kez daha ekstra ±%3-5 dalgalanma uygular. */
@@ -498,20 +512,54 @@ export const useGameStore = create<GameState>()(
   meltingJob: null,
   atolyeLevel: 0,
   takiPackages: [],
+  fourXUnlockedUntilMs: null,
+  fourXUnlimited: false,
   realizedTradingProfitTl: 0,
   totalXp: 0,
   level: 1,
   skillPoints: 0,
   skillLevels: {},
 
-  setSpeed: (speed) => set({ speed }),
+  setSpeed: (speed) => {
+    const state = get();
+    if (speed === 4) {
+      const fourXUnlocked =
+        state.fourXUnlimited || (state.fourXUnlockedUntilMs !== null && state.fourXUnlockedUntilMs > Date.now());
+      if (!fourXUnlocked) return false;
+    }
+    set({ speed });
+    return true;
+  },
+
+  unlockFourXViaAd: () => {
+    const state = get();
+    const now = Date.now();
+    const currentDeadline = state.fourXUnlockedUntilMs !== null ? Math.max(state.fourXUnlockedUntilMs, now) : now;
+    set({ fourXUnlockedUntilMs: currentDeadline + FOUR_X_AD_UNLOCK_MINUTES * 60 * 1000 });
+  },
+
+  purchaseFourXUnlimited: () => {
+    set({ fourXUnlimited: true });
+  },
 
   tick: (realSecondsElapsedRaw) => {
     const state = get();
     if (state.speed === 0) return;
 
+    // Bölüm 22: 4x'in reklamla açılan GERÇEK DÜNYA penceresi süresi
+    // dolduysa (sınırsız hak yoksa) hız burada otomatik 1x'e düşer —
+    // oyuncu uygulamayı 4x açıkken arka planda bıraksa bile geçerli.
+    let speed = state.speed;
+    if (speed === 4 && !state.fourXUnlimited) {
+      const stillUnlocked = state.fourXUnlockedUntilMs !== null && state.fourXUnlockedUntilMs > Date.now();
+      if (!stillUnlocked) {
+        speed = 1;
+        set({ speed });
+      }
+    }
+
     const realSecondsElapsed = Math.min(realSecondsElapsedRaw, MAX_REAL_SECONDS_PER_TICK);
-    const gameMinutes = realSecondsElapsed * state.speed * GAME_MINUTES_PER_REAL_SECOND_AT_1X;
+    const gameMinutes = realSecondsElapsed * speed * GAME_MINUTES_PER_REAL_SECOND_AT_1X;
     if (gameMinutes <= 0) return;
 
     // Bölüm 4.4: referans fiyat her 30 oyun-dakikasında bir ±%3-5 hareket
@@ -1383,7 +1431,7 @@ export const useGameStore = create<GameState>()(
   setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
     }),
     {
-      name: 'cepkaynak-save-v9',
+      name: 'cepkaynak-save-v10',
       storage: createJSONStorage(() => AsyncStorage),
       // Skill tanımları/oyun kodu değişse bile eski kayıtlar yüklenebilsin diye
       // sadece serileştirilebilir oyun verisi tutulur — aksiyon fonksiyonları
@@ -1408,6 +1456,8 @@ export const useGameStore = create<GameState>()(
         meltingJob: state.meltingJob,
         atolyeLevel: state.atolyeLevel,
         takiPackages: state.takiPackages,
+        fourXUnlockedUntilMs: state.fourXUnlockedUntilMs,
+        fourXUnlimited: state.fourXUnlimited,
         realizedTradingProfitTl: state.realizedTradingProfitTl,
         totalXp: state.totalXp,
         level: state.level,

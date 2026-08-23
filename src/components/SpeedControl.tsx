@@ -11,24 +11,32 @@ const OPTIONS: { label: string; value: ClockSpeed }[] = [
 
 // Ana Ekran'da zamanı hızlandırma/duraklatma kontrolü. Oyun saati bu
 // hıza göre akar ve gram altın fiyatı bu saate bağlı dalgalanır.
+// Bölüm 22: 1x/2x/duraklat her zaman serbest; 4x reklam/IAP ile açılana
+// kadar kilitli görünür (bkz. onChange'in false dönmesi — DukkanScreen bu
+// durumda reklam/IAP teklifini gösterir).
 export function SpeedControl({
   speed,
   onChange,
+  fourXLocked,
 }: {
   speed: ClockSpeed;
   onChange: (speed: ClockSpeed) => void;
+  fourXLocked?: boolean;
 }) {
   return (
     <View style={styles.row}>
       {OPTIONS.map((option) => {
         const active = option.value === speed;
+        const locked = option.value === 4 && fourXLocked;
         return (
           <Pressable
             key={option.value}
             onPress={() => onChange(option.value)}
-            style={[styles.button, active && styles.buttonActive]}
+            style={[styles.button, active && styles.buttonActive, locked && styles.buttonLocked]}
           >
-            <Text style={[styles.label, active && styles.labelActive]}>{option.label}</Text>
+            <Text style={[styles.label, active && styles.labelActive, locked && styles.labelLocked]}>
+              {option.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -53,6 +61,11 @@ const styles = StyleSheet.create({
   buttonActive: {
     backgroundColor: colors.accent,
   },
+  buttonLocked: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
   label: {
     fontFamily: fonts.monoBold,
     fontSize: 12,
@@ -60,5 +73,9 @@ const styles = StyleSheet.create({
   },
   labelActive: {
     color: colors.white,
+  },
+  labelLocked: {
+    color: colors.inkMuted,
+    opacity: 0.6,
   },
 });

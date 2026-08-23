@@ -135,6 +135,12 @@ export const MELTING_TIME_LARGE_MAX_MINUTES = 10;
 // Yeniden Doğuş: eritme süresini seviye başına kısaltır.
 export const YENIDEN_DOGUS_TIME_REDUCTION_PER_LEVEL = 0.15;
 
+// ---- 4x Hız Tekelleştirmesi (Bölüm 22) -------------------------------------
+// 1x/2x/duraklat her zaman serbest; sadece 4x parayla (reklam ya da IAP)
+// açılıyor. Bu, GERÇEK DÜNYA (wall-clock) süresi — Bölüm 9'un Toptancı
+// Bağlantısı'ndaki 10 OYUN-dakikalık pencereyle karıştırılmamalı.
+export const FOUR_X_AD_UNLOCK_MINUTES = 15;
+
 // ---- Atölye (Bölüm 17) ----------------------------------------------------
 // Oyun hızından bağımsız, sürekli çalışan pasif has altın üretimi — para
 // yatırımı gerektirir (anlamlı bir fırsat maliyeti kararı), ama bir kere
