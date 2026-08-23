@@ -55,6 +55,8 @@ export function NegotiationPanel({
 
   const day = useGameStore((s) => s.day);
   const minuteOfDay = useGameStore((s) => s.minuteOfDay);
+  const speed = useGameStore((s) => s.speed);
+  const setSpeed = useGameStore((s) => s.setSpeed);
   const goldPrice = useGameStore((s) => s.goldPrice);
   const wholesalerSellMarginTlPerGram = useGameStore((s) => s.wholesalerSellMarginTlPerGram);
   const cashTl = useGameStore((s) => s.capital.cashTl);
@@ -74,7 +76,18 @@ export function NegotiationPanel({
 
   const [tested, setTested] = useState(false);
   const [measuring, setMeasuring] = useState(false);
-  const [held, setHeld] = useState(false);
+
+  // Pazarlık ekranı açıkken oyun saati otomatik duraklar — müşterinin
+  // sabrı ya da başka bir olay teklife karar verirken baskı yapmasın;
+  // panel kapanınca (Devam Et) önceki hız geri gelir.
+  useEffect(() => {
+    const previousSpeed = speed;
+    setSpeed(0);
+    return () => {
+      setSpeed(previousSpeed);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Bölüm 6: müşterinin sabrı artık oyun saatine bağlı — Soğukkanlı/Güler
   // Yüz zaten bu süreyi store'da (incomingCustomer üretilirken) uzattı.
@@ -119,16 +132,8 @@ export function NegotiationPanel({
     setResult('timedOut');
   }, [minutesLeft, result, isSale, resolveIncomingCustomer, incomingCustomerId, clearIncomingCustomer]);
 
-  const handleTare = () => {
-    if (held) return;
-    setMeasuring(false);
-    setTested(false);
-  };
-
-  const handleHold = () => setHeld((prev) => !prev);
-
   const handleTest = () => {
-    if (held || measuring) return;
+    if (measuring) return;
     setMeasuring(true);
     setTimeout(() => {
       setMeasuring(false);
@@ -269,15 +274,7 @@ export function NegotiationPanel({
 
       {!isSale && (
         <>
-          <ScalePanel
-            reading={reading}
-            tested={tested}
-            measuring={measuring}
-            held={held}
-            onTare={handleTare}
-            onHold={handleHold}
-            onTest={handleTest}
-          />
+          <ScalePanel reading={reading} tested={tested} measuring={measuring} onTest={handleTest} />
           {!tested && <Text style={styles.hint}>Teklif vermeden önce ürünü tart — TEST'e bas.</Text>}
         </>
       )}

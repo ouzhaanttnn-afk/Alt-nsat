@@ -8,22 +8,16 @@ export interface ScaleReading {
 }
 
 // Bölüm 4.3: Hassas Terazi paneli — imza bileşen. Gerçek dijital terazi
-// görünümü (LCD zemin, segment font) + TARE/HOLD/TEST kontrolleri.
+// görünümü (LCD zemin, segment font) + TEST kontrolü.
 export function ScalePanel({
   reading,
   tested,
   measuring,
-  held,
-  onTare,
-  onHold,
   onTest,
 }: {
   reading: ScaleReading;
   tested: boolean;
   measuring: boolean;
-  held: boolean;
-  onTare: () => void;
-  onHold: () => void;
   onTest: () => void;
 }) {
   const displayGrams = measuring ? '- - -' : tested ? `${reading.grams.toFixed(2)} g` : '0.00 g';
@@ -35,7 +29,6 @@ export function ScalePanel({
       <View style={styles.panel}>
         <View style={styles.captionRow}>
           <Text style={styles.caption}>HASSAS TERAZİ</Text>
-          {held && <Text style={styles.heldTag}>TUTULDU</Text>}
         </View>
         <View style={styles.readoutRow}>
           <Readout label="GRAM" value={displayGrams} />
@@ -45,8 +38,6 @@ export function ScalePanel({
       </View>
 
       <View style={styles.controlsRow}>
-        <ControlButton label="TARE" onPress={onTare} />
-        <ControlButton label="HOLD" onPress={onHold} active={held} />
         <ControlButton label="TEST" onPress={onTest} primary />
       </View>
     </View>
@@ -66,30 +57,14 @@ function ControlButton({
   label,
   onPress,
   primary,
-  active,
 }: {
   label: string;
   onPress: () => void;
   primary?: boolean;
-  active?: boolean;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        styles.controlButton,
-        primary && styles.controlButtonPrimary,
-        active && styles.controlButtonActive,
-      ]}
-    >
-      <Text
-        style={[
-          styles.controlButtonLabel,
-          (primary || active) && styles.controlButtonLabelLight,
-        ]}
-      >
-        {label}
-      </Text>
+    <Pressable onPress={onPress} style={[styles.controlButton, primary && styles.controlButtonPrimary]}>
+      <Text style={[styles.controlButtonLabel, primary && styles.controlButtonLabelLight]}>{label}</Text>
     </Pressable>
   );
 }
@@ -113,12 +88,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     color: colors.lcdText,
     opacity: 0.7,
-  },
-  heldTag: {
-    fontFamily: fonts.monoBold,
-    fontSize: 10,
-    letterSpacing: 1,
-    color: colors.lcdText,
   },
   readoutRow: {
     flexDirection: 'row',
@@ -151,9 +120,6 @@ const styles = StyleSheet.create({
   },
   controlButtonPrimary: {
     backgroundColor: colors.ink,
-  },
-  controlButtonActive: {
-    backgroundColor: colors.accent,
   },
   controlButtonLabel: {
     fontFamily: fonts.bodyBold,
