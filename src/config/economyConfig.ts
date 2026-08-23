@@ -160,7 +160,7 @@ export const FOUR_X_AD_UNLOCK_MINUTES = 15;
 // süresiyle ölçülen bir pencere için gelen müşteri tetiklenme olasılığı
 // katlanır. Üst üste izlemek pencereyi uzatır (bkz. watchAdForCustomerHype).
 export const CUSTOMER_HYPE_AD_DURATION_MINUTES = 15;
-export const CUSTOMER_HYPE_ARRIVAL_MULTIPLIER = 2;
+export const CUSTOMER_HYPE_ARRIVAL_MULTIPLIER = 1.33;
 
 // ---- Atölye (Bölüm 17) ----------------------------------------------------
 // Oyun hızından bağımsız, sürekli çalışan pasif has altın üretimi — para
@@ -168,7 +168,7 @@ export const CUSTOMER_HYPE_ARRIVAL_MULTIPLIER = 2;
 // kurulduktan sonra günlük yönetim istemez. XP üretmez (Bölüm 23-24: XP
 // sadece aktif alım-satımdan).
 export const ATOLYE_MAX_LEVEL = 3;
-export const ATOLYE_GRAMS_PER_DAY_PER_LEVEL = 0.5;
+export const ATOLYE_GRAMS_PER_DAY_PER_LEVEL = 100;
 export const ATOLYE_UPGRADE_BASE_COST_TL = 150000;
 export const ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL = 2.2;
 
