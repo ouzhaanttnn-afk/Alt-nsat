@@ -2,6 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
+  ATOLYE_GRAMS_PER_DAY_PER_LEVEL,
+  ATOLYE_MAX_LEVEL,
+  ATOLYE_UPGRADE_BASE_COST_TL,
+  ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL,
   BOZDURMA_BULK_LOT_MAX_GRAMS,
   BOZDURMA_BULK_LOT_MIN_GRAMS,
   BOZDURMA_BULK_LOT_PROBABILITY,
@@ -45,6 +49,8 @@ import {
   STARTING_CAPITAL_GRAMS,
   STARTING_REFERENCE_PRICE,
   STARTING_WHOLESALER_TRUST,
+  TAKI_PACKAGE_SET_BONUS_MULTIPLIER,
+  TAKI_PACKAGE_TERM_DAYS,
   WHOLESALER_MARGIN_MAX_TL_PER_GRAM,
   WHOLESALER_MARGIN_MIN_TL_PER_GRAM,
   XP_PER_EQUIVALENT_GRAM_TRADED,
@@ -52,6 +58,7 @@ import {
 } from '../config/economyConfig';
 import type { ScaleReading } from '../components/ScalePanel';
 import { CRAFTED_GOOD_CATALOG, REALISTIC_KARATS } from '../data/craftedGoodCatalog';
+import { TAKI_PACKAGE_TIERS } from '../data/takiPackageTiers';
 import {
   BOZDURMA_CUSTOMER_ARCHETYPES,
   INCOMING_CUSTOMER_ARCHETYPES,
@@ -154,6 +161,42 @@ let nextInventoryId = 1;
 let nextOfferId = 1;
 let nextIncomingCustomerId = 1;
 
+/**
+ * Has altın karşılığı gram/maliyet miktarını mevcut Gram Altın (Has)
+ * pozisyonuyla (fungible) birleştirir — eritme geri kazanımı (Bölüm 12)
+ * ve Atölye üretimi (Bölüm 17) aynı stok kalemine akar.
+ */
+function mergeIntoGramAltin(
+  inventory: InventoryItem[],
+  grams: number,
+  costBasisTl: number,
+  acquiredDay: number,
+): InventoryItem[] {
+  if (grams <= 0) return inventory;
+  const gramSpec = toptanciStock.find((s) => s.id === 'gram-altin')!;
+  const existingIndex = inventory.findIndex(
+    (i) =>
+      i.name === gramSpec.name && i.category === gramSpec.category && i.karat === gramSpec.karat && i.grams === gramSpec.grams,
+  );
+  return existingIndex >= 0
+    ? inventory.map((i, idx) =>
+        idx === existingIndex ? { ...i, quantity: i.quantity + grams, costBasisTl: i.costBasisTl + costBasisTl } : i,
+      )
+    : [
+        ...inventory,
+        {
+          id: String(nextInventoryId++),
+          name: gramSpec.name,
+          category: gramSpec.category,
+          karat: gramSpec.karat,
+          grams: gramSpec.grams,
+          quantity: grams,
+          costBasisTl,
+          acquiredDay,
+        } satisfies InventoryItem,
+      ];
+}
+
 interface BozdurmaCandidate {
   name: string;
   category: InventoryCategory;
@@ -250,6 +293,17 @@ export interface MeltingJob {
   completesAtTotalMinutes: number;
 }
 
+// Bölüm 18-20: aktif bir Takı Yatırım Paketi — 30 gün kilitli, günlük
+// sabit getiri öder, vade sonunda anaparayı iade eder.
+export interface ActiveTakiPackage {
+  id: string;
+  tierId: string;
+  principalTl: number;
+  dailyPayoutTl: number;
+  startedDay: number;
+  maturesDay: number;
+}
+
 interface GameState {
   capital: CapitalState;
   goldPrice: GoldPriceState;
@@ -276,6 +330,10 @@ interface GameState {
   brokerDeal: BrokerDeal | null;
   /** Bölüm 12: aktif eritme işi — tamamlanınca has altın Gram Altın stoğuna eklenir. */
   meltingJob: MeltingJob | null;
+  /** Bölüm 17: Atölye seviyesi (0 = kurulmamış) — her seviye günde sabit has altın üretir. */
+  atolyeLevel: number;
+  /** Bölüm 18-20: aktif Takı Yatırım Paketleri (30 gün kilitli). */
+  takiPackages: ActiveTakiPackage[];
   setSpeed: (speed: ClockSpeed) => void;
   /** Gerçek zamanda geçen saniyeyi oyun saatine, altın fiyatına ve müşteri akışına işler. */
   tick: (realSecondsElapsed: number) => void;
@@ -318,6 +376,10 @@ interface GameState {
    * müşteriye satılmaz — tek çıkış yolu budur.
    */
   meltCraftedGood: (itemId: string) => boolean;
+  /** Bölüm 17: Atölye'yi bir seviye yükseltir (TL karşılığında) — para yoksa ya da zaten maksimumdaysa false döner. */
+  upgradeAtolye: () => boolean;
+  /** Bölüm 18-20: belirtilen ayar kademesinde yeni bir Takı Yatırım Paketi başlatır — o kademede zaten aktif bir paket varsa ya da nakit yetmiyorsa false döner. */
+  startTakiPackage: (tierId: string) => boolean;
   /** Bir pozisyonun tamamını güncel kurdan nakde çevirir; alış-satış makasından gerçekleşen kârı döner. */
   sellInventoryItem: (itemId: string) => { saleValueTl: number; profitTl: number; quantity: number } | null;
   /**
@@ -434,6 +496,8 @@ export const useGameStore = create<GameState>()(
   loanDueDay: null,
   brokerDeal: null,
   meltingJob: null,
+  atolyeLevel: 0,
+  takiPackages: [],
   realizedTradingProfitTl: 0,
   totalXp: 0,
   level: 1,
@@ -497,9 +561,11 @@ export const useGameStore = create<GameState>()(
     let minuteOfDay = state.minuteOfDay + gameMinutes;
     let day = state.day;
     let referencePriceAtDayStart = state.referencePriceAtDayStart;
+    let daysElapsed = 0;
     while (minuteOfDay >= MINUTES_PER_DAY) {
       minuteOfDay -= MINUTES_PER_DAY;
       day += 1;
+      daysElapsed += 1;
       referencePriceAtDayStart = nextReference;
     }
 
@@ -564,33 +630,34 @@ export const useGameStore = create<GameState>()(
     let meltingJob = postOfferState.meltingJob;
     let meltingCashBonus = 0;
     if (meltingJob && currentTotalMinutes >= meltingJob.completesAtTotalMinutes) {
-      const gramSpec = toptanciStock.find((s) => s.id === 'gram-altin')!;
-      const existingGramIndex = inventory.findIndex(
-        (i) =>
-          i.name === gramSpec.name && i.category === gramSpec.category && i.karat === gramSpec.karat && i.grams === gramSpec.grams,
-      );
-      inventory =
-        existingGramIndex >= 0
-          ? inventory.map((i, idx) =>
-              idx === existingGramIndex
-                ? { ...i, quantity: i.quantity + meltingJob!.recoveredGrams, costBasisTl: i.costBasisTl + meltingJob!.costBasisTl }
-                : i,
-            )
-          : [
-              ...inventory,
-              {
-                id: String(nextInventoryId++),
-                name: gramSpec.name,
-                category: gramSpec.category,
-                karat: gramSpec.karat,
-                grams: gramSpec.grams,
-                quantity: meltingJob.recoveredGrams,
-                costBasisTl: meltingJob.costBasisTl,
-                acquiredDay: day,
-              } satisfies InventoryItem,
-            ];
+      inventory = mergeIntoGramAltin(inventory, meltingJob.recoveredGrams, meltingJob.costBasisTl, day);
       meltingCashBonus = meltingJob.stoneValueTl;
       meltingJob = null;
+    }
+
+    // Bölüm 17: Atölye — oyun hızından bağımsız, sürekli ve pasif has altın
+    // üretimi (XP üretmez — GDD'nin "XP sadece aktif alım-satımdan" kuralı).
+    const atolyeGramsProduced =
+      postOfferState.atolyeLevel * ATOLYE_GRAMS_PER_DAY_PER_LEVEL * (gameMinutes / MINUTES_PER_DAY);
+    inventory = mergeIntoGramAltin(inventory, atolyeGramsProduced, 0, day);
+
+    // Bölüm 18-20: Takı Yatırım Paketleri — 30 gün kilitli, her GÜN
+    // (dakika değil) sabit getiri öder, vade sonunda anaparayı iade eder.
+    // Dört ayar kademesi (8/14/18/22) aynı anda aktifse set bonusu uygulanır.
+    let takiPackages = postOfferState.takiPackages;
+    let takiPackageCashDelta = 0;
+    if (daysElapsed > 0 && takiPackages.length > 0) {
+      const activeTierIds = new Set(takiPackages.map((p) => p.tierId));
+      const hasFullSet = TAKI_PACKAGE_TIERS.every((t) => activeTierIds.has(t.id));
+      const bonusMultiplier = hasFullSet ? TAKI_PACKAGE_SET_BONUS_MULTIPLIER : 1;
+      for (let d = 0; d < daysElapsed; d++) {
+        for (const pkg of takiPackages) {
+          takiPackageCashDelta += pkg.dailyPayoutTl * bonusMultiplier;
+        }
+      }
+      const maturedPackages = takiPackages.filter((p) => day >= p.maturesDay);
+      takiPackageCashDelta += maturedPackages.reduce((sum, p) => sum + p.principalTl, 0);
+      takiPackages = takiPackages.filter((p) => day < p.maturesDay);
     }
 
     // Piyasa: aktif müşterinin süresi dolduysa (ya da 'satis' yönünde
@@ -778,7 +845,7 @@ export const useGameStore = create<GameState>()(
 
     const capital: CapitalState = {
       ...postOfferState.capital,
-      cashTl: postOfferState.capital.cashTl + meltingCashBonus,
+      cashTl: postOfferState.capital.cashTl + meltingCashBonus + takiPackageCashDelta,
       stockValueTl: computeStockValueTl(inventory, nextBuyPrice),
     };
 
@@ -793,6 +860,7 @@ export const useGameStore = create<GameState>()(
       loanDueDay,
       brokerDeal,
       meltingJob,
+      takiPackages,
       inventory,
       offers,
       incomingCustomer,
@@ -994,6 +1062,43 @@ export const useGameStore = create<GameState>()(
         costBasisTl: item.costBasisTl,
         completesAtTotalMinutes: totalMinutesNow + minutes,
       },
+    });
+    return true;
+  },
+
+  upgradeAtolye: () => {
+    const state = get();
+    if (state.atolyeLevel >= ATOLYE_MAX_LEVEL) return false;
+    const cost =
+      ATOLYE_UPGRADE_BASE_COST_TL * Math.pow(ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL, state.atolyeLevel);
+    if (cost > state.capital.cashTl) return false;
+
+    set({
+      atolyeLevel: state.atolyeLevel + 1,
+      capital: { ...state.capital, cashTl: state.capital.cashTl - cost },
+    });
+    return true;
+  },
+
+  startTakiPackage: (tierId) => {
+    const state = get();
+    const tier = TAKI_PACKAGE_TIERS.find((t) => t.id === tierId);
+    if (!tier) return false;
+    if (state.takiPackages.some((p) => p.tierId === tierId)) return false;
+    if (tier.principalTl > state.capital.cashTl) return false;
+
+    const newPackage: ActiveTakiPackage = {
+      id: String(nextInventoryId++),
+      tierId: tier.id,
+      principalTl: tier.principalTl,
+      dailyPayoutTl: tier.dailyPayoutTl,
+      startedDay: state.day,
+      maturesDay: state.day + TAKI_PACKAGE_TERM_DAYS,
+    };
+
+    set({
+      takiPackages: [...state.takiPackages, newPackage],
+      capital: { ...state.capital, cashTl: state.capital.cashTl - tier.principalTl },
     });
     return true;
   },
@@ -1278,7 +1383,7 @@ export const useGameStore = create<GameState>()(
   setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
     }),
     {
-      name: 'cepkaynak-save-v8',
+      name: 'cepkaynak-save-v9',
       storage: createJSONStorage(() => AsyncStorage),
       // Skill tanımları/oyun kodu değişse bile eski kayıtlar yüklenebilsin diye
       // sadece serileştirilebilir oyun verisi tutulur — aksiyon fonksiyonları
@@ -1301,6 +1406,8 @@ export const useGameStore = create<GameState>()(
         loanDueDay: state.loanDueDay,
         brokerDeal: state.brokerDeal,
         meltingJob: state.meltingJob,
+        atolyeLevel: state.atolyeLevel,
+        takiPackages: state.takiPackages,
         realizedTradingProfitTl: state.realizedTradingProfitTl,
         totalXp: state.totalXp,
         level: state.level,

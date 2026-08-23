@@ -31,7 +31,8 @@ export function TradingPositionCard({
         <View style={styles.info}>
           <Text style={styles.name}>{item.name}</Text>
           <Text style={styles.meta}>
-            {item.quantity} adet · {item.karat} Ayar, {item.grams.toLocaleString('tr-TR')}g/adet
+            {item.quantity.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} adet · {item.karat} Ayar,{' '}
+            {item.grams.toLocaleString('tr-TR')}g/adet
           </Text>
         </View>
       </View>

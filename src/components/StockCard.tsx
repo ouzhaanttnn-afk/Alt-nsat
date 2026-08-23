@@ -48,7 +48,12 @@ export function StockCard({
             {spec.karat} Ayar, {spec.grams.toLocaleString('tr-TR')}g/adet
           </Text>
         </View>
-        {ownedQuantity > 0 && <Badge tone="neutral" label={`${ownedQuantity} adet stokta`} />}
+        {ownedQuantity > 0 && (
+          <Badge
+            tone="neutral"
+            label={`${ownedQuantity.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} adet stokta`}
+          />
+        )}
       </View>
 
       <View style={styles.priceRow}>

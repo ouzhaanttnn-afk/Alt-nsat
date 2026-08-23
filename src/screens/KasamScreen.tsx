@@ -1,13 +1,17 @@
 import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AtolyeCard } from '../components/AtolyeCard';
 import { Card } from '../components/Card';
 import { CraftedGoodCard } from '../components/CraftedGoodCard';
 import { MeltingJobBanner } from '../components/MeltingJobBanner';
 import { PirlantaCard } from '../components/PirlantaCard';
 import { SectionLabel } from '../components/SectionLabel';
+import { TakiPackageCard } from '../components/TakiPackageCard';
 import { TradingPositionCard } from '../components/TradingPositionCard';
+import { ATOLYE_GRAMS_PER_DAY_PER_LEVEL, ATOLYE_MAX_LEVEL, ATOLYE_UPGRADE_BASE_COST_TL, ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL } from '../config/economyConfig';
 import { pirlantaCatalog } from '../data/mockPirlanta';
+import { TAKI_PACKAGE_TIERS } from '../data/takiPackageTiers';
 import { currentPositionValueTl, MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatTl } from '../utils/format';
@@ -28,6 +32,11 @@ export function KasamScreen() {
   const meltCraftedGood = useGameStore((s) => s.meltCraftedGood);
   const day = useGameStore((s) => s.day);
   const minuteOfDay = useGameStore((s) => s.minuteOfDay);
+  const cashTl = useGameStore((s) => s.capital.cashTl);
+  const atolyeLevel = useGameStore((s) => s.atolyeLevel);
+  const upgradeAtolye = useGameStore((s) => s.upgradeAtolye);
+  const takiPackages = useGameStore((s) => s.takiPackages);
+  const startTakiPackage = useGameStore((s) => s.startTakiPackage);
 
   const [saleBanner, setSaleBanner] = useState<{ profitTl: number } | null>(null);
   const saleBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -38,6 +47,12 @@ export function KasamScreen() {
   const meltingMinutesLeft = meltingJob
     ? meltingJob.completesAtTotalMinutes - (day * MINUTES_PER_DAY + minuteOfDay)
     : 0;
+  const atolyeUpgradeCostTl =
+    atolyeLevel >= ATOLYE_MAX_LEVEL
+      ? null
+      : ATOLYE_UPGRADE_BASE_COST_TL * Math.pow(ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL, atolyeLevel);
+  const activeTierIds = new Set(takiPackages.map((p) => p.tierId));
+  const hasFullTakiSet = TAKI_PACKAGE_TIERS.every((t) => activeTierIds.has(t.id));
 
   const handleSell = (itemId: string) => {
     const result = sellInventoryItem(itemId);
@@ -115,6 +130,36 @@ export function KasamScreen() {
             />
           ))
         )}
+
+        <SectionLabel>ATÖLYE</SectionLabel>
+        <AtolyeCard
+          level={atolyeLevel}
+          maxLevel={ATOLYE_MAX_LEVEL}
+          gramsPerDay={atolyeLevel * ATOLYE_GRAMS_PER_DAY_PER_LEVEL}
+          upgradeCostTl={atolyeUpgradeCostTl}
+          canAfford={atolyeUpgradeCostTl !== null && atolyeUpgradeCostTl <= cashTl}
+          onUpgrade={upgradeAtolye}
+        />
+
+        <SectionLabel>TAKI YATIRIM PAKETLERİ</SectionLabel>
+        <Text style={styles.emptyHint}>
+          30 gün kilitli, sabit günlük getiri + vade sonunda anapara iadesi. Dört ayar kademesinin
+          tümü aynı anda aktifse toplam getiriye %10 set bonusu eklenir.
+        </Text>
+        {TAKI_PACKAGE_TIERS.map((tier) => {
+          const activePackage = takiPackages.find((p) => p.tierId === tier.id);
+          return (
+            <TakiPackageCard
+              key={tier.id}
+              tier={tier}
+              active={!!activePackage}
+              daysLeft={activePackage ? activePackage.maturesDay - day : 0}
+              hasSetBonus={hasFullTakiSet}
+              canAfford={tier.principalTl <= cashTl}
+              onStart={() => startTakiPackage(tier.id)}
+            />
+          );
+        })}
 
         <SectionLabel>PIRLANTA KOLEKSİYONU</SectionLabel>
         <Text style={styles.emptyHint}>

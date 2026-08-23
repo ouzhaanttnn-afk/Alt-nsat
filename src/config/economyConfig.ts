@@ -135,6 +135,23 @@ export const MELTING_TIME_LARGE_MAX_MINUTES = 10;
 // Yeniden Doğuş: eritme süresini seviye başına kısaltır.
 export const YENIDEN_DOGUS_TIME_REDUCTION_PER_LEVEL = 0.15;
 
+// ---- Atölye (Bölüm 17) ----------------------------------------------------
+// Oyun hızından bağımsız, sürekli çalışan pasif has altın üretimi — para
+// yatırımı gerektirir (anlamlı bir fırsat maliyeti kararı), ama bir kere
+// kurulduktan sonra günlük yönetim istemez. XP üretmez (Bölüm 23-24: XP
+// sadece aktif alım-satımdan).
+export const ATOLYE_MAX_LEVEL = 3;
+export const ATOLYE_GRAMS_PER_DAY_PER_LEVEL = 0.5;
+export const ATOLYE_UPGRADE_BASE_COST_TL = 150000;
+export const ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL = 2.2;
+
+// ---- Takı Yatırım Paketleri (Bölüm 18-20) ---------------------------------
+// 30 gün kilitli, sabit günlük getiri + vade sonunda anapara iadesi.
+// Dört ayar kademesinin (8/14/18/22) TÜMÜ aynı anda aktifse (bir "koleksiyon")
+// toplam günlük getiriye set bonusu uygulanır.
+export const TAKI_PACKAGE_TERM_DAYS = 30;
+export const TAKI_PACKAGE_SET_BONUS_MULTIPLIER = 1.1;
+
 // ---- Büyük Bozdurmalar + Toptancı Bağlantısı (Bölüm 9) -------------------
 // Müşteriden nakit yetmeyen bir alım yapılıp borca yazıldığında, oyuncu
 // az önce aldığı malı hemen toptancıya (kâr marjıyla) satıp borcu
