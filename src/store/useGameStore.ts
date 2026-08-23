@@ -16,6 +16,8 @@ import {
   CRAFTED_GOOD_CUSTOMER_PROBABILITY,
   CRAFTED_GOOD_KARAT_MISMATCH,
   CRAFTED_GOOD_MIN_COUNTERFEIT_RISK,
+  CUSTOMER_HYPE_AD_DURATION_MINUTES,
+  CUSTOMER_HYPE_ARRIVAL_MULTIPLIER,
   FOUR_X_AD_UNLOCK_MINUTES,
   GAME_MINUTES_PER_REAL_SECOND_AT_1X,
   GULER_YUZ_PATIENCE_MINUTES_PER_LEVEL,
@@ -361,6 +363,10 @@ interface GameState {
   unlockFourXViaAd: () => void;
   /** Bölüm 22 YER TUTUCU: "satın alındı" onayından sonra çağrılır — 4x'i kalıcı ve sınırsız açar. */
   purchaseFourXUnlimited: () => void;
+  /** Müşteri Hype'ın açık olduğu GERÇEK DÜNYA epoch ms'i (Date.now() ile karşılaştırılır) — reklamla kazanılır, yoksa null. */
+  customerHypeUntilMs: number | null;
+  /** YER TUTUCU: "reklam izlendi" onayından sonra çağrılır — gelen müşteri tetiklenme olasılığını CUSTOMER_HYPE_AD_DURATION_MINUTES kadar (üst üste eklenerek) CUSTOMER_HYPE_ARRIVAL_MULTIPLIER katına çıkarır. */
+  watchAdForCustomerHype: () => void;
   /** Gerçek zamanda geçen saniyeyi oyun saatine, altın fiyatına ve müşteri akışına işler. */
   tick: (realSecondsElapsed: number) => void;
   /** Uygulama yeniden açıldığında (rehydration) referans fiyata bir kez daha ekstra ±%3-5 dalgalanma uygular. */
@@ -530,6 +536,7 @@ export const useGameStore = create<GameState>()(
   takiPackages: [],
   fourXUnlockedUntilMs: null,
   fourXUnlimited: false,
+  customerHypeUntilMs: null,
   highestBrandStageIndex: -1,
   realizedTradingProfitTl: 0,
   totalXp: 0,
@@ -557,6 +564,13 @@ export const useGameStore = create<GameState>()(
 
   purchaseFourXUnlimited: () => {
     set({ fourXUnlimited: true });
+  },
+
+  watchAdForCustomerHype: () => {
+    const state = get();
+    const now = Date.now();
+    const currentDeadline = state.customerHypeUntilMs !== null ? Math.max(state.customerHypeUntilMs, now) : now;
+    set({ customerHypeUntilMs: currentDeadline + CUSTOMER_HYPE_AD_DURATION_MINUTES * 60 * 1000 });
   },
 
   tick: (realSecondsElapsedRaw) => {
@@ -755,9 +769,15 @@ export const useGameStore = create<GameState>()(
         incomingCustomer = null;
       }
     } else {
+      // Müşteri Hype (reklamla açılan GERÇEK DÜNYA penceresi) aktifken gelen
+      // müşteri tetiklenme olasılığı katlanır.
+      const hypeActive = state.customerHypeUntilMs !== null && state.customerHypeUntilMs > Date.now();
+      const hypeMultiplier = hypeActive ? CUSTOMER_HYPE_ARRIVAL_MULTIPLIER : 1;
       const willTrigger =
         Math.random() <
-        ((INCOMING_CUSTOMER_CHECKS_PER_DAY * INCOMING_CUSTOMER_TRIGGER_PROBABILITY) / MINUTES_PER_DAY) * gameMinutes;
+        ((INCOMING_CUSTOMER_CHECKS_PER_DAY * INCOMING_CUSTOMER_TRIGGER_PROBABILITY) / MINUTES_PER_DAY) *
+          gameMinutes *
+          hypeMultiplier;
 
       if (willTrigger) {
         const direction: 'satis' | 'bozdurma' =
@@ -1512,6 +1532,7 @@ export const useGameStore = create<GameState>()(
         takiPackages: state.takiPackages,
         fourXUnlockedUntilMs: state.fourXUnlockedUntilMs,
         fourXUnlimited: state.fourXUnlimited,
+        customerHypeUntilMs: state.customerHypeUntilMs,
         highestBrandStageIndex: state.highestBrandStageIndex,
         realizedTradingProfitTl: state.realizedTradingProfitTl,
         totalXp: state.totalXp,

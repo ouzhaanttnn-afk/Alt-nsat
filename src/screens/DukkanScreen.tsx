@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActiveOfferSummary, type ActiveOffer } from '../components/ActiveOfferSummary';
 import { BrokerDealBanner } from '../components/BrokerDealBanner';
 import { CapitalSummary } from '../components/CapitalSummary';
+import { CustomerHypeCard } from '../components/CustomerHypeCard';
 import { DailyGoalCard } from '../components/DailyGoalCard';
 import { FourXUnlockCard } from '../components/FourXUnlockCard';
 import { GoldTicker } from '../components/GoldTicker';
@@ -51,6 +52,8 @@ export function DukkanScreen() {
   const fourXUnlimited = useGameStore((s) => s.fourXUnlimited);
   const unlockFourXViaAd = useGameStore((s) => s.unlockFourXViaAd);
   const purchaseFourXUnlimited = useGameStore((s) => s.purchaseFourXUnlimited);
+  const customerHypeUntilMs = useGameStore((s) => s.customerHypeUntilMs);
+  const watchAdForCustomerHype = useGameStore((s) => s.watchAdForCustomerHype);
   const incomingCustomer = useGameStore((s) => s.incomingCustomer);
 
   const currentTotalMinutes = day * MINUTES_PER_DAY + minuteOfDay;
@@ -78,6 +81,9 @@ export function DukkanScreen() {
   const fourXUnlocked = fourXUnlimited || (fourXUnlockedUntilMs !== null && fourXUnlockedUntilMs > nowMs);
   const fourXMinutesLeft =
     !fourXUnlimited && fourXUnlockedUntilMs !== null ? Math.max(0, (fourXUnlockedUntilMs - nowMs) / 60000) : 0;
+
+  const customerHypeActive = customerHypeUntilMs !== null && customerHypeUntilMs > nowMs;
+  const customerHypeMinutesLeft = customerHypeActive ? Math.max(0, (customerHypeUntilMs! - nowMs) / 60000) : 0;
 
   const [showFourXOffer, setShowFourXOffer] = useState(false);
   const handleSpeedChange = (nextSpeed: ClockSpeed) => {
@@ -141,6 +147,12 @@ export function DukkanScreen() {
         {brokerDeal && brokerMinutesLeft > 0 && (
           <BrokerDealBanner minutesLeft={brokerMinutesLeft} onResolve={() => resolveBrokerDeal()} />
         )}
+
+        <CustomerHypeCard
+          active={customerHypeActive}
+          minutesLeft={customerHypeMinutesLeft}
+          onWatchAd={watchAdForCustomerHype}
+        />
 
         <SectionLabel>MÜŞTERİ</SectionLabel>
         {activeNegotiation ? (

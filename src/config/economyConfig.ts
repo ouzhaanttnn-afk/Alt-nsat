@@ -155,6 +155,13 @@ export const YENIDEN_DOGUS_TIME_REDUCTION_PER_LEVEL = 0.15;
 // Bağlantısı'ndaki 10 OYUN-dakikalık pencereyle karıştırılmamalı.
 export const FOUR_X_AD_UNLOCK_MINUTES = 15;
 
+// ---- Müşteri Hype (reklam bazlı monetizasyon) ------------------------------
+// 4x hız kilidiyle aynı yer tutucu mantık: reklam izleyince GERÇEK DÜNYA
+// süresiyle ölçülen bir pencere için gelen müşteri tetiklenme olasılığı
+// katlanır. Üst üste izlemek pencereyi uzatır (bkz. watchAdForCustomerHype).
+export const CUSTOMER_HYPE_AD_DURATION_MINUTES = 15;
+export const CUSTOMER_HYPE_ARRIVAL_MULTIPLIER = 2;
+
 // ---- Atölye (Bölüm 17) ----------------------------------------------------
 // Oyun hızından bağımsız, sürekli çalışan pasif has altın üretimi — para
 // yatırımı gerektirir (anlamlı bir fırsat maliyeti kararı), ama bir kere
