@@ -8,6 +8,9 @@ import {
   OFFER_PRESET_OLUCU_RATIO,
   OFFER_RANGE_MAX_RATIO,
   OFFER_RANGE_MIN_RATIO,
+  SALE_OFFER_MAX_RATIO,
+  SALE_OFFER_MIN_RATIO,
+  SALE_REJECTION_ATTEMPTS,
 } from '../config/economyConfig';
 import type { IncomingCustomer } from '../types/incomingCustomer';
 import { equivalentGrams, MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
@@ -89,9 +92,11 @@ export function NegotiationPanel({
   // Alım/bozdurma modunda ise Bölüm 7'nin %80-105 temel aralığı geçerli;
   // Ölücü skili tabanı daha da aşağı çekebilir (Sv.5'te %60'a kadar).
   const minRatio = Math.max(0.3, OFFER_RANGE_MIN_RATIO - oluluLevel * OLUCU_MIN_RATIO_REDUCTION_PER_LEVEL);
-  const baseMin = isSale ? Math.round(product.marketValueTl * 0.7) : Math.round(product.marketValueTl * minRatio);
+  const baseMin = isSale
+    ? Math.round(product.marketValueTl * SALE_OFFER_MIN_RATIO)
+    : Math.round(product.marketValueTl * minRatio);
   const baseMax = isSale
-    ? Math.round(product.marketValueTl * 1.3)
+    ? Math.round(product.marketValueTl * SALE_OFFER_MAX_RATIO)
     : Math.round(product.marketValueTl * OFFER_RANGE_MAX_RATIO);
   const sliderMax = isSale ? baseMax : Math.max(1, Math.min(baseMax, Math.round(cashTl)));
   const sliderMin = Math.min(baseMin, sliderMax);
@@ -106,6 +111,10 @@ export function NegotiationPanel({
 
   const [result, setResult] = useState<Result>(null);
   const [borrowedTl, setBorrowedTl] = useState(0);
+  // Müşteri fiyatı çok yüksek bulup reddederse oyuncu SALE_REJECTION_ATTEMPTS
+  // kadar tekrar fiyat önerebilir — sadece son denemede de reddedilirse
+  // müşteri gerçekten ayrılır.
+  const [saleRejectionCount, setSaleRejectionCount] = useState(0);
 
   useEffect(() => {
     if (result !== null || minutesLeft > 0) return;
@@ -161,6 +170,11 @@ export function NegotiationPanel({
     const ceiling = product.marketValueTl * customer.acceptanceThreshold;
     setOffer(amount);
     if (amount > ceiling) {
+      const nextRejectionCount = saleRejectionCount + 1;
+      if (nextRejectionCount < SALE_REJECTION_ATTEMPTS) {
+        setSaleRejectionCount(nextRejectionCount);
+        return;
+      }
       resolveIncomingCustomer(false);
       setResult('rejected');
       return;
@@ -318,6 +332,11 @@ export function NegotiationPanel({
             resolveIncomingCustomer(false);
             setResult('rejected');
           }}
+          rejectionHint={
+            saleRejectionCount > 0
+              ? `Müşteri bu fiyatı çok yüksek buldu. Kalan hakkın: ${SALE_REJECTION_ATTEMPTS - saleRejectionCount}.`
+              : undefined
+          }
         />
       ) : (
         <NegotiationActions

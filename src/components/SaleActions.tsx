@@ -7,13 +7,18 @@ export function SaleActions({
   disabled,
   onOfferPrice,
   onReject,
+  rejectionHint,
 }: {
   disabled?: boolean;
   onOfferPrice: () => void;
   onReject: () => void;
+  /** Müşteri bir önceki teklifi reddettiğinde gösterilen, kalan hak sayısını belirten uyarı. */
+  rejectionHint?: string;
 }) {
   return (
     <View>
+      {rejectionHint && <Text style={styles.rejectionHint}>{rejectionHint}</Text>}
+
       <Pressable
         disabled={disabled}
         onPress={onOfferPrice}
@@ -70,5 +75,12 @@ const styles = StyleSheet.create({
     color: colors.inkMutedOnDark,
     textAlign: 'center',
     marginTop: 12,
+  },
+  rejectionHint: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: fontSizes.xs,
+    color: colors.warning,
+    textAlign: 'center',
+    marginBottom: 10,
   },
 });

@@ -92,6 +92,16 @@ export const OFFER_PRESET_COMERT_RATIO = 1.02;
 export const LOW_OFFER_REPUTATION_PENALTY = 1;
 export const GENEROUS_OFFER_REPUTATION_BONUS = 1;
 
+// ---- Satış Modu Fiyat Aralığı + Ret Hakkı (mega-ekran birleşimi sonrası) --
+// Dükkândan müşteriye satış modunda: teklif çubuğu piyasa değerinin en
+// fazla %10 altına inebilir (aşırı düşük/anlamsız iskontoları önlemek
+// için), tavanı ise pazarlık payı bırakır. Müşteri fiyatı çok yüksek
+// bulup reddederse oyuncuya hemen kaybettirmek yerine SALE_REJECTION_ATTEMPTS
+// kadar deneme hakkı tanınır — son denemede de reddederse müşteri ayrılır.
+export const SALE_OFFER_MIN_RATIO = 0.9;
+export const SALE_OFFER_MAX_RATIO = 1.3;
+export const SALE_REJECTION_ATTEMPTS = 2;
+
 // ---- XP / Seviye + Yetenek Sıfırlama (Bölüm 23-24/30) --------------------
 // Seviye tamamen paradan bağımsız — sadece aktif alım-satımdan (toptancıdan
 // restok, müşteriyle pazarlık, envanterden satış, Toptancı Bağlantısı)
