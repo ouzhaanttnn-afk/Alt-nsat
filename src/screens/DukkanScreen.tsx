@@ -7,7 +7,6 @@ import { ActiveOfferSummary, type ActiveOffer } from '../components/ActiveOfferS
 import { BrokerDealBanner } from '../components/BrokerDealBanner';
 import { CapitalSummary } from '../components/CapitalSummary';
 import { CustomerHypeCard } from '../components/CustomerHypeCard';
-import { DailyGoalCard } from '../components/DailyGoalCard';
 import { FourXUnlockCard } from '../components/FourXUnlockCard';
 import { GoldTicker } from '../components/GoldTicker';
 import { NegotiationPanel } from '../components/NegotiationPanel';
@@ -17,7 +16,6 @@ import { SectionLabel } from '../components/SectionLabel';
 import { ShopNameHeader } from '../components/ShopNameHeader';
 import { SpeedControl } from '../components/SpeedControl';
 import { StokOzetiCard } from '../components/StokOzetiCard';
-import { dailyGoalSteps } from '../data/mockHome';
 import type { MainTabsParamList } from '../navigation/types';
 import type { ClockSpeed } from '../store/useGameStore';
 import { MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
@@ -171,8 +169,6 @@ export function DukkanScreen() {
         />
         <GoldTicker goldPrice={goldPrice} />
 
-        <DailyGoalCard steps={dailyGoalSteps} />
-
         <StokOzetiCard items={inventory} onSeeAll={() => navigation.navigate('Stok')} />
 
         {activeOffer && (
@@ -193,7 +189,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    gap: 14,
+    gap: 10,
   },
   header: {
     flexDirection: 'row',
