@@ -16,6 +16,7 @@ import { SectionLabel } from '../components/SectionLabel';
 import { ShopNameHeader } from '../components/ShopNameHeader';
 import { SpeedControl } from '../components/SpeedControl';
 import { StokOzetiCard } from '../components/StokOzetiCard';
+import { WholesalerAccessBanner } from '../components/WholesalerAccessBanner';
 import type { MainTabsParamList } from '../navigation/types';
 import type { ClockSpeed } from '../store/useGameStore';
 import { MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
@@ -145,6 +146,11 @@ export function DukkanScreen() {
         {brokerDeal && brokerMinutesLeft > 0 && (
           <BrokerDealBanner minutesLeft={brokerMinutesLeft} onResolve={() => resolveBrokerDeal()} />
         )}
+
+        <WholesalerAccessBanner
+          onBuy={() => navigation.navigate('Stok')}
+          onSell={() => navigation.navigate('Stok')}
+        />
 
         <CustomerHypeCard
           active={customerHypeActive}
