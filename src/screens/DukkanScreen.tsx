@@ -11,6 +11,7 @@ import { FourXUnlockCard } from '../components/FourXUnlockCard';
 import { GoldTicker } from '../components/GoldTicker';
 import { NegotiationPanel } from '../components/NegotiationPanel';
 import { OFFER_STATUS_LABEL } from '../components/OfferCard';
+import { QuickAccessRow } from '../components/QuickAccessRow';
 import { QuickStatsRow } from '../components/QuickStatsRow';
 import { SectionLabel } from '../components/SectionLabel';
 import { ShopNameHeader } from '../components/ShopNameHeader';
@@ -150,6 +151,12 @@ export function DukkanScreen() {
         <WholesalerAccessBanner
           onBuy={() => navigation.navigate('Stok')}
           onSell={() => navigation.navigate('Stok')}
+        />
+
+        <QuickAccessRow
+          onIscilikli={() => navigation.navigate('Stok', { scrollTo: 'iscilikli' })}
+          onAtolye={() => navigation.navigate('Stok', { scrollTo: 'atolye' })}
+          onYatirimlar={() => navigation.navigate('Stok', { scrollTo: 'yatirimlar' })}
         />
 
         <CustomerHypeCard

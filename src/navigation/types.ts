@@ -3,10 +3,14 @@
 // gitmeden gösteriyor (bkz. NegotiationPanel). Bu yüzden ayrı bir
 // Pazarlık rota/modalı ve Stack.Navigator artık gerekmiyor — tek
 // seviyeli sekme navigasyonu yeterli.
+export type StokScrollTarget = 'iscilikli' | 'atolye' | 'yatirimlar';
+
 export type MainTabsParamList = {
   Dükkân: undefined;
   Müşteriler: undefined;
-  Stok: undefined;
+  // Hızlı Erişim: Dükkân'dan doğrudan Stok'un ilgili bölümüne kaydırmalı
+  // geçiş için opsiyonel hedef (bkz. KasamScreen'deki scroll-to efekti).
+  Stok: { scrollTo?: StokScrollTarget } | undefined;
   Yetenekler: undefined;
   Profil: undefined;
 };

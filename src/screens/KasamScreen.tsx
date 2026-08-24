@@ -1,6 +1,8 @@
-import { useRef, useState } from 'react';
+import { useRoute, type RouteProp } from '@react-navigation/native';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { MainTabsParamList, StokScrollTarget } from '../navigation/types';
 import { AtolyeCard } from '../components/AtolyeCard';
 import { BrandStageCard, type BrandStageStatus } from '../components/BrandStageCard';
 import { Card } from '../components/Card';
@@ -50,6 +52,27 @@ export function KasamScreen() {
   const [saleBanner, setSaleBanner] = useState<{ profitTl: number } | null>(null);
   const saleBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Hızlı Erişim (Dükkân): ilgili bölüme kaydırmalı geçiş için Y konumları.
+  // Stok ekranı ilk kez mount olduğunda onLayout ölçümleri scrollTo efektinden
+  // sonra gelebilir — bu yüzden her yeni ölçümde layoutTick artırılıp efekt
+  // tekrar denenir.
+  const scrollViewRef = useRef<ScrollView>(null);
+  const sectionOffsets = useRef<Partial<Record<StokScrollTarget, number>>>({});
+  const [layoutTick, setLayoutTick] = useState(0);
+  const recordSectionOffset = (target: StokScrollTarget, y: number) => {
+    sectionOffsets.current[target] = y;
+    setLayoutTick((v) => v + 1);
+  };
+  const route = useRoute<RouteProp<MainTabsParamList, 'Stok'>>();
+  const scrollTo = route.params?.scrollTo;
+  useEffect(() => {
+    if (!scrollTo) return;
+    const y = sectionOffsets.current[scrollTo];
+    if (y !== undefined) {
+      scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
+    }
+  }, [scrollTo, layoutTick]);
+
   const sarrafiyeItems = inventory.filter((item) => item.category !== 'pirlanta' && item.category !== 'iscilikli');
   const craftedGoodItems = inventory.filter((item) => item.category === 'iscilikli');
   const pirlantaItems = inventory.filter((item) => item.category === 'pirlanta');
@@ -73,7 +96,7 @@ export function KasamScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.content}>
         <Text style={styles.title}>Stok</Text>
 
         <SectionLabel>TOPTANCIDAN STOK AL</SectionLabel>
@@ -143,35 +166,49 @@ export function KasamScreen() {
           ))
         )}
 
-        <SectionLabel>İŞÇİLİKLİ ÜRÜNLER (ERİTİLECEK)</SectionLabel>
-        <Text style={styles.emptyHint}>
-          Müşteriden bozdurma yoluyla gelen kolye/yüzük/küpe gibi parçalar — GDD kararı gereği
-          başka bir müşteriye asla işçilikli ürün olarak satılmaz, tek çıkış yolu eritmek.
-        </Text>
-        {meltingJob && <MeltingJobBanner job={meltingJob} minutesLeft={meltingMinutesLeft} />}
-        {craftedGoodItems.length === 0 ? (
-          <Text style={styles.emptyHint}>Elinde henüz eritilecek işçilikli ürün yok.</Text>
-        ) : (
-          craftedGoodItems.map((item) => (
-            <CraftedGoodCard
-              key={item.id}
-              item={item}
-              disabled={meltingJob !== null}
-              onMelt={() => meltCraftedGood(item.id)}
-            />
-          ))
-        )}
+        <View
+          style={styles.sectionAnchor}
+          onLayout={(e) => recordSectionOffset('iscilikli', e.nativeEvent.layout.y)}
+        >
+          <SectionLabel>İŞÇİLİKLİ ÜRÜNLER (ERİTİLECEK)</SectionLabel>
+          <Text style={styles.emptyHint}>
+            Müşteriden bozdurma yoluyla gelen kolye/yüzük/küpe gibi parçalar — GDD kararı gereği
+            başka bir müşteriye asla işçilikli ürün olarak satılmaz, tek çıkış yolu eritmek.
+          </Text>
+          {meltingJob && <MeltingJobBanner job={meltingJob} minutesLeft={meltingMinutesLeft} />}
+          {craftedGoodItems.length === 0 ? (
+            <Text style={styles.emptyHint}>Elinde henüz eritilecek işçilikli ürün yok.</Text>
+          ) : (
+            craftedGoodItems.map((item) => (
+              <CraftedGoodCard
+                key={item.id}
+                item={item}
+                disabled={meltingJob !== null}
+                onMelt={() => meltCraftedGood(item.id)}
+              />
+            ))
+          )}
+        </View>
 
-        <SectionLabel>ATÖLYE</SectionLabel>
-        <AtolyeCard
-          level={atolyeLevel}
-          maxLevel={ATOLYE_MAX_LEVEL}
-          gramsPerDay={atolyeLevel * ATOLYE_GRAMS_PER_DAY_PER_LEVEL}
-          upgradeCostTl={atolyeUpgradeCostTl}
-          canAfford={atolyeUpgradeCostTl !== null && atolyeUpgradeCostTl <= cashTl}
-          onUpgrade={upgradeAtolye}
-        />
+        <View
+          style={styles.sectionAnchor}
+          onLayout={(e) => recordSectionOffset('atolye', e.nativeEvent.layout.y)}
+        >
+          <SectionLabel>ATÖLYE</SectionLabel>
+          <AtolyeCard
+            level={atolyeLevel}
+            maxLevel={ATOLYE_MAX_LEVEL}
+            gramsPerDay={atolyeLevel * ATOLYE_GRAMS_PER_DAY_PER_LEVEL}
+            upgradeCostTl={atolyeUpgradeCostTl}
+            canAfford={atolyeUpgradeCostTl !== null && atolyeUpgradeCostTl <= cashTl}
+            onUpgrade={upgradeAtolye}
+          />
+        </View>
 
+        <View
+          style={styles.sectionAnchor}
+          onLayout={(e) => recordSectionOffset('yatirimlar', e.nativeEvent.layout.y)}
+        >
         <SectionLabel>TAKI YATIRIM PAKETLERİ</SectionLabel>
         <Text style={styles.emptyHint}>
           30 gün kilitli, sabit günlük getiri + vade sonunda anapara iadesi. Dört ayar kademesinin
@@ -245,6 +282,7 @@ export function KasamScreen() {
             />
           );
         })}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -257,6 +295,11 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    gap: 14,
+  },
+  // Hızlı Erişim'in kaydırdığı bölümleri saran view — dıştaki ScrollView
+  // içeriğinin gap'ini kendi içinde de koruması için aynı gap tekrarlanır.
+  sectionAnchor: {
     gap: 14,
   },
   title: {
