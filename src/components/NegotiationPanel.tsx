@@ -232,6 +232,10 @@ export function NegotiationPanel({
   const canAct = isSale ? result === null : tested && !measuring && result === null;
   const fullPriceShortfall = Math.max(0, product.marketValueTl - cashTl);
 
+  // Alım/bozdurma modunda: mevcut teklifin has gram başına karşılığı —
+  // oyuncunun piyasa ALIŞ fiyatıyla karşılaştırıp anlaşmayı değerlendirmesi için.
+  const unitPriceTl = !isSale ? offer / equivalentGrams(product.grams, product.karat) : undefined;
+
   // Bölüm 5/9: kâr analizi sadece sarrafiye (gerçek ayarı kesin bilinen)
   // kalemlerde gösterilir — işçilikli üründe gerçek ayar Uzman Görüşü'yle
   // açığa çıkana kadar belirsiz, yanıltıcı bir kâr rakamı göstermemek için.
@@ -288,6 +292,7 @@ export function NegotiationPanel({
         onChange={setOffer}
         disabled={!canAct}
         cashLimited={cashLimited}
+        unitPriceTl={unitPriceTl}
       />
 
       {!isSale && (

@@ -14,6 +14,7 @@ export function PriceBlock({
   onChange,
   disabled,
   cashLimited,
+  unitPriceTl,
 }: {
   marketValueTl: number;
   min: number;
@@ -23,13 +24,20 @@ export function PriceBlock({
   disabled?: boolean;
   /** Teklif çubuğunun tavanı nakit yetersizliğinden mi kısıtlandı. */
   cashLimited?: boolean;
+  /** Sadece alım/bozdurma modu: mevcut teklifin has gram başına karşılığı — piyasa ALIŞ fiyatıyla karşılaştırma kolaylığı için. */
+  unitPriceTl?: number;
 }) {
   return (
     <Card>
       <Text style={styles.label}>TEKLİFİN</Text>
-      <View style={styles.priceRow}>
-        <Text style={styles.marketValue}>{formatTl(marketValueTl)}</Text>
-        <Text style={styles.offerValue}>{formatTl(value)}</Text>
+      <View style={styles.priceSection}>
+        <View style={styles.priceRow}>
+          <Text style={styles.marketValue}>{formatTl(marketValueTl)}</Text>
+          <Text style={styles.offerValue}>{formatTl(value)}</Text>
+        </View>
+        {unitPriceTl !== undefined && (
+          <Text style={styles.unitPrice}>Birim fiyat: {formatTl(unitPriceTl)}/g (has)</Text>
+        )}
       </View>
 
       <View style={styles.sliderWrap}>
@@ -56,11 +64,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: 6,
   },
+  priceSection: {
+    marginBottom: 14,
+  },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 10,
-    marginBottom: 14,
   },
   marketValue: {
     fontFamily: fonts.mono,
@@ -72,6 +82,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.monoBold,
     fontSize: fontSizes.xxl,
     color: colors.ink,
+  },
+  unitPrice: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkMuted,
+    marginTop: 2,
   },
   sliderWrap: {
     paddingHorizontal: 4,
