@@ -175,12 +175,12 @@ export function DukkanScreen() {
             </View>
           </View>
 
-          {/* Orta-üst boşluk — ileride 3D karakter/mağaza sahnesi için
-              KASITLI OLARAK boş bırakıldı, sadece dekoratif ışıltı halkaları var. */}
-          <View style={styles.stageArea} pointerEvents="none">
-            <View style={styles.stageGlowLeft} />
-            <View style={styles.stageGlowRight} />
-          </View>
+          {/* [DÜZELTME] Orta-üst boşluk ileride 3D karakter/mağaza sahnesi için
+              ayrılmıştı, ama devasa boş alan + kaba mor daireler aşırı scroll'a
+              ve kaba bir görünüme yol açıyordu. Daireler tamamen kaldırıldı,
+              alan tek ekrana sığma için ince bir ayraca indirildi. */}
+          <View style={styles.stageArea} pointerEvents="none" />
+
 
           {/* 4'lü dikey cam istatistik kartları */}
           <View style={styles.statsRow4}>
@@ -190,24 +190,23 @@ export function DukkanScreen() {
             <StatCardLux label="BORÇ" value={formatTl(capital.debtTl)} warn={capital.debtTl > 0} />
           </View>
 
-          {/* Dev altın buton — müşteriyi tezgaha çağırır */}
-          <View style={styles.giantButtonWrap}>
-            <View style={styles.giantButtonGlow} />
-            <Pressable
-              disabled={!canCallNext}
-              onPress={() => callNextCustomerToCounter()}
-              style={({ pressed }) => [
-                styles.giantButton,
-                !canCallNext && styles.giantButtonDisabled,
-                pressed && canCallNext && styles.giantButtonPressed,
-              ]}
-            >
-              <Text style={styles.giantButtonTitle}>
-                {incomingCustomer ? 'TEZGÂH DOLU' : 'TEZGÂHA AL'}
-              </Text>
-              <Text style={styles.giantButtonSubtitle}>Bekleyen: {waitingCustomers.length}</Text>
-            </Pressable>
-          </View>
+          {/* [DÜZELTME] Kaba dev daire buton yerine şık, yatay hap (pill) buton —
+              parlama artık arkaya çizilen bir şekilden değil, butonun kendi
+              shadowColor/shadowRadius/elevation değerlerinden geliyor. */}
+          <Pressable
+            disabled={!canCallNext}
+            onPress={() => callNextCustomerToCounter()}
+            style={({ pressed }) => [
+              styles.callButton,
+              !canCallNext && styles.callButtonDisabled,
+              pressed && canCallNext && styles.callButtonPressed,
+            ]}
+          >
+            <Text style={styles.callButtonTitle}>
+              {incomingCustomer ? 'TEZGÂH DOLU' : 'Müşteriyi Karşıla'}
+            </Text>
+            <Text style={styles.callButtonSubtitle}>Bekleyen: {waitingCustomers.length}</Text>
+          </Pressable>
 
           {/* 3'lü alt cam kartlar — envanter/pasif gelir kısayolları */}
           <View style={styles.statsRow3}>
@@ -275,8 +274,8 @@ export function DukkanScreen() {
         {!hasCompletedTutorial && (
           <View style={styles.tutorialCard}>
             <Text style={styles.tutorialText}>
-              Kuyruktaki müşteriyi TEZGÂHA AL'a basarak çağır, sonra Hassas Terazi ile tart ve bir
-              fiyat teklif et. Kabul/karşı teklif/red — pazarlık burada gerçekleşir.
+              Kuyruktaki müşteriyi "Müşteriyi Karşıla"ya basarak çağır, sonra Hassas Terazi ile
+              tart ve bir fiyat teklif et. Kabul/karşı teklif/red — pazarlık burada gerçekleşir.
             </Text>
             <Pressable onPress={completeTutorial} hitSlop={8}>
               <Text style={styles.tutorialDismiss}>Anladım</Text>
@@ -331,7 +330,7 @@ export function DukkanScreen() {
         ) : (
           <Text style={styles.emptyHint}>
             {waitingCustomers.length > 0
-              ? 'Kuyrukta bekleyen müşteri var — TEZGÂHA AL\'a bas.'
+              ? 'Kuyrukta bekleyen müşteri var — "Müşteriyi Karşıla"ya bas.'
               : 'Şu an kuyrukta müşteri yok — birazdan biri gelecek.'}
           </Text>
         )}
@@ -376,34 +375,37 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: 16,
-    gap: 10,
+    padding: 12,
+    gap: 8,
   },
 
   // ---------- HERO ----------
+  // [DÜZELTME] Aşırı dikey boşluklar (padding/gap) daraltıldı — amaç: Kasa,
+  // Piyasa, Stok Özeti ve Tezgâha Al butonunun mümkün olduğunca kaydırmadan
+  // görünmesi.
   hero: {
     backgroundColor: lux.panelBg,
-    borderRadius: 28,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: lux.gold,
-    padding: 14,
-    gap: 14,
+    padding: 10,
+    gap: 8,
     shadowColor: lux.purple,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 24,
-    elevation: 10,
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
     overflow: 'hidden',
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   avatarRing: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: lux.glassStrong,
@@ -413,12 +415,12 @@ const styles = StyleSheet.create({
   levelGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     flex: 1,
   },
   shieldBadge: {
-    width: 26,
-    height: 30,
+    width: 24,
+    height: 26,
     borderRadius: 6,
     backgroundColor: lux.purple,
     borderWidth: 1,
@@ -450,8 +452,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: lux.gold,
     borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
   balanceText: {
     fontFamily: fonts.monoBold,
@@ -460,16 +462,16 @@ const styles = StyleSheet.create({
   },
   topSmallRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   smallGlassCard: {
     flex: 1,
     backgroundColor: lux.glass,
     borderWidth: 1,
     borderColor: lux.gold,
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
   },
   smallCardLabel: {
     fontFamily: fonts.bodyMedium,
@@ -481,46 +483,26 @@ const styles = StyleSheet.create({
     fontFamily: fonts.monoBold,
     fontSize: 13,
     color: lux.ink,
-    marginTop: 2,
+    marginTop: 1,
   },
+  // [DÜZELTME] Kaba, opak mor daireler (View ile çizilmiş şekiller) tamamen
+  // kaldırıldı. Bu alan artık sadece ince bir ayraç — ileride 3D karakter
+  // eklenirse burası büyütülebilir, ama varsayılan olarak scroll'u şişirmiyor.
   stageArea: {
-    height: 120,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stageGlowLeft: {
-    position: 'absolute',
-    left: -40,
-    top: 10,
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: lux.purple,
-    opacity: 0.25,
-  },
-  stageGlowRight: {
-    position: 'absolute',
-    right: -40,
-    top: 10,
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: lux.purple,
-    opacity: 0.25,
+    height: 14,
   },
   statsRow4: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   statCardLux: {
     flex: 1,
     backgroundColor: lux.glass,
     borderWidth: 1,
     borderColor: lux.gold,
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
     alignItems: 'center',
   },
   statCardLuxLabel: {
@@ -540,65 +522,57 @@ const styles = StyleSheet.create({
   statCardLuxValueWarn: {
     color: colors.negative,
   },
-  giantButtonWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-  },
-  giantButtonGlow: {
-    position: 'absolute',
-    width: 210,
-    height: 210,
-    borderRadius: 105,
-    backgroundColor: lux.purpleBright,
-    opacity: 0.45,
-  },
-  giantButton: {
-    width: 168,
-    height: 168,
-    borderRadius: 84,
+  // [DÜZELTME] Kaba dev daire yerine şık, yatay hap (pill) buton. Parlama
+  // efekti artık arkaya çizilen bir mor daireden değil, butonun kendi
+  // shadowColor (mor) + elevation değerlerinden geliyor.
+  callButton: {
+    alignSelf: 'center',
+    width: '90%',
+    borderRadius: 16,
     backgroundColor: lux.gold,
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: lux.goldBright,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    shadowColor: lux.goldDeep,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.6,
-    shadowRadius: 14,
-    elevation: 12,
+    paddingVertical: 12,
+    gap: 2,
+    shadowColor: lux.purple,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  giantButtonPressed: {
+  callButtonPressed: {
     backgroundColor: lux.goldDeep,
   },
-  giantButtonDisabled: {
+  callButtonDisabled: {
     opacity: 0.45,
+    shadowOpacity: 0.15,
   },
-  giantButtonTitle: {
+  callButtonTitle: {
     fontFamily: fonts.headingBold,
-    fontSize: 16,
+    fontSize: 15,
     color: '#3A2A00',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
-  giantButtonSubtitle: {
+  callButtonSubtitle: {
     fontFamily: fonts.bodyBold,
-    fontSize: 12,
+    fontSize: 11,
     color: '#4A3600',
   },
   statsRow3: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   bottomGlassCard: {
     flex: 1,
     backgroundColor: lux.glass,
     borderWidth: 1,
     borderColor: lux.gold,
-    borderRadius: 14,
-    paddingVertical: 14,
+    borderRadius: 12,
+    paddingVertical: 8,
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
   },
   bottomCardIcon: {
     fontSize: 20,
@@ -616,12 +590,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: lux.gold,
     borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
   },
   bottomBarSpeedButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
     borderRadius: 999,
   },
   bottomBarSpeedButtonActive: {
@@ -640,9 +614,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   centerDot: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: lux.purple,
     borderWidth: 2,
     borderColor: lux.gold,
@@ -670,8 +644,8 @@ const styles = StyleSheet.create({
   tutorialCard: {
     backgroundColor: colors.accentSoft,
     borderRadius: 12,
-    padding: 12,
-    gap: 6,
+    padding: 10,
+    gap: 4,
   },
   tutorialText: {
     fontFamily: fonts.body,
@@ -687,8 +661,8 @@ const styles = StyleSheet.create({
   emergencyCard: {
     backgroundColor: colors.negative,
     borderRadius: 12,
-    padding: 12,
-    gap: 8,
+    padding: 10,
+    gap: 6,
   },
   emergencyText: {
     fontFamily: fonts.bodyMedium,

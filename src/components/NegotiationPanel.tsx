@@ -41,7 +41,9 @@ import { XpToast } from './XpToast';
 type Result = 'accepted' | 'rejected' | 'creditDenied' | 'timedOut' | null;
 
 const MEASURE_DURATION_MS = 900;
-const OLUCU_AGGRESSIVE_OFFER_RATIO = 0.65;
+// [DÜZELTME] Teklif tabanı %80'e çekildiği için bu eşik de o tabanın
+// altında kalmayacak şekilde güncellendi (aksi halde hiç tetiklenemezdi).
+const OLUCU_AGGRESSIVE_OFFER_RATIO = 0.85;
 const SIKI_PAZARLIKCI_REPUTATION_PENALTY = 1;
 
 function bonusXpForDeal(roundsUsed: number, product: NegotiationProduct): { amount: number; reason: string } {
