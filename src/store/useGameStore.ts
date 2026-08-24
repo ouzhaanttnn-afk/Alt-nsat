@@ -138,7 +138,10 @@ function priceFromReferenceAndSpread(
   };
 }
 
-/** Has altın karşılığı: karat 24 üzerinden orantılanmış gram. */
+// Has altın karşılığı: karat 24 üzerinden orantılanmış gram. karat/24
+// oranı, gerçek piyasadaki ayar/milyem standardıyla birebir örtüşüyor
+// (araştırıldı: 22 ayar = 916,6 milyem = 22/24 — bkz. toptanciStock.ts'teki
+// not). Yani 22 ayar bir parça için equivalentGrams(g, 22) = g × 0,9167.
 export function equivalentGrams(grams: number, karat: number): number {
   return grams * (karat / 24);
 }
@@ -643,6 +646,11 @@ export const useGameStore = create<GameState>()(
         ? randomInRange(WHOLESALER_MARGIN_MIN_TL_PER_GRAM, WHOLESALER_MARGIN_MAX_TL_PER_GRAM)
         : state.wholesalerSellMarginTlPerGram;
 
+    // nextBuyPrice/nextSellPrice bu tick'in sonunda goldPrice.buyPricePerGram/
+    // sellPricePerGram olarak set edilir (bkz. aşağıdaki set() çağrısı) —
+    // yani müşteriden bozdurma alırken kullanılan ALIŞ fiyatı ve müşteriye
+    // satarken kullanılan SATIŞ fiyatı, ticker'da (GoldTicker) o an
+    // görünecek olanla birebir aynı, ayrı bir hesap değil.
     const { buyPricePerGram: nextBuyPrice, sellPricePerGram: nextSellPrice } = priceFromReferenceAndSpread(
       nextReference,
       marketSpreadTlPerGram,
@@ -824,7 +832,7 @@ export const useGameStore = create<GameState>()(
               unitsRequired: 2,
               displayName: 'Yarım Altın',
               displayKarat: 22,
-              displayGrams: 3.5,
+              displayGrams: 3.508,
             });
           }
           if (ceyrek && ceyrek.quantity >= 4) {
@@ -833,7 +841,7 @@ export const useGameStore = create<GameState>()(
               unitsRequired: 4,
               displayName: 'Cumhuriyet Altını (Tam Altın)',
               displayKarat: 22,
-              displayGrams: 7.02,
+              displayGrams: 7.016,
             });
           }
 
