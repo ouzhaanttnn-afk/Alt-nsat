@@ -13,7 +13,15 @@ import { SectionLabel } from '../components/SectionLabel';
 import { StockCard } from '../components/StockCard';
 import { TakiPackageCard } from '../components/TakiPackageCard';
 import { TradingPositionCard } from '../components/TradingPositionCard';
-import { ATOLYE_GRAMS_PER_DAY_PER_LEVEL, ATOLYE_MAX_LEVEL, ATOLYE_UPGRADE_BASE_COST_TL, ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL } from '../config/economyConfig';
+import {
+  ATOLYE_GRAMS_PER_DAY_PER_LEVEL,
+  ATOLYE_MAX_LEVEL,
+  ATOLYE_UPGRADE_BASE_COST_TL,
+  ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL,
+  XP_BONUS_DEAL_COMPLETED,
+  XP_BONUS_PROFITABLE_SALE,
+} from '../config/economyConfig';
+import { XpToast } from '../components/XpToast';
 import { BRAND_STAGES } from '../data/brandStages';
 import { pirlantaCatalog } from '../data/mockPirlanta';
 import { TAKI_PACKAGE_TIERS } from '../data/takiPackageTiers';
@@ -48,9 +56,20 @@ export function KasamScreen() {
   const purchaseBrandStage = useGameStore((s) => s.purchaseBrandStage);
   const wholesalerBuyMarginTlPerGram = useGameStore((s) => s.wholesalerBuyMarginTlPerGram);
   const buyInvestmentUnits = useGameStore((s) => s.buyInvestmentUnits);
+  const grantBonusXp = useGameStore((s) => s.grantBonusXp);
 
   const [saleBanner, setSaleBanner] = useState<{ profitTl: number } | null>(null);
   const saleBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [xpToast, setXpToast] = useState<{ amount: number; reason: string } | null>(null);
+  // Bölüm 4: "Beklet" — satmayı erteleme kararını görünür kılan hafif bir
+  // onay; hiçbir state'i değiştirmiyor, sadece kararın alındığını teyit ediyor.
+  const [holdHintItemId, setHoldHintItemId] = useState<string | null>(null);
+  const holdHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleHold = (itemId: string) => {
+    setHoldHintItemId(itemId);
+    if (holdHintTimer.current) clearTimeout(holdHintTimer.current);
+    holdHintTimer.current = setTimeout(() => setHoldHintItemId(null), 1800);
+  };
 
   // Hızlı Erişim (Dükkân): ilgili bölüme kaydırmalı geçiş için Y konumları.
   // Stok ekranı ilk kez mount olduğunda onLayout ölçümleri scrollTo efektinden
@@ -92,6 +111,16 @@ export function KasamScreen() {
     setSaleBanner({ profitTl: result.profitTl });
     if (saleBannerTimer.current) clearTimeout(saleBannerTimer.current);
     saleBannerTimer.current = setTimeout(() => setSaleBanner(null), BANNER_VISIBLE_MS);
+
+    // Bölüm 6 (STOK→SATIŞ→KÂR): satış gerçekten kâr getirdiyse "Kârlı satış"
+    // bonusu, getirmediyse yine de tamamlanmış bir işlem bonusu — oyuncu
+    // XP'nin nereden geldiğini her zaman görür.
+    const bonus =
+      result.profitTl > 0
+        ? { amount: XP_BONUS_PROFITABLE_SALE, reason: 'Kârlı satış' }
+        : { amount: XP_BONUS_DEAL_COMPLETED, reason: 'Müşteri işlemi tamamlandı' };
+    grantBonusXp(bonus.amount);
+    setXpToast({ amount: result.xpGained + bonus.amount, reason: bonus.reason });
   };
 
   return (
@@ -134,6 +163,9 @@ export function KasamScreen() {
             </Text>
           </View>
         )}
+        {xpToast && (
+          <XpToast amount={xpToast.amount} reason={xpToast.reason} onDone={() => setXpToast(null)} />
+        )}
 
         <SectionLabel>SARRAFİYE STOĞUN</SectionLabel>
         <Card>
@@ -157,12 +189,18 @@ export function KasamScreen() {
           </Text>
         ) : (
           sarrafiyeItems.map((item) => (
-            <TradingPositionCard
-              key={item.id}
-              item={item}
-              currentValueTl={currentPositionValueTl(item, goldPrice.buyPricePerGram)}
-              onSell={() => handleSell(item.id)}
-            />
+            <View key={item.id}>
+              <TradingPositionCard
+                item={item}
+                currentValueTl={currentPositionValueTl(item, goldPrice.buyPricePerGram)}
+                currentDay={day}
+                onSell={() => handleSell(item.id)}
+                onHold={() => handleHold(item.id)}
+              />
+              {holdHintItemId === item.id && (
+                <Text style={styles.holdHint}>Stokta bekletiliyor — piyasa değişince tekrar bakabilirsin.</Text>
+              )}
+            </View>
           ))
         )}
 
@@ -340,5 +378,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: fontSizes.sm,
     color: colors.inkMutedOnDark,
+  },
+  holdHint: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.inkMutedOnDark,
+    marginTop: 6,
+    textAlign: 'center',
   },
 });

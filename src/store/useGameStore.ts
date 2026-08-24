@@ -22,7 +22,6 @@ import {
   GAME_MINUTES_PER_REAL_SECOND_AT_1X,
   GULER_YUZ_PATIENCE_MINUTES_PER_LEVEL,
   INCOMING_CUSTOMER_CHECKS_PER_DAY,
-  INCOMING_CUSTOMER_EXPIRY_MINUTES,
   INCOMING_CUSTOMER_TRIGGER_PROBABILITY,
   LATE_PAYMENT_TRUST_PENALTY,
   LEVEL_MAX,
@@ -65,11 +64,7 @@ import type { ScaleReading } from '../components/ScalePanel';
 import { BRAND_STAGES } from '../data/brandStages';
 import { CRAFTED_GOOD_CATALOG, REALISTIC_KARATS } from '../data/craftedGoodCatalog';
 import { TAKI_PACKAGE_TIERS } from '../data/takiPackageTiers';
-import {
-  BOZDURMA_CUSTOMER_ARCHETYPES,
-  INCOMING_CUSTOMER_ARCHETYPES,
-  INCOMING_CUSTOMER_NAMES,
-} from '../data/incomingCustomerPool';
+import { CUSTOMER_PERSONAS, INCOMING_CUSTOMER_NAMES } from '../data/incomingCustomerPool';
 import { toptanciStock } from '../data/toptanciStock';
 import type { PirlantaCatalogItem } from '../data/mockPirlanta';
 import { skillTree } from '../data/skillTree';
@@ -403,7 +398,7 @@ interface GameState {
       hasHiddenFlaw?: boolean;
       stoneValueTl?: number;
     },
-  ) => { success: true; borrowedTl: number } | { success: false; borrowedTl: 0 };
+  ) => { success: true; borrowedTl: number; xpGained: number } | { success: false; borrowedTl: 0; xpGained: 0 };
   /**
    * Bölüm 9: açık Toptancı Bağlantısı'nı hemen kullanır — o işlemden gelen
    * malı toptancıya (genel ALIŞ + toptancı marjı üzerinden) anında satar,
@@ -423,7 +418,9 @@ interface GameState {
   /** Bölüm 18-20: belirtilen ayar kademesinde yeni bir Takı Yatırım Paketi başlatır — o kademede zaten aktif bir paket varsa ya da nakit yetmiyorsa false döner. */
   startTakiPackage: (tierId: string) => boolean;
   /** Bir pozisyonun tamamını güncel kurdan nakde çevirir; alış-satış makasından gerçekleşen kârı döner. */
-  sellInventoryItem: (itemId: string) => { saleValueTl: number; profitTl: number; quantity: number } | null;
+  sellInventoryItem: (
+    itemId: string,
+  ) => { saleValueTl: number; profitTl: number; quantity: number; xpGained: number } | null;
   /**
    * Piyasa: Toptancıdan Stok Al — pazarlıksız, her an açık restok. Genel
    * piyasa SATIŞ kurunun toptancı marjı kadar altından, sadece nakit
@@ -462,12 +459,32 @@ interface GameState {
     willAccept: boolean;
   }) => void;
   /**
+   * v2: pazarlıklar artık anında sonuçlanıyor (bkz. NegotiationPanel'in
+   * karşı teklif akışı) — bu, sonucu Müşteriler sekmesinde geçmiş olarak
+   * görünsün diye ÇÖZÜLMÜŞ (kabul/red) bir teklif kaydı ekler, bekleme
+   * mekanizmasını (sendPendingOffer/tick) TETİKLEMEZ.
+   */
+  logCompletedOffer: (offer: {
+    customerName: string;
+    productName: string;
+    category: InventoryCategory;
+    karat: number;
+    grams: number;
+    offerAmountTl: number;
+    marketValueTl: number;
+    quantity?: number;
+    status: 'kabul' | 'red';
+  }) => void;
+  /**
    * Aktif gelen müşteriye (direction:'satis') yanıt verir. Kabulde
    * (accepted=true, saleAmountTl ile) stoktan bir adet düşülür,
    * karşılığında pazarlıkla anlaşılan tutar nakde eklenir. Reddde
    * müşteri elini boş dönüp gider.
    */
-  resolveIncomingCustomer: (accepted: boolean, saleAmountTl?: number) => { profitTl: number } | null;
+  resolveIncomingCustomer: (
+    accepted: boolean,
+    saleAmountTl?: number,
+  ) => { profitTl: number; xpGained: number } | null;
   /**
    * Bölüm 6: direction:'bozdurma' bir müşterinin pazarlığı (mevcut 'alis'
    * modu, settleDeal üzerinden) sonuçlandığında aktif müşteriyi temizler
@@ -500,6 +517,12 @@ interface GameState {
   resetSkills: () => void;
   /** İtibarı 0-100 aralığında sınırlayarak değiştirir (skill etkileri, gelecekte olaylar vb. için). */
   adjustReputation: (delta: number) => void;
+  /**
+   * Bölüm 23-24 UX: isimlendirilmiş bonus XP (ör. "Kârlı satış", "İyi
+   * pazarlık") ekler — temel has-gram XP'sinin üstüne, oyuncunun "neden
+   * XP geldiğini" görmesi için (bkz. NegotiationPanel/KasamScreen XP toast'ı).
+   */
+  grantBonusXp: (amount: number) => void;
 
   /** Kalıcı kayıt (AsyncStorage) yüklenene kadar false — bkz. App.tsx'teki yükleme ekranı. */
   hasHydrated: boolean;
@@ -803,10 +826,15 @@ export const useGameStore = create<GameState>()(
           Math.random() < BOZDURMA_DIRECTION_PROBABILITY ? 'bozdurma' : 'satis';
         const customerName =
           INCOMING_CUSTOMER_NAMES[Math.floor(Math.random() * INCOMING_CUSTOMER_NAMES.length)];
-        // Bölüm 7: Soğukkanlı ve Güler Yüz müşterinin sabrını (oyun-dakikası
-        // cinsinden) uzatır — her iki yön için de geçerli.
+        // v2: 5 kişilik havuzundan (Nakit Sıkışan/Bilinçli Satıcı/Sert
+        // Pazarlıkçı/Kolay İkna Olur/Dengeli) tek bir kişilik seçilir — hem
+        // satış hem bozdurma yönünde aynı havuz kullanılır.
+        const persona = CUSTOMER_PERSONAS[Math.floor(Math.random() * CUSTOMER_PERSONAS.length)];
+        // Bölüm 6: her kişiliğin kendi gerçek sabır süresi var artık ("Nakit
+        // Sıkışan" kısa, "Sert Pazarlıkçı" uzun) — Soğukkanlı/Güler Yüz bunun
+        // üstüne eklenir.
         const patienceMinutes =
-          INCOMING_CUSTOMER_EXPIRY_MINUTES +
+          persona.patienceMinutes +
           (state.skillLevels['sogukkanli'] ?? 0) * SOGUKKANLI_PATIENCE_MINUTES_PER_LEVEL +
           (state.skillLevels['guler-yuz'] ?? 0) * GULER_YUZ_PATIENCE_MINUTES_PER_LEVEL;
 
@@ -847,22 +875,20 @@ export const useGameStore = create<GameState>()(
 
           if (candidates.length > 0) {
             const candidate = candidates[Math.floor(Math.random() * candidates.length)];
-            const archetype =
-              INCOMING_CUSTOMER_ARCHETYPES[Math.floor(Math.random() * INCOMING_CUSTOMER_ARCHETYPES.length)];
             const marketValueTl = equivalentGrams(candidate.displayGrams, candidate.displayKarat) * nextSellPrice;
             incomingCustomer = {
               id: String(nextIncomingCustomerId++),
               direction: 'satis',
               customer: {
                 name: customerName,
-                type: archetype.type,
+                type: persona.type,
                 request: `${candidate.displayName} almak istiyorum, elindeki en iyi fiyatı öğrenmek isterim.`,
-                urgency: archetype.urgency,
-                bargainingStyle: archetype.bargainingStyle,
+                urgency: persona.urgency,
+                bargainingStyle: persona.bargainingStyle,
                 // Bölüm 4.3: satış modunda bu, müşterinin ödemeye razı olduğu
                 // TAVAN oranı olarak yorumlanır (alım modunda taban olarak
                 // yorumlanmasının simetriği) — bkz. NegotiationPanel satış modu.
-                acceptanceThreshold: archetype.maxPayRatio,
+                acceptanceThreshold: persona.maxPayRatio,
               },
               product: {
                 name: candidate.displayName,
@@ -883,8 +909,6 @@ export const useGameStore = create<GameState>()(
           // değeri Uzman Görüşü ile açığa çıkana kadar gizli kalır.
           const uzmanGorusuLevel = state.skillLevels['uzman-gorusu'] ?? 0;
           const good = pickCraftedGoodCandidate(uzmanGorusuLevel);
-          const archetype =
-            BOZDURMA_CUSTOMER_ARCHETYPES[Math.floor(Math.random() * BOZDURMA_CUSTOMER_ARCHETYPES.length)];
           // Piyasa değeri, oyuncunun görebildiği tek bilgi olan BEYAN edilen
           // ayar üzerinden hesaplanır — gerçek değer eritmede ortaya çıkar.
           const marketValueTl = equivalentGrams(good.grams, good.claimedKarat) * nextBuyPrice + good.stoneValueTl;
@@ -898,11 +922,11 @@ export const useGameStore = create<GameState>()(
             direction: 'bozdurma',
             customer: {
               name: customerName,
-              type: archetype.type,
+              type: persona.type,
               request: `${good.productType} bozdurmak istiyorum, ${good.claimedKarat} ayar diyorum.`,
-              urgency: archetype.urgency,
-              bargainingStyle: archetype.bargainingStyle,
-              acceptanceThreshold: archetype.minAcceptRatio,
+              urgency: persona.urgency,
+              bargainingStyle: persona.bargainingStyle,
+              acceptanceThreshold: persona.minAcceptRatio,
             },
             product: {
               name: good.productType,
@@ -924,8 +948,6 @@ export const useGameStore = create<GameState>()(
           // (mevcut 'alis' modu Pazarlık ekranı + settleDeal zaten bu
           // kredi/borç mantığını işletiyor, yeni bir sistem gerekmiyor).
           const candidate = pickBozdurmaCandidate();
-          const archetype =
-            BOZDURMA_CUSTOMER_ARCHETYPES[Math.floor(Math.random() * BOZDURMA_CUSTOMER_ARCHETYPES.length)];
           const totalEquivGrams = equivalentGrams(candidate.gramsPerUnit, candidate.karat) * candidate.quantity;
           const marketValueTl = totalEquivGrams * nextBuyPrice;
           const scaleReading: ScaleReading = {
@@ -938,16 +960,16 @@ export const useGameStore = create<GameState>()(
             direction: 'bozdurma',
             customer: {
               name: customerName,
-              type: archetype.type,
+              type: persona.type,
               request:
                 candidate.quantity > 1
                   ? `${candidate.quantity} adet ${candidate.name} bozdurmak istiyorum.`
                   : `${candidate.name} bozdurmak istiyorum.`,
-              urgency: archetype.urgency,
-              bargainingStyle: archetype.bargainingStyle,
+              urgency: persona.urgency,
+              bargainingStyle: persona.bargainingStyle,
               // Bölüm 4.3: alım modunda (bkz. NegotiationPanel) bu, oyuncunun
               // teklif verebileceği asgari (taban) oran olarak yorumlanır.
-              acceptanceThreshold: archetype.minAcceptRatio,
+              acceptanceThreshold: persona.minAcceptRatio,
             },
             product: {
               name: candidate.name,
@@ -1029,7 +1051,7 @@ export const useGameStore = create<GameState>()(
     const shortfall = Math.max(0, paidAmountTl - state.capital.cashTl);
 
     if (shortfall > 0 && state.wholesalerTrust < MIN_TRUST_FOR_CREDIT) {
-      return { success: false, borrowedTl: 0 };
+      return { success: false, borrowedTl: 0, xpGained: 0 };
     }
 
     const quantity = Math.max(1, item.quantity ?? 1);
@@ -1101,7 +1123,7 @@ export const useGameStore = create<GameState>()(
       brokerDeal,
       ...applyXpGain(state, xpGained),
     });
-    return { success: true, borrowedTl: shortfall };
+    return { success: true, borrowedTl: shortfall, xpGained };
   },
 
   resolveBrokerDeal: () => {
@@ -1273,7 +1295,7 @@ export const useGameStore = create<GameState>()(
       },
       ...applyXpGain(state, xpGained),
     });
-    return { saleValueTl, profitTl, quantity: item.quantity };
+    return { saleValueTl, profitTl, quantity: item.quantity, xpGained };
   },
 
   buyInvestmentUnits: (spec, quantity) => {
@@ -1409,6 +1431,28 @@ export const useGameStore = create<GameState>()(
     set({ offers: [newOffer, ...state.offers] });
   },
 
+  logCompletedOffer: (offer) => {
+    const state = get();
+    const totalMinutesNow = state.day * MINUTES_PER_DAY + state.minuteOfDay;
+    const newOffer: Offer = {
+      id: String(nextOfferId++),
+      customerName: offer.customerName,
+      productName: offer.productName,
+      category: offer.category,
+      karat: offer.karat,
+      grams: offer.grams,
+      offerAmountTl: offer.offerAmountTl,
+      marketValueTl: offer.marketValueTl,
+      quantity: offer.quantity,
+      status: offer.status,
+      willAccept: offer.status === 'kabul',
+      createdDay: state.day,
+      createdMinuteOfDay: state.minuteOfDay,
+      resolvesAtTotalMinutes: totalMinutesNow,
+    };
+    set({ offers: [newOffer, ...state.offers] });
+  },
+
   resolveIncomingCustomer: (accepted, saleAmountTl) => {
     const state = get();
     const customer = state.incomingCustomer;
@@ -1455,7 +1499,7 @@ export const useGameStore = create<GameState>()(
       },
       ...applyXpGain(state, xpGained),
     });
-    return { profitTl };
+    return { profitTl, xpGained };
   },
 
   clearIncomingCustomer: (id) => {
@@ -1528,6 +1572,11 @@ export const useGameStore = create<GameState>()(
     set((state) => ({
       reputation: { score: Math.max(0, Math.min(100, state.reputation.score + delta)) },
     }));
+  },
+
+  grantBonusXp: (amount) => {
+    const state = get();
+    set({ ...applyXpGain(state, amount) });
   },
 
   hasHydrated: false,

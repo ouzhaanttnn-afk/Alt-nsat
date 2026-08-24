@@ -1,13 +1,21 @@
 import type { BargainingStyle } from '../types/negotiation';
 
-// Piyasa: sürekli akan müşteri havuzu. İlk aşamada müşteriler sadece
-// dükkânın stoğundan bir şey almak isteyip geliyor (bkz. useGameStore'daki
-// üretim mantığı) — müşteriden alım (bozdurma) ayrı bir aşamada açılacak.
-export interface CustomerArchetype {
+// v2 iterasyonu: Bölüm 6'nın satış/bozdurma için ayrı arketip listeleri
+// TEK bir müşteri kişiliği havuzunda birleşti — aynı 5 kişilik hem "dükkândan
+// almak" hem "dükkâna bozdurmak" isteyen müşterilerde kullanılıyor. Artık
+// sadece ekranda yazan bir etiket değiller: bargainingStyle NegotiationPanel'in
+// karşı teklif mantığını (bkz. COUNTER_OFFER_CHANCE/POSITION), patienceMinutes
+// müşterinin gerçekten ne kadar bekleyeceğini (Bölüm 6'nın "sabrı" artık
+// oyun saatine bağlı gerçek bir süre) doğrudan belirliyor.
+export interface CustomerPersona {
   type: string;
   bargainingStyle: BargainingStyle;
   urgency: string;
-  /** Dükkânın normal satış fiyatına (canlı kur) göre, müşterinin ödemeye razı olduğu tavan oranı. */
+  /** Müşterinin dükkânda gerçekten bekleyeceği süre (oyun-dakikası) — Soğukkanlı/Güler Yüz bunun üstüne eklenir. */
+  patienceMinutes: number;
+  /** Bozdurma (dükkân müşteriden alıyor): müşterinin kabul edeceği, piyasa değerine göre asgari (taban) oran. */
+  minAcceptRatio: number;
+  /** Satış (dükkân müşteriye satıyor): müşterinin ödemeye razı olduğu, piyasa değerine göre azami (tavan) oran. */
   maxPayRatio: number;
 }
 
@@ -24,25 +32,51 @@ export const INCOMING_CUSTOMER_NAMES = [
   'Zeynep Hanım',
 ];
 
-export const INCOMING_CUSTOMER_ARCHETYPES: CustomerArchetype[] = [
-  { type: 'Normal Müşteri', bargainingStyle: 'dengeli', urgency: 'Normal', maxPayRatio: 1.0 },
-  { type: 'Pazarlıkçı', bargainingStyle: 'sert', urgency: 'Acelesi yok', maxPayRatio: 0.9 },
-  { type: 'Aceleci Müşteri', bargainingStyle: 'kolay', urgency: 'Acil', maxPayRatio: 1.12 },
-];
-
-export interface BozdurmaCustomerArchetype {
-  type: string;
-  bargainingStyle: BargainingStyle;
-  urgency: string;
-  /** Bölüm 5/8: müşterinin bozdurma için kabul edeceği, piyasa değerine göre asgari (taban) oran. */
-  minAcceptRatio: number;
-}
-
-// Bölüm 6: müşteriden alım (bozdurma) — Pazarlık ekranının mevcut 'alis'
-// modu (taban oranı yorumu) yeniden kullanılır, bu yüzden oranlar o
-// ekranın teklif aralığıyla (piyasa değerinin ~%30-95'i) uyumlu, ulaşılabilir.
-export const BOZDURMA_CUSTOMER_ARCHETYPES: BozdurmaCustomerArchetype[] = [
-  { type: 'Bozdurma Müşterisi', bargainingStyle: 'dengeli', urgency: 'Normal', minAcceptRatio: 0.85 },
-  { type: 'Nakit Sıkışan', bargainingStyle: 'kolay', urgency: 'Acil', minAcceptRatio: 0.78 },
-  { type: 'Bilinçli Satıcı', bargainingStyle: 'sert', urgency: 'Acelesi yok', minAcceptRatio: 0.92 },
+// 5 kişilik (Bölüm 15: "ilk playtest için 3-5 müşteri tipi yeterli"):
+// Nakit Sıkışan/Bilinçli Satıcı/Sert Pazarlıkçı/Kolay İkna Olur kullanıcının
+// birebir istediği isimler; Dengeli Müşteri nötr bir beşinci çeşitlilik.
+export const CUSTOMER_PERSONAS: CustomerPersona[] = [
+  {
+    type: 'Nakit Sıkışan',
+    bargainingStyle: 'kolay',
+    urgency: 'Acil',
+    // Beklemek istemez: kısa sabır, düşük teklifleri kolay kabul eder.
+    patienceMinutes: 45,
+    minAcceptRatio: 0.72,
+    maxPayRatio: 1.15,
+  },
+  {
+    type: 'Bilinçli Satıcı',
+    bargainingStyle: 'sert',
+    urgency: 'Acelesi yok',
+    // Piyasa fiyatını bilir: düşük tekliflere sert tepki verir, kolay pes etmez.
+    patienceMinutes: 100,
+    minAcceptRatio: 0.9,
+    maxPayRatio: 0.97,
+  },
+  {
+    type: 'Sert Pazarlıkçı',
+    bargainingStyle: 'sert',
+    urgency: 'Normal',
+    // Karşı teklif verme ihtimali yüksek, kolay vazgeçmez (uzun sabır).
+    patienceMinutes: 110,
+    minAcceptRatio: 0.85,
+    maxPayRatio: 0.98,
+  },
+  {
+    type: 'Kolay İkna Olur',
+    bargainingStyle: 'kolay',
+    urgency: 'Normal',
+    patienceMinutes: 70,
+    minAcceptRatio: 0.75,
+    maxPayRatio: 1.1,
+  },
+  {
+    type: 'Dengeli Müşteri',
+    bargainingStyle: 'dengeli',
+    urgency: 'Normal',
+    patienceMinutes: 90,
+    minAcceptRatio: 0.82,
+    maxPayRatio: 1.02,
+  },
 ];

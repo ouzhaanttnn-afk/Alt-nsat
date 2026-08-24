@@ -3,6 +3,7 @@
 // sabitlerini tek yerde toplar. Dengeleme (balancing) için buradaki
 // sayılar değiştirilebilir; oyun mantığının kendisi (store) bu dosyaya
 // bakarak çalışır, sayıları kod içine gömmez.
+import type { BargainingStyle } from '../types/negotiation';
 
 // ---- Zaman / Saat (Bölüm 22 temeli) ----------------------------------
 export const MINUTES_PER_DAY = 1440;
@@ -90,6 +91,10 @@ export const OFFER_PRESET_COMERT_RATIO = 1.0;
 // (Sıkı Pazarlıkçı/Ölücü) bağımsız, çubuğun kendi temel davranışı.
 export const LOW_OFFER_REPUTATION_PENALTY = 1;
 export const GENEROUS_OFFER_REPUTATION_BONUS = 1;
+// Bölüm 7: Sıkı Pazarlıkçı kabul eşiğini düşürür (Sv.1 %5 → Sv.5 %25);
+// Ölücü'nün agresif kullanımı seviye başına itibar riski taşır.
+export const SIKI_PAZARLIKCI_THRESHOLD_REDUCTION_PER_LEVEL = 0.05;
+export const OLUCU_REPUTATION_PENALTY_PER_LEVEL = 2;
 
 // ---- Satış Modu Fiyat Aralığı + Ret Hakkı (mega-ekran birleşimi sonrası) --
 // Dükkândan müşteriye satış modunda: teklif çubuğu piyasa değerinin en
@@ -178,6 +183,50 @@ export const ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL = 2.2;
 // toplam günlük getiriye set bonusu uygulanır.
 export const TAKI_PACKAGE_TERM_DAYS = 30;
 export const TAKI_PACKAGE_SET_BONUS_MULTIPLIER = 1.1;
+
+// ---- Pazarlık: Karşı Teklif (v2 iterasyonu — gerçek pazarlık hissi) ------
+// Kaydırma çubuğuyla gönderilen bir teklif artık anında sonuçlanır (30 dk'lık
+// bekleme kaldırıldı): teklif eşiğin altındaysa, eşiğin en az şu oranı kadarsa
+// (COUNTER_OFFER_FLOOR_RATIO) müşteri pazarlık tarzına göre karşı teklif
+// verebilir; daha düşükse pazarlık bile açılmadan doğrudan reddeder.
+export const COUNTER_OFFER_FLOOR_RATIO = 0.6;
+// Pazarlık tarzına göre karşı teklif verme ihtimali.
+export const COUNTER_OFFER_CHANCE: Record<BargainingStyle, number> = {
+  sert: 0.8,
+  dengeli: 0.5,
+  kolay: 0.2,
+};
+// Karşı teklifin, oyuncunun teklifiyle eşik arasındaki mesafede nereye
+// düştüğü (0 = oyuncunun teklifine yakın/ucuz, 1 = tam eşiğin kendisi).
+export const COUNTER_OFFER_POSITION: Record<BargainingStyle, number> = {
+  sert: 0.92,
+  dengeli: 0.6,
+  kolay: 0.3,
+};
+// "Teklifi Yükselt": oyuncunun teklifiyle müşterinin karşı teklifi arasında
+// yarı yolda yeni bir teklif üretir (tam kabul etmek yerine bir miktar
+// direnme fırsatı) — en fazla COUNTER_OFFER_MAX_ROUNDS tur karşı teklif gösterilir.
+export const COUNTER_OFFER_MEET_HALFWAY_RATIO = 0.5;
+export const COUNTER_OFFER_MAX_ROUNDS = 2;
+
+// ---- Karizma — pazarlık üzerindeki gerçek etkisi -------------------------
+// reputation.score (Karizma/İtibar, 0-100) 50 nötr kabul edilir; nötrden her
+// puan sapma, müşterinin kabul eşiğini ve karşı teklifin oyuncu lehine
+// kayma miktarını hafifçe etkiler — Bölüm 8'in "sadece rozet değil, gerçek
+// etkisi olsun" kararı.
+export const KARIZMA_NEUTRAL_SCORE = 50;
+export const KARIZMA_THRESHOLD_EFFECT_PER_POINT = 0.0015;
+export const KARIZMA_COUNTER_POSITION_EFFECT_PER_POINT = 0.002;
+
+// ---- XP — işlem başına görünür kazanım (Bölüm 23-24 UX iyileştirmesi) ----
+// Mevcut has-gram-bazlı temel XP'nin (XP_PER_EQUIVALENT_GRAM_TRADED) üstüne,
+// oyuncunun "neden XP geldiğini" anlaması için görünür, isimlendirilmiş
+// bonuslar eklenir — bir işlem tamamlandığında hangi bonusun tetiklendiği
+// XP toast'ında (bkz. NegotiationPanel/KasamScreen) tek satırda gösterilir.
+export const XP_BONUS_DEAL_COMPLETED = 10;
+export const XP_BONUS_PROFITABLE_SALE = 15;
+export const XP_BONUS_GOOD_BARGAIN = 10; // teklif, eşiğin altında ama karşı teklif turlarıyla kapandıysa
+export const XP_BONUS_RARE_ITEM = 20; // işçilikli/nadir ürün ya da büyük (çoklu adet) işlem
 
 // ---- Büyük Bozdurmalar + Toptancı Bağlantısı (Bölüm 9) -------------------
 // Müşteriden nakit yetmeyen bir alım yapılıp borca yazıldığında, oyuncu

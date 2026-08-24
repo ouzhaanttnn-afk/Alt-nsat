@@ -118,7 +118,11 @@ export function DukkanScreen() {
           cashTl={capital.cashTl}
           buyPricePerGram={goldPrice.buyPricePerGram}
           reputationScore={reputation.score}
+          dailyChangePercent={goldPrice.dailyChangePercent}
         />
+        <Text style={styles.karizmaHint}>
+          Karizma yüksekse müşteriler ilk teklife daha toleranslı olur ve pazarlıkta daha iyi karşı teklif verir.
+        </Text>
 
         <View style={styles.speedRow}>
           <View style={styles.speedColumn}>
@@ -232,5 +236,11 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: fontSizes.sm,
     color: colors.inkMutedOnDark,
+  },
+  karizmaHint: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.inkMutedOnDark,
+    marginTop: -4,
   },
 });

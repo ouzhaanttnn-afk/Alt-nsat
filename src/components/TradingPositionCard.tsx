@@ -13,16 +13,23 @@ import { ProductIcon } from './icons/ProductIcon';
 export function TradingPositionCard({
   item,
   currentValueTl,
+  currentDay,
   onSell,
+  onHold,
 }: {
   item: InventoryItem;
   currentValueTl: number;
+  /** Bölüm 4/6: kaç gündür stokta olduğunu göstermek için bugünün gün sayısı. */
+  currentDay: number;
   onSell: () => void;
+  /** "Beklet" — satmayı erteleme kararını görünür kılan, hafif bir dokunuş. */
+  onHold?: () => void;
 }) {
   const avgCostPerUnit = item.costBasisTl / item.quantity;
   const currentValuePerUnit = currentValueTl / item.quantity;
   const profitTl = currentValueTl - item.costBasisTl;
   const isProfit = profitTl >= 0;
+  const daysHeld = Math.max(0, currentDay - item.acquiredDay);
 
   return (
     <Card style={styles.card}>
@@ -33,6 +40,9 @@ export function TradingPositionCard({
           <Text style={styles.meta}>
             {item.quantity.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} adet · {item.karat} Ayar,{' '}
             {item.grams.toLocaleString('tr-TR')}g/adet
+          </Text>
+          <Text style={styles.heldSince}>
+            {daysHeld <= 0 ? 'Bugün alındı' : `${daysHeld} gündür stokta`}
           </Text>
         </View>
       </View>
@@ -53,9 +63,16 @@ export function TradingPositionCard({
           tone={isProfit ? 'positive' : 'negative'}
           label={`${isProfit ? 'Kâr' : 'Zarar'}: ${isProfit ? '+' : ''}${formatTl(profitTl)}`}
         />
-        <Pressable style={styles.sellButton} onPress={onSell}>
-          <Text style={styles.sellButtonLabel}>Sat</Text>
-        </Pressable>
+        <View style={styles.buttonGroup}>
+          {onHold && (
+            <Pressable style={styles.holdButton} onPress={onHold}>
+              <Text style={styles.holdButtonLabel}>Beklet</Text>
+            </Pressable>
+          )}
+          <Pressable style={styles.sellButton} onPress={onSell}>
+            <Text style={styles.sellButtonLabel}>Sat</Text>
+          </Pressable>
+        </View>
       </View>
     </Card>
   );
@@ -81,6 +98,12 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     color: colors.inkMuted,
     marginTop: 1,
+  },
+  heldSince: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.inkMuted,
+    marginTop: 2,
   },
   priceRow: {
     flexDirection: 'row',
@@ -108,6 +131,22 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  holdButton: {
+    borderRadius: radius.sm,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  holdButtonLabel: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.inkMuted,
   },
   sellButton: {
     backgroundColor: colors.accent,

@@ -1,3 +1,13 @@
+import {
+  GULER_YUZ_PATIENCE_MINUTES_PER_LEVEL,
+  OLUCU_REPUTATION_PENALTY_PER_LEVEL,
+  SIKI_PAZARLIKCI_THRESHOLD_REDUCTION_PER_LEVEL,
+  SOGUKKANLI_PATIENCE_MINUTES_PER_LEVEL,
+  UZMAN_GORUSU_BASE_ERROR_PERCENT,
+  UZMAN_GORUSU_ERROR_REDUCTION_PER_LEVEL,
+  YENIDEN_DOGUS_TIME_REDUCTION_PER_LEVEL,
+} from '../config/economyConfig';
+
 // Bölüm 7: Yetenek Ağacı — Tüccar / Usta / Esnaf.
 // effectStatus 'active' olanlar gerçekten oyunu etkiliyor (bkz. ilgili
 // ekranlardaki kod yorumları). 'pending' olanlar tam olarak modellendi
@@ -149,3 +159,48 @@ export const skillTree: SkillDefinition[] = [
     pendingNote: 'Reklam sistemi kurulunca devreye girecek.',
   },
 ];
+
+/**
+ * v2 UX iyileştirmesi (Bölüm 9): "sadece Yükselt butonu değil, oyuncu tam
+ * olarak ne değiştiğini bilmeli" — bir yeteneğin GÜNCEL seviyesindeki somut
+ * etkisini tek satırlık, gerçek formüllerden türetilmiş bir metne çevirir.
+ * effectStatus 'pending' olan ya da level 0'daki yetenekler için null döner
+ * (henüz gösterilecek somut bir etki yok).
+ */
+export function formatSkillEffect(skillId: string, level: number): string | null {
+  if (level <= 0) return null;
+  switch (skillId) {
+    case 'uzman-gorusu': {
+      const errorPercent = Math.max(0, UZMAN_GORUSU_BASE_ERROR_PERCENT - (level - 1) * UZMAN_GORUSU_ERROR_REDUCTION_PER_LEVEL);
+      return level >= 5
+        ? `Şu an: gerçek ayarı ±%${errorPercent} hata payıyla tahmin ediyor, gizli kusurları da gösteriyor.`
+        : `Şu an: gerçek ayarı ±%${errorPercent} hata payıyla tahmin ediyor.`;
+    }
+    case 'siki-pazarlikci': {
+      const percent = Math.round(level * SIKI_PAZARLIKCI_THRESHOLD_REDUCTION_PER_LEVEL * 100);
+      return `Şu an: müşterinin kabul eşiği %${percent} daha düşük.`;
+    }
+    case 'olucu': {
+      const penalty = level * OLUCU_REPUTATION_PENALTY_PER_LEVEL;
+      return `Şu an: agresif düşük teklif kabul edilirse -${penalty} karizma riski (daha ucuza alma şansı için).`;
+    }
+    case 'piyasa-sezgisi':
+      return 'Şu an: Fırsat Skoru, pazarlığa girmeden Piyasa listesinde görünüyor.';
+    case 'sogukkanli': {
+      const minutes = level * SOGUKKANLI_PATIENCE_MINUTES_PER_LEVEL;
+      return `Şu an: müşteri sabrı +${minutes} dk.`;
+    }
+    case 'guler-yuz': {
+      const minutes = level * GULER_YUZ_PATIENCE_MINUTES_PER_LEVEL;
+      return `Şu an: müşteri sabrı +${minutes} dk.`;
+    }
+    case 'yeniden-dogus': {
+      const percent = Math.round(Math.min(0.75, level * YENIDEN_DOGUS_TIME_REDUCTION_PER_LEVEL) * 100);
+      return `Şu an: eritme süresi %${percent} daha hızlı.`;
+    }
+    case 'tas-ustasi':
+      return 'Şu an: taşlı ürünlerde taşın ayrı değeri eritmede korunuyor.';
+    default:
+      return null;
+  }
+}

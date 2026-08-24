@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
@@ -6,7 +7,7 @@ import { ProfitAnalysisCard } from '../components/ProfitAnalysisCard';
 import { ReputationGauge } from '../components/ReputationGauge';
 import { ShopNameHeader } from '../components/ShopNameHeader';
 import { LEVEL_MAX } from '../config/economyConfig';
-import { useGameStore, xpRequiredForLevel } from '../store/useGameStore';
+import { currentPositionValueTl, useGameStore, xpRequiredForLevel } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 
 // Bölüm 31: Profil — oyuncu/dükkân adı, seviye, XP, karizma, toplam kâr.
@@ -23,10 +24,24 @@ export function ProfilScreen() {
   const resetSkills = useGameStore((s) => s.resetSkills);
   const realizedTradingProfitTl = useGameStore((s) => s.realizedTradingProfitTl);
   const totalTradingCostBasisTl = useGameStore((s) => s.totalTradingCostBasisTl);
+  const inventory = useGameStore((s) => s.inventory);
+  const goldPrice = useGameStore((s) => s.goldPrice);
 
   const isMaxLevel = level >= LEVEL_MAX;
   const xpForCurrentLevel = xpRequiredForLevel(level);
   const xpForNextLevel = xpRequiredForLevel(level + 1);
+
+  // Bölüm 6/7: elde tutulan (henüz SATILMAMIŞ) sarrafiye stoğunun şu anki
+  // kurdan potansiyel kâr/zararı — Gerçekleşen Kâr'dan kasıtlı olarak ayrı
+  // gösterilir, playtest'te en çok kafa karıştıran nokta buydu.
+  const stockPotentialTl = useMemo(
+    () =>
+      inventory.reduce((sum, item) => {
+        if (item.category === 'pirlanta' || item.category === 'iscilikli') return sum;
+        return sum + (currentPositionValueTl(item, goldPrice.buyPricePerGram) - item.costBasisTl);
+      }, 0),
+    [inventory, goldPrice.buyPricePerGram],
+  );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -48,16 +63,23 @@ export function ProfilScreen() {
         />
 
         <Card style={styles.gaugeCard}>
-          <ReputationGauge score={reputation.score} label="İTİBAR" align="flex-start" />
+          <ReputationGauge score={reputation.score} label="KARİZMA" align="flex-start" />
           <ReputationGauge score={wholesalerTrust} label="TOPTANCI GÜVENİ" align="flex-start" />
         </Card>
 
         <ProfitAnalysisCard
           title="ALIM-SATIM KÂR ANALİZİ"
-          costLabel="Toplam Maliyet"
-          profitLabel="Toplam Kâr"
+          costLabel="Satılan Stoğun Maliyeti"
+          profitLabel="Gerçekleşen Kâr"
           costTl={totalTradingCostBasisTl}
           profitTl={realizedTradingProfitTl}
+          showSaleValue
+          tip="Gerçekleşen kâr, sadece SATILAN stoktan hesaplanır — elindeki stoğu satmadan kâr sayılmaz."
+          secondary={{
+            label: 'Stok Potansiyeli',
+            valueTl: stockPotentialTl,
+            caption: 'Şu an elindeki (henüz satılmamış) stoğu bugünkü kurdan satarsan oluşacak kâr/zarar.',
+          }}
         />
       </ScrollView>
     </SafeAreaView>

@@ -16,15 +16,16 @@ export function CustomerHypeCard({
   minutesLeft: number;
   onWatchAd: () => void;
 }) {
+  const extraPercent = Math.round((CUSTOMER_HYPE_ARRIVAL_MULTIPLIER - 1) * 100);
   return (
     <Pressable style={styles.banner} onPress={onWatchAd}>
       <Text style={styles.title}>
-        {active ? `Müşteri Hype aktif · ${Math.ceil(minutesLeft)} dk kaldı` : 'Müşteri Hype'}
+        {active ? `Müşteri Akını aktif · ${Math.ceil(minutesLeft)} dk kaldı` : 'MÜŞTERİ AKINI'}
       </Text>
       <Text style={styles.cta}>
         {active
           ? 'Reklam İzle · +15 dk'
-          : `Reklam İzle · ${CUSTOMER_HYPE_ARRIVAL_MULTIPLIER}x müşteri · 15 dk →`}
+          : `Reklam izle → 15 dakika boyunca +%${extraPercent} daha fazla müşteri`}
       </Text>
     </Pressable>
   );

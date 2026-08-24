@@ -21,6 +21,8 @@ export function ProfitAnalysisCard({
   costTl,
   profitTl,
   tip,
+  showSaleValue,
+  secondary,
 }: {
   title?: string;
   costLabel: string;
@@ -28,9 +30,15 @@ export function ProfitAnalysisCard({
   costTl: number;
   profitTl: number;
   tip?: string;
+  /** "Toplam Satım" satırını (costTl + profitTl olarak türetilir) ayrıca gösterir. */
+  showSaleValue?: boolean;
+  /** Gerçekleşmemiş (stokta bekleyen) potansiyeli ayrı bir alt bölümde gösterir — Bölüm 6/7: gerçekleşen ile potansiyel birbirine karıştırılmasın. */
+  secondary?: { label: string; valueTl: number; caption: string };
 }) {
   const marginPercent = costTl > 0 ? (profitTl / costTl) * 100 : 0;
   const positive = profitTl >= 0;
+  const saleValueTl = costTl + profitTl;
+  const secondaryPositive = secondary ? secondary.valueTl >= 0 : true;
 
   return (
     <Card>
@@ -39,6 +47,7 @@ export function ProfitAnalysisCard({
         <ProfitDonut costTl={costTl} profitTl={profitTl} marginPercent={marginPercent} />
         <View style={styles.rows}>
           <Row dotColor={colors.inkMuted} label={costLabel} value={formatTl(costTl)} />
+          {showSaleValue && <Row dotColor={colors.inkMuted} label="Toplam Satım" value={formatTl(saleValueTl)} />}
           <Row
             dotColor={positive ? colors.positive : colors.negative}
             label={profitLabel}
@@ -55,6 +64,18 @@ export function ProfitAnalysisCard({
         </View>
       </View>
       {tip && <Text style={styles.tip}>{tip}</Text>}
+      {secondary && (
+        <View style={styles.secondaryBlock}>
+          <View style={styles.secondaryRow}>
+            <Text style={styles.secondaryLabel}>{secondary.label}</Text>
+            <Text style={[styles.secondaryValue, { color: secondaryPositive ? colors.positive : colors.negative }]}>
+              {secondaryPositive ? '+' : ''}
+              {formatTl(secondary.valueTl)}
+            </Text>
+          </View>
+          <Text style={styles.secondaryCaption}>{secondary.caption}</Text>
+        </View>
+      )}
     </Card>
   );
 }
@@ -205,5 +226,31 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     fontStyle: 'italic',
     marginTop: 10,
+  },
+  secondaryBlock: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  secondaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  secondaryLabel: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: fontSizes.sm,
+    color: colors.inkMuted,
+  },
+  secondaryValue: {
+    fontFamily: fonts.monoBold,
+    fontSize: fontSizes.md,
+  },
+  secondaryCaption: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.inkMuted,
+    marginTop: 3,
   },
 });

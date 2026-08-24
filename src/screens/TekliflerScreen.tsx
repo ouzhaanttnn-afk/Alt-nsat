@@ -24,10 +24,10 @@ function formatRemaining(remainingMinutes: number): string {
   return `${hours} sa ${minutes} dk içinde yanıt verecek`;
 }
 
-// Bölüm 4.6: Teklifler — Bekleyen/Kabul/Red durumundaki tüm pazarlıkların
-// listesi. Kaydırma çubuğuyla gönderilen teklifler bir süre "bekleyen"
-// kalır (bkz. NegotiationPanel'deki sendPendingOffer), sonucu tick() içinde
-// açığa çıkar.
+// Bölüm 4.6 (v2): Müşteriler — artık anında sonuçlanan (kabul/red)
+// pazarlıkların GEÇMİŞİ (bkz. NegotiationPanel'deki logCompletedOffer).
+// "Bekleyen" durumu/filtresi geriye dönük uyumluluk için duruyor ama yeni
+// akışta neredeyse hiç oluşmuyor — sonuç artık pazarlık ekranında anında belli.
 export function TekliflerScreen() {
   const offers = useGameStore((s) => s.offers);
   const day = useGameStore((s) => s.day);
@@ -64,8 +64,8 @@ export function TekliflerScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyText}>
               {filter === 'tumu'
-                ? 'Henüz gönderilmiş bir teklifin yok. Dükkân\'daki pazarlıkta "Teklifi Gönder" ile bir teklif bekletebilirsin.'
-                : 'Bu durumda teklif yok.'}
+                ? 'Henüz yeni müşteri yok. Yeni müşteriler birazdan gelecek — burada tamamladığın pazarlıkların geçmişini göreceksin.'
+                : 'Bu durumda kayıt yok.'}
             </Text>
           </View>
         ) : (

@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import type { SkillDefinition } from '../data/skillTree';
+import { formatSkillEffect, type SkillDefinition } from '../data/skillTree';
 import { colors, fonts, fontSizes, radius } from '../theme';
 
 // Bölüm 7: Yetenek Ağacı — tek bir yetenek düğümü. "pending" durumundaki
@@ -18,6 +18,7 @@ export function SkillNodeCard({
 }) {
   const maxed = level >= definition.maxLevel;
   const isPending = definition.effectStatus === 'pending';
+  const currentEffect = isPending ? null : formatSkillEffect(definition.id, level);
 
   return (
     <View style={styles.card}>
@@ -34,6 +35,7 @@ export function SkillNodeCard({
       {isPending && definition.pendingNote && (
         <Text style={styles.pendingNote}>{definition.pendingNote}</Text>
       )}
+      {currentEffect && <Text style={styles.currentEffect}>{currentEffect}</Text>}
 
       <View style={styles.footer}>
         <View style={styles.pipsRow}>
@@ -107,6 +109,12 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: colors.inkMuted,
     marginTop: 4,
+  },
+  currentEffect: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11,
+    color: colors.accentDark,
+    marginTop: 6,
   },
   footer: {
     flexDirection: 'row',
