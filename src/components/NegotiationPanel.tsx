@@ -55,7 +55,6 @@ export function NegotiationPanel({
 
   const day = useGameStore((s) => s.day);
   const minuteOfDay = useGameStore((s) => s.minuteOfDay);
-  const speed = useGameStore((s) => s.speed);
   const setSpeed = useGameStore((s) => s.setSpeed);
   const goldPrice = useGameStore((s) => s.goldPrice);
   const wholesalerSellMarginTlPerGram = useGameStore((s) => s.wholesalerSellMarginTlPerGram);
@@ -77,14 +76,16 @@ export function NegotiationPanel({
   const [tested, setTested] = useState(false);
   const [measuring, setMeasuring] = useState(false);
 
-  // Pazarlık ekranı açıkken oyun saati otomatik duraklar — müşterinin
-  // sabrı ya da başka bir olay teklife karar verirken baskı yapmasın;
-  // panel kapanınca (Devam Et) önceki hız geri gelir.
+  // Oyun, müşteri belirdiği anda tick() içinde zaten duraklatılmış olur
+  // (bkz. useGameStore — React render döngüsünü beklemeden, preNegotiationSpeed
+  // dönülecek hızı tutar). Burada sadece garanti altına alınır (defense in
+  // depth) ve panel kapanınca (Devam Et) önceki hıza dönülür.
   useEffect(() => {
-    const previousSpeed = speed;
     setSpeed(0);
     return () => {
-      setSpeed(previousSpeed);
+      const restoreSpeed = useGameStore.getState().preNegotiationSpeed ?? 1;
+      setSpeed(restoreSpeed);
+      useGameStore.setState({ preNegotiationSpeed: null });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

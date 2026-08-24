@@ -327,6 +327,13 @@ interface GameState {
   day: number;
   minuteOfDay: number;
   speed: ClockSpeed;
+  /**
+   * Yeni bir müşteri belirdiği anda (Pazarlık paneli render olmadan ÖNCE,
+   * React'ın render döngüsünü beklemeden tick() içinde) oyun otomatik
+   * duraklatılır — müşterinin sabrı oyuncu tepki verene kadar tükenmesin.
+   * Bu alan, müşteri kapanınca hangi hıza dönüleceğini tutar.
+   */
+  preNegotiationSpeed: ClockSpeed | null;
   referencePriceAtDayStart: number;
   /** Bölüm 4.4: genel piyasa ALIŞ/SATIŞ makası (TL/gram) — her 30 dakikalık piyasa adımında yeniden belirlenir. */
   marketSpreadTlPerGram: number;
@@ -524,6 +531,7 @@ export const useGameStore = create<GameState>()(
   day: 1,
   minuteOfDay: 0,
   speed: 1,
+  preNegotiationSpeed: null,
   referencePriceAtDayStart: STARTING_REFERENCE_PRICE,
   marketSpreadTlPerGram: STARTING_MARKET_SPREAD_TL_PER_GRAM,
   wholesalerBuyMarginTlPerGram: randomInRange(WHOLESALER_MARGIN_MIN_TL_PER_GRAM, WHOLESALER_MARGIN_MAX_TL_PER_GRAM),
@@ -952,6 +960,13 @@ export const useGameStore = create<GameState>()(
       stockValueTl: computeStockValueTl(inventory, nextBuyPrice),
     };
 
+    // Yeni bir müşteri bu tick'te belirdiyse oyun anında duraklatılır — bu,
+    // Pazarlık paneli React render döngüsünde ekrana gelmeden ÖNCE, tick()
+    // içinde tek seferde olur; böylece müşterinin sabrı oyuncu henüz tepki
+    // vermeden (özellikle 2x/4x hızda) asla tükenmez.
+    const customerJustArrived = !postOfferState.incomingCustomer && incomingCustomer !== null;
+    const speedOverride = customerJustArrived ? { speed: 0 as ClockSpeed, preNegotiationSpeed: speed } : {};
+
     set({
       minuteOfDay,
       day,
@@ -973,6 +988,7 @@ export const useGameStore = create<GameState>()(
         sellPricePerGram: nextSellPrice,
         dailyChangePercent,
       },
+      ...speedOverride,
     });
   },
 
