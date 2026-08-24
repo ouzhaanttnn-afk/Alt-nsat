@@ -15,6 +15,7 @@ export function PriceBlock({
   disabled,
   cashLimited,
   unitPriceTl,
+  obscureValue,
 }: {
   marketValueTl: number;
   min: number;
@@ -26,16 +27,18 @@ export function PriceBlock({
   cashLimited?: boolean;
   /** Sadece alım/bozdurma modu: mevcut teklifin has gram başına karşılığı — piyasa ALIŞ fiyatıyla karşılaştırma kolaylığı için. */
   unitPriceTl?: number;
+  /** Hassas Terazi zorunluluğu (v3): test edilmeden kesin piyasa değeri/birim fiyat gösterilmez. */
+  obscureValue?: boolean;
 }) {
   return (
     <Card>
       <Text style={styles.label}>TEKLİFİN</Text>
       <View style={styles.priceSection}>
         <View style={styles.priceRow}>
-          <Text style={styles.marketValue}>{formatTl(marketValueTl)}</Text>
+          <Text style={styles.marketValue}>{obscureValue ? '— önce tart —' : formatTl(marketValueTl)}</Text>
           <Text style={styles.offerValue}>{formatTl(value)}</Text>
         </View>
-        {unitPriceTl !== undefined && (
+        {!obscureValue && unitPriceTl !== undefined && (
           <Text style={styles.unitPrice}>Birim fiyat: {formatTl(unitPriceTl)}/g (has)</Text>
         )}
       </View>

@@ -7,24 +7,27 @@ import { AtolyeCard } from '../components/AtolyeCard';
 import { BrandStageCard, type BrandStageStatus } from '../components/BrandStageCard';
 import { Card } from '../components/Card';
 import { CraftedGoodCard } from '../components/CraftedGoodCard';
+import { JewelryTierCard } from '../components/JewelryTierCard';
 import { MeltingJobBanner } from '../components/MeltingJobBanner';
 import { PirlantaCard } from '../components/PirlantaCard';
 import { SectionLabel } from '../components/SectionLabel';
 import { StockCard } from '../components/StockCard';
-import { TakiPackageCard } from '../components/TakiPackageCard';
 import { TradingPositionCard } from '../components/TradingPositionCard';
 import {
   ATOLYE_GRAMS_PER_DAY_PER_LEVEL,
   ATOLYE_MAX_LEVEL,
-  ATOLYE_UPGRADE_BASE_COST_TL,
+  ATOLYE_REQUIRED_LEVEL,
+  ATOLYE_UPGRADE_BASE_COST_GRAMS,
   ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL,
+  JEWELRY_REQUIRED_LEVEL,
   XP_BONUS_DEAL_COMPLETED,
   XP_BONUS_PROFITABLE_SALE,
 } from '../config/economyConfig';
 import { XpToast } from '../components/XpToast';
 import { BRAND_STAGES } from '../data/brandStages';
+import { JEWELRY_PIECES, JEWELRY_TIERS } from '../data/jewelryInvestments';
 import { pirlantaCatalog } from '../data/mockPirlanta';
-import { TAKI_PACKAGE_TIERS } from '../data/takiPackageTiers';
+import { computeJewelryPieceDailyReturnTl, computeJewelryPiecePriceTl, isJewelrySetComplete } from '../engine/jewelry';
 import { toptanciStock } from '../data/toptanciStock';
 import { currentPositionValueTl, MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
@@ -49,8 +52,8 @@ export function KasamScreen() {
   const cashTl = useGameStore((s) => s.capital.cashTl);
   const atolyeLevel = useGameStore((s) => s.atolyeLevel);
   const upgradeAtolye = useGameStore((s) => s.upgradeAtolye);
-  const takiPackages = useGameStore((s) => s.takiPackages);
-  const startTakiPackage = useGameStore((s) => s.startTakiPackage);
+  const jewelryHoldings = useGameStore((s) => s.jewelryHoldings);
+  const buyJewelryPiece = useGameStore((s) => s.buyJewelryPiece);
   const level = useGameStore((s) => s.level);
   const highestBrandStageIndex = useGameStore((s) => s.highestBrandStageIndex);
   const purchaseBrandStage = useGameStore((s) => s.purchaseBrandStage);
@@ -98,12 +101,14 @@ export function KasamScreen() {
   const meltingMinutesLeft = meltingJob
     ? meltingJob.completesAtTotalMinutes - (day * MINUTES_PER_DAY + minuteOfDay)
     : 0;
+  const atolyeLocked = level < ATOLYE_REQUIRED_LEVEL;
   const atolyeUpgradeCostTl =
     atolyeLevel >= ATOLYE_MAX_LEVEL
       ? null
-      : ATOLYE_UPGRADE_BASE_COST_TL * Math.pow(ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL, atolyeLevel);
-  const activeTierIds = new Set(takiPackages.map((p) => p.tierId));
-  const hasFullTakiSet = TAKI_PACKAGE_TIERS.every((t) => activeTierIds.has(t.id));
+      : ATOLYE_UPGRADE_BASE_COST_GRAMS *
+        goldPrice.buyPricePerGram *
+        Math.pow(ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL, atolyeLevel);
+  const jewelryLocked = level < JEWELRY_REQUIRED_LEVEL;
 
   const handleSell = (itemId: string) => {
     const result = sellInventoryItem(itemId);
@@ -239,6 +244,8 @@ export function KasamScreen() {
             gramsPerDay={atolyeLevel * ATOLYE_GRAMS_PER_DAY_PER_LEVEL}
             upgradeCostTl={atolyeUpgradeCostTl}
             canAfford={atolyeUpgradeCostTl !== null && atolyeUpgradeCostTl <= cashTl}
+            locked={atolyeLocked}
+            requiredLevel={ATOLYE_REQUIRED_LEVEL}
             onUpgrade={upgradeAtolye}
           />
         </View>
@@ -247,22 +254,29 @@ export function KasamScreen() {
           style={styles.sectionAnchor}
           onLayout={(e) => recordSectionOffset('yatirimlar', e.nativeEvent.layout.y)}
         >
-        <SectionLabel>TAKI YATIRIM PAKETLERİ</SectionLabel>
+        <SectionLabel>TAKI YATIRIMI</SectionLabel>
         <Text style={styles.emptyHint}>
-          30 gün kilitli, sabit günlük getiri + vade sonunda anapara iadesi. Dört ayar kademesinin
-          tümü aynı anda aktifse toplam getiriye %10 set bonusu eklenir.
+          Anapara kilidi/vade yok — her ayar kademesindeki 4 parçayı (Kolye/Yüzük/Küpe/Bileklik)
+          tek tek satın al, kalıcı günlük TL getiri kazan. Bir kademedeki 4 parçanın tamamı
+          tamamlanınca o kademenin getirisine +%10 Set Bonusu eklenir.
         </Text>
-        {TAKI_PACKAGE_TIERS.map((tier) => {
-          const activePackage = takiPackages.find((p) => p.tierId === tier.id);
+        {JEWELRY_TIERS.map((tier) => {
+          const piecePriceTl = computeJewelryPiecePriceTl(tier.id, goldPrice.buyPricePerGram);
           return (
-            <TakiPackageCard
+            <JewelryTierCard
               key={tier.id}
               tier={tier}
-              active={!!activePackage}
-              daysLeft={activePackage ? activePackage.maturesDay - day : 0}
-              hasSetBonus={hasFullTakiSet}
-              canAfford={tier.principalTl <= cashTl}
-              onStart={() => startTakiPackage(tier.id)}
+              pieces={JEWELRY_PIECES}
+              ownedPieces={Object.fromEntries(
+                JEWELRY_PIECES.map((p) => [p.id, !!jewelryHoldings[`${tier.id}.${p.id}`]]),
+              )}
+              piecePriceTl={piecePriceTl}
+              pieceDailyReturnTl={computeJewelryPieceDailyReturnTl(tier.id, goldPrice.buyPricePerGram)}
+              hasSetBonus={isJewelrySetComplete(jewelryHoldings, tier.id)}
+              canAfford={piecePriceTl <= cashTl}
+              locked={jewelryLocked}
+              requiredLevel={JEWELRY_REQUIRED_LEVEL}
+              onBuyPiece={(pieceId) => buyJewelryPiece(tier.id, pieceId as (typeof JEWELRY_PIECES)[number]['id'])}
             />
           );
         })}

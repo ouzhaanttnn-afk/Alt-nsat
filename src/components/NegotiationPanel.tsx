@@ -18,13 +18,14 @@ import {
   XP_BONUS_GOOD_BARGAIN,
   XP_BONUS_RARE_ITEM,
 } from '../config/economyConfig';
-import type { NegotiationProduct } from '../types/negotiation';
-import type { IncomingCustomer } from '../types/incomingCustomer';
+import type { NegotiationCustomer, NegotiationProduct } from '../types/negotiation';
+import type { IncomingCustomer, NegotiationLine } from '../types/incomingCustomer';
+import { LineItemNegotiation } from './LineItemNegotiation';
 import { equivalentGrams, MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes, radius } from '../theme';
 import { formatTl } from '../utils/format';
 import { calculateOpportunityScore } from '../utils/opportunityScore';
-import { evaluateBuyOffer, evaluateSellOffer } from '../utils/negotiationEngine';
+import { evaluateBuyOffer, evaluateSellOffer } from '../engine/negotiation';
 import { Badge } from './Badge';
 import { CounterOfferCard } from './CounterOfferCard';
 import { CustomerNoteCard } from './CustomerNoteCard';
@@ -376,7 +377,8 @@ export function NegotiationPanel({
   // Bölüm 5/9: kâr analizi sadece sarrafiye (gerçek ayarı kesin bilinen)
   // kalemlerde gösterilir — işçilikli üründe gerçek ayar Uzman Görüşü'yle
   // açığa çıkana kadar belirsiz, yanıltıcı bir kâr rakamı göstermemek için.
-  const showKarAnalizi = !isSale && product.category !== 'iscilikli';
+  // v3 — Hassas Terazi zorunluluğu: test edilmeden tahmini kâr gösterilmez.
+  const showKarAnalizi = !isSale && product.category !== 'iscilikli' && tested;
   // Bölüm 4.2: Piyasa Sezgisi — satış modunda müşteriye ne kadar iyi
   // satabileceğini (Fırsat Skoru) pazarlığa girmeden gösterir.
   const showFirsatSkoru = isSale && piyasaSezgisiLevel > 0;
@@ -387,6 +389,13 @@ export function NegotiationPanel({
     equivalentGrams(product.grams, product.karat) *
     (product.quantity ?? 1) *
     (goldPrice.buyPricePerGram + wholesalerSellMarginTlPerGram);
+
+  // [YENİ] v3 — Toplu Alım: birden fazla FARKLI ürünle gelen müşteri, kalem
+  // kalem (ayrı state ağacı, ayrı tart/teklif/karşı-teklif) işlenir — tüm
+  // yukarıdaki hook'lar zaten koşulsuz çağrıldı, bu erken dönüş güvenli.
+  if (incomingCustomer.lines) {
+    return <BulkLineNegotiationView customer={customer} lines={incomingCustomer.lines} onClose={onClose} />;
+  }
 
   if (result) {
     return (
@@ -459,6 +468,7 @@ export function NegotiationPanel({
             disabled={!canAct}
             cashLimited={cashLimited}
             unitPriceTl={unitPriceTl}
+            obscureValue={!isSale && !tested}
           />
 
           {!isSale && (
@@ -511,6 +521,76 @@ export function NegotiationPanel({
           )}
         </>
       )}
+    </View>
+  );
+}
+
+/**
+ * [YENİ] v3 — Toplu Alım: kalemleri sırayla gösterir (her biri kendi
+ * LineItemNegotiation state ağacıyla, `key={lineIndex}` sayesinde her
+ * kalemde temiz bir başlangıç), sonunda kısa bir toplam özet gösterip
+ * kendiliğinden kapanır. Basitleştirme (v3 kapsam sınırı): tüm toplu alım
+ * boyunca tek bir sabır/zaman aşımı sayacı YOKTUR — müşteri tüm kalemler
+ * bitene kadar bekler.
+ */
+function BulkLineNegotiationView({
+  customer,
+  lines,
+  onClose,
+}: {
+  customer: NegotiationCustomer;
+  lines: NegotiationLine[];
+  onClose: () => void;
+}) {
+  const [lineIndex, setLineIndex] = useState(0);
+  const [summary, setSummary] = useState({ accepted: 0, rejected: 0, totalTl: 0 });
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (!done) return;
+    const id = setTimeout(onClose, 1800);
+    return () => clearTimeout(id);
+  }, [done, onClose]);
+
+  if (done) {
+    return (
+      <View style={styles.compactWrap}>
+        <View style={styles.compactResult}>
+          <View style={[styles.compactBadge, { backgroundColor: colors.positive }]}>
+            <Text style={styles.compactBadgeLabel}>✓</Text>
+          </View>
+          <View style={styles.compactTextBlock}>
+            <Text style={styles.compactTitle}>Toplu alım tamamlandı</Text>
+            <Text style={styles.compactSubtitle}>
+              {summary.accepted} kalem kabul edildi, {summary.rejected} kalem reddedildi — toplam{' '}
+              {formatTl(summary.totalTl)} ödendi.
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  const current = lines[lineIndex];
+  return (
+    <View style={styles.stack}>
+      <CustomerNoteCard customer={customer} />
+      <LineItemNegotiation
+        key={lineIndex}
+        product={current.product}
+        reading={current.scaleReading}
+        customer={customer}
+        lineLabel={`Kalem ${lineIndex + 1}/${lines.length}: ${current.product.name}`}
+        onSettled={(result) => {
+          setSummary((s) => ({
+            accepted: s.accepted + (result.accepted ? 1 : 0),
+            rejected: s.rejected + (result.accepted ? 0 : 1),
+            totalTl: s.totalTl + (result.accepted ? result.amountTl : 0),
+          }));
+          if (lineIndex + 1 >= lines.length) setDone(true);
+          else setLineIndex((i) => i + 1);
+        }}
+      />
     </View>
   );
 }

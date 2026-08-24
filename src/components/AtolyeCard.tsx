@@ -12,6 +12,8 @@ export function AtolyeCard({
   gramsPerDay,
   upgradeCostTl,
   canAfford,
+  locked,
+  requiredLevel,
   onUpgrade,
 }: {
   level: number;
@@ -19,6 +21,9 @@ export function AtolyeCard({
   gramsPerDay: number;
   upgradeCostTl: number | null;
   canAfford: boolean;
+  /** v3: Seviye 7'den önce erişilemez — erken oyunda pasif gelire kaçışı engeller. */
+  locked?: boolean;
+  requiredLevel?: number;
   onUpgrade: () => void;
 }) {
   const isMax = upgradeCostTl === null;
@@ -30,16 +35,24 @@ export function AtolyeCard({
           Sv.{level}/{maxLevel}
         </Text>
       </View>
-      <Text style={styles.production}>
-        {gramsPerDay > 0 ? `Günde ${gramsPerDay.toLocaleString('tr-TR')}g has altın üretiyor` : 'Henüz kurulmadı'}
-      </Text>
+      {locked ? (
+        <Text style={styles.production}>Kilitli — Seviye {requiredLevel} gerekiyor</Text>
+      ) : (
+        <Text style={styles.production}>
+          {gramsPerDay > 0 ? `Günde ${gramsPerDay.toLocaleString('tr-TR')}g has altın üretiyor` : 'Henüz kurulmadı'}
+        </Text>
+      )}
       <Pressable
-        disabled={isMax || !canAfford}
+        disabled={locked || isMax || !canAfford}
         onPress={onUpgrade}
-        style={[styles.button, (isMax || !canAfford) && styles.disabled]}
+        style={[styles.button, (locked || isMax || !canAfford) && styles.disabled]}
       >
         <Text style={styles.buttonLabel}>
-          {isMax ? 'Maksimum Seviye' : `${level === 0 ? 'Kur' : 'Yükselt'} · ${formatTl(upgradeCostTl!)}`}
+          {locked
+            ? `Kilitli — Sv.${requiredLevel}`
+            : isMax
+              ? 'Maksimum Seviye'
+              : `${level === 0 ? 'Kur' : 'Yükselt'} · ${formatTl(upgradeCostTl!)}`}
         </Text>
       </Pressable>
     </Card>

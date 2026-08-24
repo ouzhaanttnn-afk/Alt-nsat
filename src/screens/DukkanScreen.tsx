@@ -1,9 +1,10 @@
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActiveOfferSummary, type ActiveOffer } from '../components/ActiveOfferSummary';
+import { EMERGENCY_MICRO_LOAN_MAX_CASH_TL, EMERGENCY_MICRO_LOAN_TL } from '../config/economyConfig';
 import { BrokerDealBanner } from '../components/BrokerDealBanner';
 import { CapitalSummary } from '../components/CapitalSummary';
 import { CustomerHypeCard } from '../components/CustomerHypeCard';
@@ -22,7 +23,7 @@ import type { MainTabsParamList } from '../navigation/types';
 import type { ClockSpeed } from '../store/useGameStore';
 import { MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
-import { formatGameTime } from '../utils/format';
+import { formatGameTime, formatTl } from '../utils/format';
 import type { IncomingCustomer } from '../types/incomingCustomer';
 
 type DukkanNavigationProp = BottomTabNavigationProp<MainTabsParamList, 'Dükkân'>;
@@ -55,6 +56,9 @@ export function DukkanScreen() {
   const customerHypeUntilMs = useGameStore((s) => s.customerHypeUntilMs);
   const watchAdForCustomerHype = useGameStore((s) => s.watchAdForCustomerHype);
   const incomingCustomer = useGameStore((s) => s.incomingCustomer);
+  const hasCompletedTutorial = useGameStore((s) => s.hasCompletedTutorial);
+  const completeTutorial = useGameStore((s) => s.completeTutorial);
+  const takeEmergencyMicroLoan = useGameStore((s) => s.takeEmergencyMicroLoan);
 
   const currentTotalMinutes = day * MINUTES_PER_DAY + minuteOfDay;
   const brokerMinutesLeft = brokerDeal ? brokerDeal.expiresAtTotalMinutes - currentTotalMinutes : 0;
@@ -113,6 +117,29 @@ export function DukkanScreen() {
             Gün {day} · {formatGameTime(minuteOfDay)}
           </Text>
         </View>
+
+        {!hasCompletedTutorial && (
+          <View style={styles.tutorialCard}>
+            <Text style={styles.tutorialText}>
+              Yeni müşteriler geldikçe önce Hassas Terazi ile tart, sonra bir fiyat teklif et.
+              Kabul/karşı teklif/red — pazarlık burada gerçekleşir.
+            </Text>
+            <Pressable onPress={completeTutorial} hitSlop={8}>
+              <Text style={styles.tutorialDismiss}>Anladım</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {capital.cashTl <= EMERGENCY_MICRO_LOAN_MAX_CASH_TL && (
+          <View style={styles.emergencyCard}>
+            <Text style={styles.emergencyText}>Kasan neredeyse boş — hiçbir işlem yapamayabilirsin.</Text>
+            <Pressable style={styles.emergencyButton} onPress={takeEmergencyMicroLoan}>
+              <Text style={styles.emergencyButtonLabel}>
+                Acil Mikro Kredi Al · +{formatTl(EMERGENCY_MICRO_LOAN_TL)}
+              </Text>
+            </Pressable>
+          </View>
+        )}
 
         <QuickStatsRow
           cashTl={capital.cashTl}
@@ -242,5 +269,44 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.inkMutedOnDark,
     marginTop: -4,
+  },
+  tutorialCard: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: 12,
+    padding: 12,
+    gap: 6,
+  },
+  tutorialText: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.ink,
+  },
+  tutorialDismiss: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.sm,
+    color: colors.accentDark,
+    alignSelf: 'flex-end',
+  },
+  emergencyCard: {
+    backgroundColor: colors.negative,
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+  },
+  emergencyText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: fontSizes.sm,
+    color: colors.white,
+  },
+  emergencyButton: {
+    backgroundColor: colors.white,
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  emergencyButtonLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.sm,
+    color: colors.negative,
   },
 });

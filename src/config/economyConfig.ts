@@ -12,11 +12,14 @@ export const GAME_MINUTES_PER_REAL_SECOND_AT_1X = 3;
 // Uygulama arka planda uzun süre kaldıysa tek tick'te aşırı sıçramayı önler.
 export const MAX_REAL_SECONDS_PER_TICK = 5;
 
-// ---- Sermaye (Bölüm 2) --------------------------------------------------
-// Oyuncu 1 kg has altınla başlar — ayrı bir "rezerv" yok, tamamı gün 1
-// fiyatından doğrudan kullanılabilir nakde çevrilir.
-export const STARTING_CAPITAL_GRAMS = 1000;
-export const STARTING_REFERENCE_PRICE = 6845; // TL, gram altın referans (orta) fiyatı
+// ---- Sermaye (Bölüm 2 — v3 dengeleme düzeltmesi) -------------------------
+// v3 KRİTİK DÜZELTME: eski "1 kg has altın nakde çevrilir" başlangıcı
+// (~6.8-7.1M TL) erken oyun zorluğunu tamamen ortadan kaldırıyordu —
+// toptancı stoğunun tamamı ilk dakikada peşin alınabiliyordu. Kullanıcı
+// isteğiyle sabit, mütevazı bir nakit bakiyeyle değiştirildi: oyuncu
+// gerçek bir "az sermayeyle başlayan kuyumcu" hissi yaşamalı.
+export const STARTING_CASH_TL = 100000;
+export const STARTING_REFERENCE_PRICE = 6845; // TL, gram altın referans (orta) fiyatı — sadece piyasa başlangıcı için, sermaye artık buna bağlı değil.
 // Bölüm 2: Sermaye Kademeleri — her yeni kademe bir Yetenek Ağacı puanı kazandırır.
 export const CAPITAL_TIERS = [100000, 500000, 2000000, 10000000, 50000000, 250000000];
 
@@ -130,6 +133,10 @@ export const MILESTONE_BONUS_SKILL_POINTS = 1;
 // Bozdurma müşterisi geldiğinde, bunun standart sarrafiye yerine işçilikli
 // bir ürün getirme ihtimali:
 export const CRAFTED_GOOD_CUSTOMER_PROBABILITY = 0.3;
+// [YENİ] v3 — Toplu Alım (Kalem Bazlı Pazarlık): bir bozdurma müşterisinin
+// (işçilikli ürün değilse) 2-3 FARKLI sarrafiye kalemiyle birden gelme
+// ihtimali — her kalem NegotiationPanel'de ayrı pazarlık edilir.
+export const MULTI_ITEM_CUSTOMER_PROBABILITY = 0.2;
 // Uzman Görüşü yatırılmamışsa (Sv.0) müşterinin beyan ettiği ayardan farklı
 // çıkma (yanlış ayar/sahtecilik) ihtimali en yüksek; skil arttıkça iddialı
 // müşteriler daha az denk gelir (deneyimli kuyumcu şüpheli malı daha baştan
@@ -167,22 +174,41 @@ export const FOUR_X_AD_UNLOCK_MINUTES = 15;
 export const CUSTOMER_HYPE_AD_DURATION_MINUTES = 15;
 export const CUSTOMER_HYPE_ARRIVAL_MULTIPLIER = 1.33;
 
-// ---- Atölye (Bölüm 17) ----------------------------------------------------
+// ---- Atölye (Bölüm 17 — v3 dengeleme düzeltmesi) --------------------------
 // Oyun hızından bağımsız, sürekli çalışan pasif has altın üretimi — para
 // yatırımı gerektirir (anlamlı bir fırsat maliyeti kararı), ama bir kere
 // kurulduktan sonra günlük yönetim istemez. XP üretmez (Bölüm 23-24: XP
-// sadece aktif alım-satımdan).
+// sadece aktif alım-satımdan). Sadece Seviye 7+ oyuncuya açık (ATOLYE_
+// REQUIRED_LEVEL) — erken oyunda pasif gelire kaçışı engeller.
+export const ATOLYE_REQUIRED_LEVEL = 7;
 export const ATOLYE_MAX_LEVEL = 3;
-export const ATOLYE_GRAMS_PER_DAY_PER_LEVEL = 100;
-export const ATOLYE_UPGRADE_BASE_COST_TL = 150000;
+// v3 KRİTİK DÜZELTME: eski 100g/gün/seviye, aktif ticaretin anlamını
+// yitirmesine yol açacak kadar büyüktü (tek başına toptancı restokundan
+// daha hızlı zenginleştiriyordu). 3g/gün/seviye (2-5 aralığı) ekonomiyi
+// bozmayan, gerçek bir "yavaş ama emin" pasif katkı seviyesine indirir.
+export const ATOLYE_GRAMS_PER_DAY_PER_LEVEL = 3;
+// v3 KRİTİK DÜZELTME: sabit TL maliyeti yerine altın fiyatına PEG'li
+// dinamik maliyet — kuruluş her zaman "200 gram has altın" değerinde
+// kalır, piyasa fiyatı ne olursa olsun anlamlı bir fırsat maliyeti taşır
+// (bkz. useGameStore.upgradeAtolye: cost = ATOLYE_UPGRADE_BASE_COST_GRAMS
+// * goldPrice.buyPricePerGram * multiplier^level).
+export const ATOLYE_UPGRADE_BASE_COST_GRAMS = 200;
 export const ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL = 2.2;
 
-// ---- Takı Yatırım Paketleri (Bölüm 18-20) ---------------------------------
-// 30 gün kilitli, sabit günlük getiri + vade sonunda anapara iadesi.
-// Dört ayar kademesinin (8/14/18/22) TÜMÜ aynı anda aktifse (bir "koleksiyon")
-// toplam günlük getiriye set bonusu uygulanır.
-export const TAKI_PACKAGE_TERM_DAYS = 30;
-export const TAKI_PACKAGE_SET_BONUS_MULTIPLIER = 1.1;
+// ---- Takı Yatırımı — Parça & Set (Bölüm 18-20, v3 modeli) -----------------
+// [YENİ] Eski "30 gün kilitli anapara paketi" modeli KALDIRILDI — kullanıcı
+// isteğiyle Oyun B'nin parça-bazlı modeli benimsendi: anapara kilidi/vade
+// yok, oyuncu her ayar kademesindeki 4 parçayı (Kolye/Yüzük/Küpe/Bileklik)
+// TEK TEK satın alır, kalıcı günlük TL getiri sağlar. Sadece Seviye 7+
+// (JEWELRY_REQUIRED_LEVEL) — Atölye ile aynı erken-oyun koruması.
+export const JEWELRY_REQUIRED_LEVEL = 7;
+// Bir parçanın taban ağırlığı (gram) — fiyat = buyPricePerGram × kademe
+// çarpanı × bu ağırlık (bkz. engine/jewelry.ts computeJewelryPiecePriceTl).
+export const JEWELRY_PIECE_BASE_WEIGHT_GRAMS = 20;
+// Her parça, fiyatının bu oranı kadar günlük pasif TL getirisi sağlar.
+export const JEWELRY_DAILY_RETURN_RATE_OF_PRICE = 0.012;
+// Bir kademedeki 4 parçanın TÜMÜ tamamlanınca o kademenin getirisine eklenir.
+export const JEWELRY_SET_BONUS_PCT = 0.1;
 
 // ---- Pazarlık: Karşı Teklif (v2 iterasyonu — gerçek pazarlık hissi) ------
 // Kaydırma çubuğuyla gönderilen bir teklif artık anında sonuçlanır (30 dk'lık
@@ -227,6 +253,17 @@ export const XP_BONUS_DEAL_COMPLETED = 10;
 export const XP_BONUS_PROFITABLE_SALE = 15;
 export const XP_BONUS_GOOD_BARGAIN = 10; // teklif, eşiğin altında ama karşı teklif turlarıyla kapandıysa
 export const XP_BONUS_RARE_ITEM = 20; // işçilikli/nadir ürün ya da büyük (çoklu adet) işlem
+
+// ---- Soft-Lock Koruması (v3 — kritik) -------------------------------------
+// Kasa 0 TL'ye düştüğünde (ve elde satılabilir stok da yoksa) oyuncu hiçbir
+// işlem yapamaz hale gelebilir (toptancıdan alamaz, borç eşiği altındaysa
+// kredi de alamaz). Bu, normal wholesalerTrust kredi kontrolünü BİLİNÇLİ
+// OLARAK atlayan, her zaman kullanılabilir bir acil çıkış: küçük bir borç
+// karşılığında oyunu yeniden hareket ettirecek kadar nakit sağlar.
+export const EMERGENCY_MICRO_LOAN_TL = 20000;
+// Aynı acil krediyi arka arkaya spam'lemeyi anlamsızlaştırmak için: sadece
+// kasa bu eşiğin altındayken kullanılabilir.
+export const EMERGENCY_MICRO_LOAN_MAX_CASH_TL = 500;
 
 // ---- Büyük Bozdurmalar + Toptancı Bağlantısı (Bölüm 9) -------------------
 // Müşteriden nakit yetmeyen bir alım yapılıp borca yazıldığında, oyuncu

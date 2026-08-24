@@ -1,6 +1,17 @@
 import type { ScaleReading } from '../components/ScalePanel';
 import type { NegotiationCustomer, NegotiationProduct } from './negotiation';
 
+/**
+ * [YENİ] v3 — Toplu Alım (Kalem Bazlı Pazarlık): bir bozdurma müşterisi
+ * birden fazla FARKLI üründen (ör. Çeyrek + Gram + Bilezik) aynı anda
+ * gelebilir. Her kalem kendi tartımı ve kendi teklif/kabul/karşı-teklif
+ * sonucuyla, TEK sepet fiyatı OLMADAN bağımsız pazarlık edilir.
+ */
+export interface NegotiationLine {
+  product: NegotiationProduct;
+  scaleReading: ScaleReading;
+}
+
 // Bölüm 4.2/6 — sürekli akan müşteri: dükkâna gerçek zamanlı gelen bir
 // müşteri akışı, oyunun ilk dakikasından itibaren iki yönlü çalışır:
 // 'satis' — müşteri dükkânın stoğundan bir şey almak istiyor (mevcut
@@ -24,5 +35,12 @@ export interface IncomingCustomer {
   unitsRequired?: number;
   /** Sadece direction:'bozdurma' — Pazarlık ekranının terazi paneli için sahte ölçüm. */
   scaleReading?: ScaleReading;
+  /**
+   * [YENİ] v3 — sadece direction:'bozdurma': birden fazla FARKLI ürünle
+   * gelen "Toplu Alım" müşterisi. Varsa NegotiationPanel `product`/
+   * `scaleReading` yerine bu diziyi kalem kalem işler (bkz. lines[0] =
+   * product/scaleReading ile tutarlı, geriye dönük uyum için ayna).
+   */
+  lines?: NegotiationLine[];
   expiresAtTotalMinutes: number;
 }
