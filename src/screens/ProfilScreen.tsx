@@ -2,12 +2,12 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
 import { LevelProgressCard } from '../components/LevelProgressCard';
+import { ProfitAnalysisCard } from '../components/ProfitAnalysisCard';
 import { ReputationGauge } from '../components/ReputationGauge';
 import { ShopNameHeader } from '../components/ShopNameHeader';
 import { LEVEL_MAX } from '../config/economyConfig';
 import { useGameStore, xpRequiredForLevel } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
-import { formatTl } from '../utils/format';
 
 // Bölüm 31: Profil — oyuncu/dükkân adı, seviye, XP, karizma, toplam kâr.
 // Yetenek ağacı artık ayrı bir sekmede (bkz. YeteneklerScreen).
@@ -22,6 +22,7 @@ export function ProfilScreen() {
   const totalXp = useGameStore((s) => s.totalXp);
   const resetSkills = useGameStore((s) => s.resetSkills);
   const realizedTradingProfitTl = useGameStore((s) => s.realizedTradingProfitTl);
+  const totalTradingCostBasisTl = useGameStore((s) => s.totalTradingCostBasisTl);
 
   const isMaxLevel = level >= LEVEL_MAX;
   const xpForCurrentLevel = xpRequiredForLevel(level);
@@ -51,18 +52,13 @@ export function ProfilScreen() {
           <ReputationGauge score={wholesalerTrust} label="TOPTANCI GÜVENİ" align="flex-start" />
         </Card>
 
-        <Card>
-          <Text style={styles.statLabel}>TOPLAM ALIM-SATIM KÂRI</Text>
-          <Text
-            style={[
-              styles.statValue,
-              { color: realizedTradingProfitTl >= 0 ? colors.positive : colors.negative },
-            ]}
-          >
-            {realizedTradingProfitTl >= 0 ? '+' : ''}
-            {formatTl(realizedTradingProfitTl)}
-          </Text>
-        </Card>
+        <ProfitAnalysisCard
+          title="ALIM-SATIM KÂR ANALİZİ"
+          costLabel="Toplam Maliyet"
+          profitLabel="Toplam Kâr"
+          costTl={totalTradingCostBasisTl}
+          profitTl={realizedTradingProfitTl}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -107,16 +103,5 @@ const styles = StyleSheet.create({
   gaugeCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  statLabel: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: fontSizes.xs,
-    color: colors.inkMuted,
-    letterSpacing: 1,
-  },
-  statValue: {
-    fontFamily: fonts.headingBold,
-    fontSize: fontSizes.xl,
-    marginTop: 4,
   },
 });

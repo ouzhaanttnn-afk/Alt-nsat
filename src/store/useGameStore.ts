@@ -473,6 +473,8 @@ interface GameState {
   clearIncomingCustomer: (id: string) => void;
   /** Alım-satım makasından bugüne kadar gerçekleşen toplam kâr/zarar. */
   realizedTradingProfitTl: number;
+  /** Profil'deki Kâr Analizi için: satılan sarrafiye kaleminin toplam maliyet tabanı (realizedTradingProfitTl'in payda tarafı). */
+  totalTradingCostBasisTl: number;
   /**
    * Gerçek para (mağaza içi satın alma) ile kalıcı bir pırlanta vitrin
    * parçası ekler. YER TUTUCU: gerçek ödeme tahsilatı yapmaz, oyun içi
@@ -547,6 +549,7 @@ export const useGameStore = create<GameState>()(
   customerHypeUntilMs: null,
   highestBrandStageIndex: -1,
   realizedTradingProfitTl: 0,
+  totalTradingCostBasisTl: 0,
   totalXp: 0,
   level: 1,
   skillPoints: 0,
@@ -1129,6 +1132,7 @@ export const useGameStore = create<GameState>()(
       inventory,
       brokerDeal: null,
       realizedTradingProfitTl: state.realizedTradingProfitTl + profitTl,
+      totalTradingCostBasisTl: state.totalTradingCostBasisTl + soldCostBasisTl,
       capital: {
         ...state.capital,
         cashTl: state.capital.cashTl + saleValueTl,
@@ -1253,6 +1257,7 @@ export const useGameStore = create<GameState>()(
     set({
       inventory,
       realizedTradingProfitTl: state.realizedTradingProfitTl + profitTl,
+      totalTradingCostBasisTl: state.totalTradingCostBasisTl + item.costBasisTl,
       capital: {
         ...state.capital,
         cashTl: state.capital.cashTl + saleValueTl,
@@ -1344,6 +1349,7 @@ export const useGameStore = create<GameState>()(
     set({
       inventory,
       realizedTradingProfitTl: state.realizedTradingProfitTl + profitTl,
+      totalTradingCostBasisTl: state.totalTradingCostBasisTl + soldCostBasisTl,
       capital: {
         ...state.capital,
         cashTl: state.capital.cashTl + saleValueTl,
@@ -1433,6 +1439,7 @@ export const useGameStore = create<GameState>()(
       inventory,
       incomingCustomer: null,
       realizedTradingProfitTl: state.realizedTradingProfitTl + profitTl,
+      totalTradingCostBasisTl: state.totalTradingCostBasisTl + soldCostBasisTl,
       capital: {
         ...state.capital,
         cashTl: state.capital.cashTl + amountTl,
@@ -1551,6 +1558,7 @@ export const useGameStore = create<GameState>()(
         customerHypeUntilMs: state.customerHypeUntilMs,
         highestBrandStageIndex: state.highestBrandStageIndex,
         realizedTradingProfitTl: state.realizedTradingProfitTl,
+        totalTradingCostBasisTl: state.totalTradingCostBasisTl,
         totalXp: state.totalXp,
         level: state.level,
         skillPoints: state.skillPoints,
