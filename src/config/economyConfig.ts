@@ -58,6 +58,11 @@ export const MIN_TRUST_FOR_CREDIT = 30;
 // ---- Gelen Müşteri Akışı (Bölüm 6) --------------------------------------
 // Dükkâna sürekli akan müşteri: hem "satın almak" hem "bozdurmak"
 // isteyen müşteriler oyunun ilk dakikasından itibaren aynı havuzdan gelir.
+// [YENİ] Müşteri Bekleme Kuyruğu: artık üretilen müşteri doğrudan tezgahı
+// (incomingCustomer) işgal etmiyor, önce bu kuyruğa giriyor — oyuncu
+// callNextCustomerToCounter() ile sırayla tezgaha çağırıyor. Kuyruk bu
+// uzunluğa ulaşınca (mekan dolu) yeni müşteri üretimi geçici olarak durur.
+export const MAX_WAITING_QUEUE_LENGTH = 5;
 export const INCOMING_CUSTOMER_CHECKS_PER_DAY = 20;
 export const INCOMING_CUSTOMER_TRIGGER_PROBABILITY = 1;
 export const INCOMING_CUSTOMER_EXPIRY_MINUTES = 90;

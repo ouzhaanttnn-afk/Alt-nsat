@@ -19,6 +19,7 @@ import {
   CRAFTED_GOOD_CUSTOMER_PROBABILITY,
   CRAFTED_GOOD_KARAT_MISMATCH,
   CRAFTED_GOOD_MIN_COUNTERFEIT_RISK,
+  MAX_WAITING_QUEUE_LENGTH,
   MULTI_ITEM_CUSTOMER_PROBABILITY,
   CUSTOMER_HYPE_AD_DURATION_MINUTES,
   CUSTOMER_HYPE_ARRIVAL_MULTIPLIER,
@@ -324,8 +325,16 @@ interface GameState {
   inventory: InventoryItem[];
   /** Bölüm 4.6: Bekleyen/Kabul/Red durumundaki tüm pazarlık teklifleri. */
   offers: Offer[];
-  /** Piyasa: dükkâna gelmiş, o an aktif müşteri (alım ya da bozdurma isteyebilir). */
+  /** Piyasa: dükkâna gelmiş, o an aktif müşteri (alım ya da bozdurma isteyebilir) — yani TEZGAHTAKİ müşteri. */
   incomingCustomer: IncomingCustomer | null;
+  /** [YENİ] Müşteri Bekleme Kuyruğu — üretilen müşteriler önce buraya girer, tezgaha çağrılmayı bekler. */
+  waitingCustomers: IncomingCustomer[];
+  /**
+   * [YENİ] Kuyruktaki ilk (index 0) müşteriyi tezgaha (incomingCustomer)
+   * çağırır. Tezgah doluysa (incomingCustomer !== null) ya da kuyruk
+   * boşsa false döner.
+   */
+  callNextCustomerToCounter: () => boolean;
   day: number;
   minuteOfDay: number;
   speed: ClockSpeed;
@@ -572,6 +581,7 @@ export const useGameStore = create<GameState>()(
   inventory: [],
   offers: [],
   incomingCustomer: null,
+  waitingCustomers: [],
   day: 1,
   minuteOfDay: 0,
   speed: 1,
@@ -786,11 +796,11 @@ export const useGameStore = create<GameState>()(
       brandStageCashDelta = dailyBrandIncomeTl * daysElapsed;
     }
 
-    // Piyasa: aktif müşterinin süresi dolduysa (ya da 'satis' yönünde
-    // istediği ürün stoktan tükendiyse) müşteri elini boş dönüp gider;
-    // aktif müşteri yoksa düşük bir olasılıkla yeni biri gelir — hem
-    // "almak istiyorum" hem "bozdurmak istiyorum" müşterileri oyunun
-    // ilk dakikasından itibaren aynı havuzdan, yapay bir kilit olmadan.
+    // [YENİ] Müşteri Bekleme Kuyruğu: tezgahtaki (incomingCustomer) müşteri
+    // ile bekleme kuyruğu (waitingCustomers) artık BAĞIMSIZ iki kavram.
+    // Tezgahtaki müşterinin süresi dolduysa (ya da 'satis' yönünde istediği
+    // ürün stoktan tükendiyse) elini boş dönüp gider — bu, kuyruktan yeni
+    // birinin çağrılmasını (callNextCustomerToCounter) ETKİLEMEZ.
     let incomingCustomer = postOfferState.incomingCustomer;
     if (incomingCustomer) {
       const expired = currentTotalMinutes >= incomingCustomer.expiresAtTotalMinutes;
@@ -803,7 +813,19 @@ export const useGameStore = create<GameState>()(
       if (expired || staleSatisTarget) {
         incomingCustomer = null;
       }
-    } else {
+    }
+
+    // Kuyruktaki müşterilerden sabrı (expiresAtTotalMinutes) dolanlar,
+    // tezgaha hiç çağrılmadan otomatik olarak kuyruktan silinir.
+    let waitingCustomers = postOfferState.waitingCustomers.filter(
+      (c) => currentTotalMinutes < c.expiresAtTotalMinutes,
+    );
+
+    // Yeni müşteri üretimi artık DOĞRUDAN tezgahı değil, kuyruğu besler —
+    // tezgah meşgulken bile (oyuncu pazarlık ederken) kuyruk dolmaya devam
+    // eder, ta ki MAX_WAITING_QUEUE_LENGTH'e ("mekan dolu") ulaşana kadar.
+    let newCustomer: IncomingCustomer | undefined;
+    if (waitingCustomers.length < MAX_WAITING_QUEUE_LENGTH) {
       // Müşteri Hype (reklamla açılan GERÇEK DÜNYA penceresi) aktifken gelen
       // müşteri tetiklenme olasılığı katlanır.
       const hypeActive = state.customerHypeUntilMs !== null && state.customerHypeUntilMs > Date.now();
@@ -869,7 +891,7 @@ export const useGameStore = create<GameState>()(
           if (candidates.length > 0) {
             const candidate = candidates[Math.floor(Math.random() * candidates.length)];
             const marketValueTl = equivalentGrams(candidate.displayGrams, candidate.displayKarat) * nextSellPrice;
-            incomingCustomer = {
+            newCustomer = {
               id: String(nextIncomingCustomerId++),
               direction: 'satis',
               customer: {
@@ -910,7 +932,7 @@ export const useGameStore = create<GameState>()(
             karat: good.claimedKarat,
             cleanliness: good.hasHiddenFlaw ? 'Şüpheli, dikkatli incelenmeli' : 'Temiz',
           };
-          incomingCustomer = {
+          newCustomer = {
             id: String(nextIncomingCustomerId++),
             direction: 'bozdurma',
             customer: {
@@ -939,7 +961,7 @@ export const useGameStore = create<GameState>()(
           // [YENİ] v3 — Toplu Alım: 2-3 farklı üründen oluşan, kalem bazlı
           // pazarlık edilen bir bozdurma ziyareti.
           const lines = pickMultiItemBozdurmaLines(nextBuyPrice);
-          incomingCustomer = {
+          newCustomer = {
             id: String(nextIncomingCustomerId++),
             direction: 'bozdurma',
             customer: {
@@ -968,7 +990,7 @@ export const useGameStore = create<GameState>()(
             karat: candidate.karat,
             cleanliness: candidate.name === 'Karışık Hurda Altın' ? 'Karışık, ayrıştırma gerekiyor' : 'Temiz',
           };
-          incomingCustomer = {
+          newCustomer = {
             id: String(nextIncomingCustomerId++),
             direction: 'bozdurma',
             customer: {
@@ -999,6 +1021,10 @@ export const useGameStore = create<GameState>()(
         }
       }
     }
+    // Üretilen müşteri (varsa) tezgahı değil, kuyruğun sonunu doldurur.
+    if (newCustomer) {
+      waitingCustomers = [...waitingCustomers, newCustomer];
+    }
 
     const capital: CapitalState = {
       ...postOfferState.capital,
@@ -1006,13 +1032,11 @@ export const useGameStore = create<GameState>()(
       stockValueTl: computeStockValueTl(inventory, nextBuyPrice),
     };
 
-    // Yeni bir müşteri bu tick'te belirdiyse oyun anında duraklatılır — bu,
-    // Pazarlık paneli React render döngüsünde ekrana gelmeden ÖNCE, tick()
-    // içinde tek seferde olur; böylece müşterinin sabrı oyuncu henüz tepki
-    // vermeden (özellikle 2x/4x hızda) asla tükenmez.
-    const customerJustArrived = !postOfferState.incomingCustomer && incomingCustomer !== null;
-    const speedOverride = customerJustArrived ? { speed: 0 as ClockSpeed, preNegotiationSpeed: speed } : {};
-
+    // [YENİ] Not: müşteri artık tick() içinde asla doğrudan tezgahı
+    // (incomingCustomer) doldurmuyor — sadece kuyruğa ekleniyor. Otomatik
+    // duraklatma bu yüzden burada değil, callNextCustomerToCounter()'da
+    // tetiklenir (oyuncu birini tezgaha çağırdığı an, aynı "sabrı tükenmeden
+    // önce duraklat" garantisiyle).
     set({
       minuteOfDay,
       day,
@@ -1027,13 +1051,13 @@ export const useGameStore = create<GameState>()(
       inventory,
       offers,
       incomingCustomer,
+      waitingCustomers,
       capital,
       goldPrice: {
         buyPricePerGram: nextBuyPrice,
         sellPricePerGram: nextSellPrice,
         dailyChangePercent,
       },
-      ...speedOverride,
     });
   },
 
@@ -1525,6 +1549,24 @@ export const useGameStore = create<GameState>()(
     }
   },
 
+  callNextCustomerToCounter: () => {
+    const state = get();
+    if (state.incomingCustomer) return false;
+    if (state.waitingCustomers.length === 0) return false;
+    const [next, ...rest] = state.waitingCustomers;
+    // Tezgaha çağrılan müşterinin sabrı, oyuncu pazarlığa tepki verene
+    // kadar (özellikle 2x/4x hızda) tükenmesin diye oyun anında duraklatılır
+    // — NegotiationPanel mount olduğunda da aynısını garanti eder (defense
+    // in depth), kapanınca preNegotiationSpeed'e geri döner.
+    set({
+      incomingCustomer: next,
+      waitingCustomers: rest,
+      speed: 0,
+      preNegotiationSpeed: state.speed,
+    });
+    return true;
+  },
+
   purchasePirlanta: (catalogItem) => {
     const state = get();
     const existingIndex = state.inventory.findIndex(
@@ -1632,6 +1674,7 @@ export const useGameStore = create<GameState>()(
         inventory: state.inventory,
         offers: state.offers,
         incomingCustomer: state.incomingCustomer,
+        waitingCustomers: state.waitingCustomers,
         day: state.day,
         minuteOfDay: state.minuteOfDay,
         speed: state.speed,
