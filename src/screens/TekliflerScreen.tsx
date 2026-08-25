@@ -7,6 +7,7 @@ import { OfferCard } from '../components/OfferCard';
 import { MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 import type { OfferStatus } from '../types/offer';
+import { buildOfferHistoryRows } from '../utils/offerHistoryKey';
 
 type FilterValue = 'tumu' | OfferStatus;
 
@@ -43,9 +44,14 @@ export function TekliflerScreen() {
     [offers],
   );
 
+  const historyRows = useMemo(() => buildOfferHistoryRows(offers), [offers]);
+
   const filtered = useMemo(
-    () => (filter === 'tumu' ? offers : offers.filter((offer) => offer.status === filter)),
-    [offers, filter],
+    () =>
+      filter === 'tumu'
+        ? historyRows
+        : historyRows.filter(({ offer }) => offer.status === filter),
+    [historyRows, filter],
   );
 
   return (
@@ -77,9 +83,9 @@ export function TekliflerScreen() {
           </View>
         ) : (
           <View style={styles.list}>
-            {filtered.map((offer) => (
+            {filtered.map(({ offer, historyKey }) => (
               <OfferCard
-                key={offer.id}
+                key={historyKey}
                 offer={offer}
                 remainingLabel={
                   offer.status === 'bekleyen'
