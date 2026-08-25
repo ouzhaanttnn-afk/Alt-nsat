@@ -41,8 +41,6 @@ import {
   MARKET_STEP_MIN_PERCENT,
   MARKET_STEP_MINUTES,
   MAX_REAL_SECONDS_PER_TICK,
-  MELTING_EFFICIENCY_MAX,
-  MELTING_EFFICIENCY_MIN,
   MELTING_SMALL_LARGE_THRESHOLD_GRAMS,
   MELTING_TIME_LARGE_MAX_MINUTES,
   MELTING_TIME_LARGE_MIN_MINUTES,
@@ -75,7 +73,7 @@ import {
   computeJewelryTotalDailyReturnTl,
   type JewelryHoldings,
 } from '../engine/jewelry';
-import { craftedWorkshopDurationDays, craftedWorkshopResult } from '../engine/craftedGoods';
+import { craftedMeltHasGrams, craftedWorkshopDurationDays, craftedWorkshopResult } from '../engine/craftedGoods';
 import { CUSTOMER_PERSONAS, INCOMING_CUSTOMER_NAMES } from '../data/incomingCustomerPool';
 import { toptanciStock } from '../data/toptanciStock';
 import type { PirlantaCatalogItem } from '../data/mockPirlanta';
@@ -1243,9 +1241,7 @@ export const useGameStore = create<GameState>()(
     // Bölüm 15: Taş Ustası olmadan taşın ayrı değeri eritmede kaybolur.
     const tasUstasiLevel = state.skillLevels['tas-ustasi'] ?? 0;
 
-    // Bölüm 12/14: gizli kusurlu bir parça eritmede ekstra kayıp verir.
-    const efficiency = randomInRange(MELTING_EFFICIENCY_MIN, MELTING_EFFICIENCY_MAX) * (hasHiddenFlaw ? 0.85 : 1);
-    const recoveredGrams = Math.round(equivalentGrams(item.grams, actualKarat) * efficiency * 100) / 100;
+    const recoveredGrams = craftedMeltHasGrams(item.grams, actualKarat) * (hasHiddenFlaw ? 0.85 : 1);
     const stoneValueTl = tasUstasiLevel > 0 ? (item.stoneValueTl ?? 0) : 0;
 
     const isSmall = item.grams <= MELTING_SMALL_LARGE_THRESHOLD_GRAMS;

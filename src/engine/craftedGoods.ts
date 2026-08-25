@@ -1,4 +1,5 @@
 import {
+  CRAFTED_MELT_PURITY_BY_KARAT,
   CRAFTED_WORKSHOP_MIN_CRAFT_PREMIUM_RATIO,
   CRAFTED_WORKSHOP_PROCESSING_DAYS_BY_SIZE,
   CRAFTED_WORKSHOP_VALUE_BONUS_RATIO,
@@ -12,6 +13,11 @@ export function isCraftedGoodItem(item: Pick<InventoryItem, 'category'>): boolea
 
 export function craftedGoodHasGrams(item: Pick<InventoryItem, 'grams' | 'karat'>): number {
   return equivalentGrams(item.grams, item.karat);
+}
+
+export function craftedMeltHasGrams(grams: number, karat: number): number {
+  const purity = CRAFTED_MELT_PURITY_BY_KARAT[karat] ?? karat / 24;
+  return Math.round(grams * purity * 100) / 100;
 }
 
 export function craftedGoodMetalValueTl(

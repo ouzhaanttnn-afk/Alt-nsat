@@ -171,6 +171,12 @@ export const MELTING_TIME_LARGE_MIN_MINUTES = 5;
 export const MELTING_TIME_LARGE_MAX_MINUTES = 10;
 // Yeniden Doğuş: eritme süresini seviye başına kısaltır.
 export const YENIDEN_DOGUS_TIME_REDUCTION_PER_LEVEL = 0.15;
+export const CRAFTED_MELT_PURITY_BY_KARAT: Record<number, number> = {
+  8: 0.333,
+  14: 0.585,
+  18: 0.75,
+  22: 0.916,
+};
 
 // ---- 4x Hız Tekelleştirmesi (Bölüm 22) -------------------------------------
 // 1x/2x/duraklat her zaman serbest; sadece 4x parayla (reklam ya da IAP)

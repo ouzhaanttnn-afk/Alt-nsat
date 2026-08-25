@@ -5,9 +5,9 @@ import {
 import {
   craftedGoodEstimatedValueTl,
   craftedGoodHasGrams,
+  craftedMeltHasGrams,
   isCraftedGoodItem,
 } from '../src/engine/craftedGoods';
-import { equivalentGrams } from '../src/engine/pricing';
 import { useGameStore } from '../src/store/useGameStore';
 import type { InventoryItem } from '../src/types/game';
 
@@ -99,7 +99,7 @@ it('melting removes the crafted item and converts it into recovered has gold', (
   expect(useGameStore.getState().meltCraftedGood(item.id)).toBe(false);
 
   const job = useGameStore.getState().meltingJob!;
-  const expectedRecovered = Math.round(equivalentGrams(item.grams, item.actualKarat!) * 0.95 * 100) / 100;
+  const expectedRecovered = craftedMeltHasGrams(item.grams, item.actualKarat!);
   expect(job.recoveredGrams).toBe(expectedRecovered);
   expect(job.costBasisTl).toBe(item.costBasisTl);
 
