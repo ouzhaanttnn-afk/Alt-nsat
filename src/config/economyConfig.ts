@@ -18,7 +18,11 @@ export const MAX_REAL_SECONDS_PER_TICK = 5;
 // toptancı stoğunun tamamı ilk dakikada peşin alınabiliyordu. Kullanıcı
 // isteğiyle sabit, mütevazı bir nakit bakiyeyle değiştirildi: oyuncu
 // gerçek bir "az sermayeyle başlayan kuyumcu" hissi yaşamalı.
-export const STARTING_CASH_TL = 100000;
+// [GEÇİCİ TEST DEĞERİ] Test kolaylığı için kullanıcı isteğiyle 100.000'den
+// yükseltildi — dengelemeye dönülürse yukarıdaki orijinal mütevazı değere
+// (100.000) geri alınabilir. Sadece YENİ oyunları etkiler, mevcut kayıtlı
+// kasa bakiyesini değiştirmez.
+export const STARTING_CASH_TL = 1000000;
 export const STARTING_REFERENCE_PRICE = 6845; // TL, gram altın referans (orta) fiyatı — sadece piyasa başlangıcı için, sermaye artık buna bağlı değil.
 // Bölüm 2: Sermaye Kademeleri — her yeni kademe bir Yetenek Ağacı puanı kazandırır.
 export const CAPITAL_TIERS = [100000, 500000, 2000000, 10000000, 50000000, 250000000];
