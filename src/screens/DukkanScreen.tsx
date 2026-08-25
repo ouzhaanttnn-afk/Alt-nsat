@@ -163,32 +163,58 @@ export function DukkanScreen() {
             </View>
           </View>
 
-          {/* 2'li küçük kartlar: Karizma + Toptancı Güveni */}
-          <View style={styles.topSmallRow}>
-            <View style={styles.smallGlassCard}>
-              <Text style={styles.smallCardLabel}>KARİZMA</Text>
-              <Text style={styles.smallCardValue}>{reputation.score}/100</Text>
+          {/* [DÜZELTME] Hız kontrolü artık ana içerik gibi büyük bir alan
+              kaplamıyor — üst HUD'a ait, tek satırlık, küçük bir kontrol. */}
+          <View style={styles.hudSpeedRow}>
+            <Pressable
+              onPress={() => handleSpeedChange(speed === 0 ? 1 : 0)}
+              style={styles.hudPauseBtn}
+              hitSlop={8}
+            >
+              <Text style={styles.hudPauseLabel}>{speed === 0 ? '▶' : 'II'}</Text>
+            </Pressable>
+            <View style={styles.hudSpeedCluster}>
+              <Pressable
+                onPress={() => handleSpeedChange(1)}
+                style={[styles.hudSpeedBtn, speed === 1 && styles.hudSpeedBtnActive]}
+              >
+                <Text style={[styles.hudSpeedLabel, speed === 1 && styles.hudSpeedLabelActive]}>1x</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleSpeedChange(2)}
+                style={[styles.hudSpeedBtn, speed === 2 && styles.hudSpeedBtnActive]}
+              >
+                <Text style={[styles.hudSpeedLabel, speed === 2 && styles.hudSpeedLabelActive]}>2x</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleSpeedChange(4)}
+                style={[styles.hudSpeedBtn, speed === 4 && styles.hudSpeedBtnActive]}
+              >
+                <Text style={[styles.hudSpeedLabel, speed === 4 && styles.hudSpeedLabelActive]}>
+                  4x{!fourXUnlocked ? '🔒' : ''}
+                </Text>
+              </Pressable>
             </View>
-            <View style={styles.smallGlassCard}>
-              <Text style={styles.smallCardLabel}>TOPTANCI GÜVENİ</Text>
-              <Text style={styles.smallCardValue}>{wholesalerTrust}/100</Text>
-            </View>
+            {fourXMinutesLeft > 0 && (
+              <Text style={styles.fourXCountdown}>4x: {Math.ceil(fourXMinutesLeft)} dk</Text>
+            )}
           </View>
 
-          {/* [DÜZELTME] Orta-üst boşluk ileride 3D karakter/mağaza sahnesi için
-              ayrılmıştı, ama devasa boş alan + kaba mor daireler aşırı scroll'a
-              ve kaba bir görünüme yol açıyordu. Daireler tamamen kaldırıldı,
-              alan tek ekrana sığma için ince bir ayraca indirildi. */}
-          <View style={styles.stageArea} pointerEvents="none" />
-
-
-          {/* 4'lü dikey cam istatistik kartları */}
-          <View style={styles.statsRow4}>
-            <StatCardLux label="PİYASA" value={formatTl(goldPrice.buyPricePerGram)} />
-            <StatCardLux label="STOK DEĞERİ" value={formatTl(capital.stockValueTl)} />
-            <StatCardLux label="NET SERVET" value={formatTl(capital.cashTl + capital.stockValueTl - capital.debtTl)} />
-            <StatCardLux label="BORÇ" value={formatTl(capital.debtTl)} warn={capital.debtTl > 0} />
-          </View>
+          {/* [DÜZELTME] Karizma/Toptancı/Piyasa/Stok/Servet/Borç artık tek,
+              yatay kaydırılabilir bir HUD şeridi — yardımcı bilgi, ana
+              müşteri akışının önüne geçecek kadar yer kaplamıyor. */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.hudStatsRow}
+          >
+            <HudStatChip label="KARİZMA" value={`${reputation.score}/100`} />
+            <HudStatChip label="TOPTANCI" value={`${wholesalerTrust}/100`} />
+            <HudStatChip label="PİYASA" value={formatTl(goldPrice.buyPricePerGram)} />
+            <HudStatChip label="STOK" value={formatTl(capital.stockValueTl)} />
+            <HudStatChip label="SERVET" value={formatTl(capital.cashTl + capital.stockValueTl - capital.debtTl)} />
+            <HudStatChip label="BORÇ" value={formatTl(capital.debtTl)} warn={capital.debtTl > 0} />
+          </ScrollView>
 
           {/* [DÜZELTME] Kaba dev daire buton yerine şık, yatay hap (pill) buton —
               parlama artık arkaya çizilen bir şekilden değil, butonun kendi
@@ -211,72 +237,12 @@ export function DukkanScreen() {
             </Text>
             <Text style={styles.callButtonSubtitle}>Bekleyen: {waitingCustomers.length}</Text>
           </Pressable>
-
-          {/* 3'lü alt cam kartlar — envanter/pasif gelir kısayolları */}
-          <View style={styles.statsRow3}>
-            <Pressable
-              style={styles.bottomGlassCard}
-              onPress={() => navigation.navigate('Stok', { scrollTo: 'iscilikli' })}
-            >
-              <Text style={styles.bottomCardIcon}>💎</Text>
-              <Text style={styles.bottomCardLabel}>İşçilikli</Text>
-            </Pressable>
-            <Pressable
-              style={styles.bottomGlassCard}
-              onPress={() => navigation.navigate('Stok', { scrollTo: 'atolye' })}
-            >
-              <Text style={styles.bottomCardIcon}>⚒️</Text>
-              <Text style={styles.bottomCardLabel}>Atölye</Text>
-            </Pressable>
-            <Pressable
-              style={styles.bottomGlassCard}
-              onPress={() => navigation.navigate('Stok', { scrollTo: 'yatirimlar' })}
-            >
-              <Text style={styles.bottomCardIcon}>🏦</Text>
-              <Text style={styles.bottomCardLabel}>Yatırımlar</Text>
-            </Pressable>
-          </View>
-
-          {/* Alt bar: hız kontrolü, ortadaki nokta duraklat/devam */}
-          <View style={styles.bottomBar}>
-            <Pressable
-              onPress={() => handleSpeedChange(1)}
-              style={[styles.bottomBarSpeedButton, speed === 1 && styles.bottomBarSpeedButtonActive]}
-            >
-              <Text style={[styles.bottomBarSpeedLabel, speed === 1 && styles.bottomBarSpeedLabelActive]}>1x</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => handleSpeedChange(2)}
-              style={[styles.bottomBarSpeedButton, speed === 2 && styles.bottomBarSpeedButtonActive]}
-            >
-              <Text style={[styles.bottomBarSpeedLabel, speed === 2 && styles.bottomBarSpeedLabelActive]}>2x</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => handleSpeedChange(speed === 0 ? 1 : 0)}
-              style={styles.centerDotWrap}
-              hitSlop={10}
-            >
-              <View style={styles.centerDot}>
-                <Text style={styles.centerDotLabel}>{speed === 0 ? '▶' : 'II'}</Text>
-              </View>
-            </Pressable>
-            <Pressable
-              onPress={() => handleSpeedChange(4)}
-              style={[styles.bottomBarSpeedButton, speed === 4 && styles.bottomBarSpeedButtonActive]}
-            >
-              <Text style={[styles.bottomBarSpeedLabel, speed === 4 && styles.bottomBarSpeedLabelActive]}>
-                4x{!fourXUnlocked ? ' 🔒' : ''}
-              </Text>
-            </Pressable>
-          </View>
-          {fourXMinutesLeft > 0 && (
-            <Text style={styles.fourXCountdown}>4x: {Math.ceil(fourXMinutesLeft)} dk kaldı</Text>
-          )}
         </View>
 
-        {/* [HOTFIX] Müşteriyi görmek için aşırı kaydırma gerekiyordu — TEZGÂH
-            artık hero'nun HEMEN altında, tüm ikincil banner/kartlardan
-            (tutorial, acil kredi, 4x, toptancı, müşteri akını) önce geliyor. */}
+        {/* [DÜZELTME] Müşteri ve isteği artık hero'nun HEMEN altında, ekranın
+            en üst kısmında — oyuncu kaydırmadan önce müşteriyi görmeli. Tüm
+            ikincil banner/kartlar (kısayollar, tutorial, acil kredi, 4x,
+            toptancı, müşteri akını) TEZGÂH'tan SONRA geliyor. */}
         <SectionLabel>TEZGÂH</SectionLabel>
         {activeNegotiation ? (
           <NegotiationPanel incomingCustomer={activeNegotiation} onClose={() => setActiveNegotiation(null)} />
@@ -289,6 +255,31 @@ export function DukkanScreen() {
         )}
 
         {/* ================= Fonksiyonel bölümler (mevcut sistemler) ================= */}
+        {/* [DÜZELTME] Envanter/pasif gelir kısayolları artık hero'da değil —
+            ana müşteri akışından sonra, ikincil bir bölüm olarak duruyor. */}
+        <View style={styles.statsRow3}>
+          <Pressable
+            style={styles.bottomGlassCard}
+            onPress={() => navigation.navigate('Stok', { scrollTo: 'iscilikli' })}
+          >
+            <Text style={styles.bottomCardIcon}>💎</Text>
+            <Text style={styles.bottomCardLabel}>İşçilikli</Text>
+          </Pressable>
+          <Pressable
+            style={styles.bottomGlassCard}
+            onPress={() => navigation.navigate('Stok', { scrollTo: 'atolye' })}
+          >
+            <Text style={styles.bottomCardIcon}>⚒️</Text>
+            <Text style={styles.bottomCardLabel}>Atölye</Text>
+          </Pressable>
+          <Pressable
+            style={styles.bottomGlassCard}
+            onPress={() => navigation.navigate('Stok', { scrollTo: 'yatirimlar' })}
+          >
+            <Text style={styles.bottomCardIcon}>🏦</Text>
+            <Text style={styles.bottomCardLabel}>Yatırımlar</Text>
+          </Pressable>
+        </View>
         {!hasCompletedTutorial && (
           <View style={styles.tutorialCard}>
             <Text style={styles.tutorialText}>
@@ -365,11 +356,11 @@ export function DukkanScreen() {
   );
 }
 
-function StatCardLux({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
+function HudStatChip({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
-    <View style={styles.statCardLux}>
-      <Text style={styles.statCardLuxLabel}>{label}</Text>
-      <Text style={[styles.statCardLuxValue, warn && styles.statCardLuxValueWarn]} numberOfLines={1}>
+    <View style={styles.hudStatChip}>
+      <Text style={styles.hudStatChipLabel}>{label}</Text>
+      <Text style={[styles.hudStatChipValue, warn && styles.hudStatChipValueWarn]} numberOfLines={1}>
         {value}
       </Text>
     </View>
@@ -383,7 +374,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 12,
-    gap: 8,
+    gap: 6,
   },
 
   // ---------- HERO ----------
@@ -392,11 +383,11 @@ const styles = StyleSheet.create({
   // görünmesi.
   hero: {
     backgroundColor: lux.panelBg,
-    borderRadius: 22,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: lux.gold,
-    padding: 10,
-    gap: 8,
+    padding: 8,
+    gap: 6,
     shadowColor: lux.purple,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
@@ -467,66 +458,87 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: lux.ink,
   },
-  topSmallRow: {
+  // [DÜZELTME] Hız kontrolü artık üst HUD'un parçası — tek satırlık, küçük.
+  // Play/pause ayrı büyük bir buton değil, ufak bir daire; 1x/2x/4x tek bir
+  // ince hap içinde. Amaç: hız kontrolü ana içerikmiş gibi görünmesin.
+  hudSpeedRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
-  smallGlassCard: {
-    flex: 1,
-    backgroundColor: lux.glass,
+  hudPauseBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: lux.purple,
     borderWidth: 1,
     borderColor: lux.gold,
-    borderRadius: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  smallCardLabel: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 9,
-    letterSpacing: 0.8,
+  hudPauseLabel: {
+    fontFamily: fonts.headingBold,
+    fontSize: 10,
+    color: lux.goldBright,
+  },
+  hudSpeedCluster: {
+    flexDirection: 'row',
+    backgroundColor: lux.glassStrong,
+    borderWidth: 1,
+    borderColor: lux.gold,
+    borderRadius: 999,
+    padding: 2,
+    gap: 2,
+  },
+  hudSpeedBtn: {
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+  },
+  hudSpeedBtnActive: {
+    backgroundColor: lux.purple,
+  },
+  hudSpeedLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
     color: lux.inkMuted,
   },
-  smallCardValue: {
-    fontFamily: fonts.monoBold,
-    fontSize: 13,
-    color: lux.ink,
-    marginTop: 1,
+  hudSpeedLabelActive: {
+    color: lux.goldBright,
   },
-  // [DÜZELTME] Kaba, opak mor daireler (View ile çizilmiş şekiller) tamamen
-  // kaldırıldı. Bu alan artık sadece ince bir ayraç — ileride 3D karakter
-  // eklenirse burası büyütülebilir, ama varsayılan olarak scroll'u şişirmiyor.
-  stageArea: {
-    height: 14,
-  },
-  statsRow4: {
+  // [DÜZELTME] Karizma/Toptancı/Piyasa/Stok/Servet/Borç artık tek, yatay
+  // kaydırılabilir bir HUD şeridi — yardımcı bilgi, ana müşteri akışının
+  // önüne geçecek kadar dikey yer kaplamıyor.
+  hudStatsRow: {
     flexDirection: 'row',
     gap: 6,
+    paddingRight: 4,
   },
-  statCardLux: {
-    flex: 1,
+  hudStatChip: {
+    minWidth: 72,
     backgroundColor: lux.glass,
     borderWidth: 1,
     borderColor: lux.gold,
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    borderRadius: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
     alignItems: 'center',
   },
-  statCardLuxLabel: {
+  hudStatChipLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: 8,
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
     color: lux.inkMuted,
     textAlign: 'center',
   },
-  statCardLuxValue: {
+  hudStatChipValue: {
     fontFamily: fonts.monoBold,
     fontSize: 11,
     color: lux.ink,
-    marginTop: 4,
+    marginTop: 1,
     textAlign: 'center',
   },
-  statCardLuxValueWarn: {
+  hudStatChipValueWarn: {
     color: colors.negative,
   },
   // [DÜZELTME] Kaba dev daire yerine şık, yatay hap (pill) buton. Parlama
@@ -541,8 +553,8 @@ const styles = StyleSheet.create({
     borderColor: lux.goldBright,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    gap: 2,
+    paddingVertical: 8,
+    gap: 1,
     shadowColor: lux.purple,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
@@ -589,57 +601,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: lux.ink,
   },
-  bottomBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: lux.glassStrong,
-    borderWidth: 1,
-    borderColor: lux.gold,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-  },
-  bottomBarSpeedButton: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-  },
-  bottomBarSpeedButtonActive: {
-    backgroundColor: lux.purple,
-  },
-  bottomBarSpeedLabel: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 12,
-    color: lux.inkMuted,
-  },
-  bottomBarSpeedLabelActive: {
-    color: lux.goldBright,
-  },
-  centerDotWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: lux.purple,
-    borderWidth: 2,
-    borderColor: lux.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerDotLabel: {
-    fontFamily: fonts.headingBold,
-    fontSize: 12,
-    color: lux.goldBright,
-  },
   fourXCountdown: {
     fontFamily: fonts.mono,
     fontSize: 11,
     color: lux.inkMuted,
-    textAlign: 'center',
   },
 
   // ---------- Fonksiyonel bölümler (mevcut karanlık kimlik) ----------

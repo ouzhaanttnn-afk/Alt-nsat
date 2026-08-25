@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.accent,
-    padding: 14,
+    padding: 12,
     ...shadow,
   },
   speaker: {
@@ -69,15 +69,15 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     color: colors.ink,
     fontStyle: 'italic',
-    marginTop: 4,
+    marginTop: 3,
   },
   actions: {
-    marginTop: 14,
+    marginTop: 10,
   },
   acceptButton: {
     backgroundColor: colors.accent,
     borderRadius: radius.md,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
   },
   acceptButtonLabel: {
@@ -87,13 +87,13 @@ const styles = StyleSheet.create({
   },
   secondaryRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 10,
+    gap: 8,
+    marginTop: 8,
   },
   secondaryButton: {
     flex: 1,
     borderRadius: radius.md,
-    paddingVertical: 10,
+    paddingVertical: 8,
     alignItems: 'center',
     backgroundColor: colors.surfaceSunken,
   },

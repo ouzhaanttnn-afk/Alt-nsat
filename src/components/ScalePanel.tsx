@@ -70,21 +70,23 @@ function ControlButton({
 }
 
 const styles = StyleSheet.create({
+  // [DÜZELTME] Panel ~%60 daha kompakt — tek bakışta gram/ayar/temizlik +
+  // TEST butonu, ama ekranın yarısını kaplamıyor.
   panel: {
     backgroundColor: colors.lcdBg,
     borderRadius: radius.md,
-    padding: 12,
+    padding: 6,
     ...shadow,
   },
   captionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   caption: {
     fontFamily: fonts.bodyMedium,
-    fontSize: 10,
+    fontSize: 9,
     letterSpacing: 1.5,
     color: colors.lcdText,
     opacity: 0.7,
@@ -97,24 +99,24 @@ const styles = StyleSheet.create({
   },
   readoutLabel: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 9,
     color: colors.lcdText,
     opacity: 0.75,
   },
   readoutValue: {
     fontFamily: fonts.monoBold,
-    fontSize: fontSizes.md,
+    fontSize: fontSizes.sm,
     color: colors.lcdText,
   },
   controlsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 8,
+    marginTop: 6,
   },
   controlButton: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: radius.sm,
     backgroundColor: colors.surfaceSunken,
   },

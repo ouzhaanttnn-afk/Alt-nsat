@@ -85,8 +85,11 @@ export function NegotiationProductCard({
 }
 
 const styles = StyleSheet.create({
+  // [DÜZELTME] Ürün kartı da kompaktlaştırıldı — test/teklif alanına daha
+  // az kaydırmayla ulaşılsın.
   card: {
     overflow: 'visible',
+    padding: 10,
   },
   seal: {
     position: 'absolute',
@@ -97,7 +100,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   info: {
     flex: 1,
@@ -114,14 +117,14 @@ const styles = StyleSheet.create({
   },
   badgeRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
+    gap: 6,
+    marginTop: 6,
   },
   badge: {
     backgroundColor: colors.surfaceSunken,
     borderRadius: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 9,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
   },
   badgeLabel: {
     fontFamily: fonts.mono,
@@ -129,8 +132,8 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   expertBox: {
-    marginTop: 10,
-    paddingTop: 10,
+    marginTop: 6,
+    paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },

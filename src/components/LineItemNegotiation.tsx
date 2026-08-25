@@ -273,7 +273,7 @@ export function LineItemNegotiation({
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: 12 },
+  stack: { gap: 8 },
   backRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: colors.accent,
     borderRadius: radius.md,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   primaryButtonLabel: {
@@ -67,8 +67,8 @@ const styles = StyleSheet.create({
   },
   secondaryRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 10,
+    gap: 8,
+    marginTop: 8,
     alignItems: 'flex-start',
   },
   secondaryColumn: {
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   secondaryButton: {
     flex: 1,
     borderRadius: radius.md,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -109,6 +109,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     color: colors.inkMutedOnDark,
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: 8,
   },
 });

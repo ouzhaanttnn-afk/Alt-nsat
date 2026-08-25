@@ -23,9 +23,9 @@ export function CustomerNoteCard({
   patienceRatio?: number;
 }) {
   return (
-    <Card>
+    <Card style={styles.card}>
       <View style={styles.topRow}>
-        <AvatarInitial name={customer.name} size={44} />
+        <AvatarInitial name={customer.name} size={36} />
         <View style={styles.info}>
           <View style={styles.headerRow}>
             <Text style={styles.name}>{customer.name}</Text>
@@ -53,9 +53,14 @@ export function CustomerNoteCard({
 }
 
 const styles = StyleSheet.create({
+  // [DÜZELTME] Müşteri kartı gereksiz dikey padding'den arındırıldı — oyuncu
+  // müşteriyi ve isteğini kaydırmadan, ilk bakışta görmeli.
+  card: {
+    padding: 10,
+  },
   topRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
   info: {
     flex: 1,
@@ -86,14 +91,14 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: fontSizes.sm,
     color: colors.ink,
-    marginTop: 4,
+    marginTop: 2,
     fontStyle: 'italic',
   },
   metaRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 6,
+    gap: 8,
+    marginTop: 3,
   },
   metaItem: {
     fontFamily: fonts.mono,
@@ -101,10 +106,10 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
   },
   patienceTrack: {
-    height: 5,
-    borderRadius: 3,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: colors.surfaceSunken,
-    marginTop: 10,
+    marginTop: 6,
     overflow: 'hidden',
   },
   patienceFill: {

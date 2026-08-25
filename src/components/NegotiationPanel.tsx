@@ -735,8 +735,10 @@ function NegotiationResult({
 }
 
 const styles = StyleSheet.create({
+  // [DÜZELTME] Bileşenler arası boşluk daraltıldı — Müşteri → Ürün → Test →
+  // Teklif aynı ekranda, az kaydırmayla görünsün.
   stack: {
-    gap: 14,
+    gap: 8,
   },
   // [YENİ] Aktif olmayan kalemin LineItemNegotiation'ı unmount edilmez —
   // sadece görünmez yapılır, böylece tartım/teklif ilerlemesi korunur.

@@ -31,7 +31,7 @@ export function PriceBlock({
   obscureValue?: boolean;
 }) {
   return (
-    <Card>
+    <Card style={styles.card}>
       <Text style={styles.label}>TEKLİFİN</Text>
       <View style={styles.priceSection}>
         <View style={styles.priceRow}>
@@ -60,15 +60,20 @@ export function PriceBlock({
 }
 
 const styles = StyleSheet.create({
+  // [DÜZELTME] Teklif alanı daha verimli — gereksiz boşluklar azaltıldı ki
+  // Ürün → Test → Teklif → Ölücü/Makul/Cömert → Gönder aynı ekranda dursun.
+  card: {
+    padding: 10,
+  },
   label: {
     fontFamily: fonts.bodyMedium,
     fontSize: fontSizes.xs,
     color: colors.inkMuted,
     letterSpacing: 1,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   priceSection: {
-    marginBottom: 14,
+    marginBottom: 8,
   },
   priceRow: {
     flexDirection: 'row',
@@ -98,7 +103,7 @@ const styles = StyleSheet.create({
   rangeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 8,
+    marginTop: 6,
     paddingHorizontal: 4,
   },
   rangeLabel: {
@@ -110,6 +115,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 11,
     color: colors.warning,
-    marginTop: 10,
+    marginTop: 6,
   },
 });
