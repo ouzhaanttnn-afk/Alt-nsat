@@ -216,13 +216,13 @@ export function LineItemNegotiation({
         <Text style={styles.backLabel}>‹ Ürünlere dön</Text>
         <Text style={styles.progressLabel}>{itemProgressLabel}</Text>
       </Pressable>
-      <NegotiationProductCard product={product} tested={tested} />
+      <NegotiationProductCard product={product} tested={tested} compact />
       <ScalePanel reading={reading} tested={tested} measuring={measuring} onTest={handleTest} />
 
       {/* [DÜZELTME] Teklif alanı test edilmeden AÇILMIYOR — kompakt bir bilgi
           metni gösteriliyor, büyük devre dışı bir panel değil. */}
       {!tested && !pendingCounter && (
-        <Text style={styles.testGateHint}>Ürünü test etmeden teklif veremezsin.</Text>
+        <Text style={styles.testGateHint}>Teklif için önce ürünü test et.</Text>
       )}
 
       {pendingCounter ? (
@@ -288,7 +288,7 @@ export function LineItemNegotiation({
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: 8 },
+  stack: { gap: 6 },
   backRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -296,20 +296,20 @@ const styles = StyleSheet.create({
   },
   backLabel: {
     fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.sm,
+    fontSize: 12,
     color: glass.goldBright,
   },
   progressLabel: {
     fontFamily: fonts.mono,
-    fontSize: 11,
+    fontSize: 10,
     color: glass.inkMuted,
   },
   testGateHint: {
     fontFamily: fonts.body,
-    fontSize: fontSizes.xs,
+    fontSize: 10,
     color: glass.inkMuted,
     textAlign: 'center',
-    paddingVertical: 6,
+    paddingVertical: 3,
   },
   resultWrap: { gap: 10 },
   resultBadge: {

@@ -34,7 +34,7 @@ export function CustomerNoteCard({
     return (
       <GlassCard style={styles.compactCard}>
         <View style={styles.compactTopRow}>
-          <AvatarInitial name={customer.name} size={24} />
+          <AvatarInitial name={customer.name} size={20} />
           <Text style={styles.compactName} numberOfLines={1}>
             {customer.name}
           </Text>
@@ -157,30 +157,31 @@ const styles = StyleSheet.create({
   // ---------- compact (yan yana Müşteri + Ürün düzeni) ----------
   compactCard: {
     flex: 1,
-    padding: 9,
-    gap: 4,
+    minWidth: 0,
+    padding: 7,
+    gap: 3,
   },
   compactTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   compactName: {
     flex: 1,
     fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.sm,
+    fontSize: 12,
     color: glass.ink,
   },
   compactRequest: {
     fontFamily: fonts.body,
-    fontSize: 11,
+    fontSize: 10,
     color: glass.ink,
     fontStyle: 'italic',
-    lineHeight: 14,
+    lineHeight: 12,
   },
   compactMeta: {
     fontFamily: fonts.mono,
-    fontSize: 9.5,
+    fontSize: 8.5,
     color: glass.inkMuted,
   },
 });

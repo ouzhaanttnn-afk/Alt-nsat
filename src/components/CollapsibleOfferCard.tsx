@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { fonts, fontSizes } from '../theme';
+import { fonts } from '../theme';
 import { glass } from '../theme/glass';
 import { formatTl } from '../utils/format';
 import { GlassCard } from './GlassCard';
@@ -39,7 +39,7 @@ export function CollapsibleOfferCard({
 
 const styles = StyleSheet.create({
   card: {
-    padding: 10,
+    padding: 8,
   },
   header: {
     flexDirection: 'row',
@@ -48,26 +48,26 @@ const styles = StyleSheet.create({
   },
   headerLabel: {
     fontFamily: fonts.bodyMedium,
-    fontSize: fontSizes.xs,
+    fontSize: 10,
     color: glass.inkMuted,
     letterSpacing: 1,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   headerValue: {
     fontFamily: fonts.monoBold,
-    fontSize: fontSizes.md,
+    fontSize: 16,
     color: glass.goldBright,
   },
   chevron: {
     fontFamily: fonts.headingBold,
-    fontSize: fontSizes.md,
+    fontSize: 14,
     color: glass.gold,
   },
   body: {
-    marginTop: 8,
+    marginTop: 5,
   },
 });

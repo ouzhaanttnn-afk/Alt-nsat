@@ -45,7 +45,7 @@ export function NegotiationProductCard({
     return (
       <GlassCard style={styles.compactCard}>
         <View style={styles.compactTopRow}>
-          <ProductIcon category={product.category} name={product.name} size={22} />
+          <ProductIcon category={product.category} name={product.name} size={18} />
           <Text style={styles.compactName} numberOfLines={1}>
             {hasQuantity ? `${product.quantity} adet ${product.name}` : product.name}
           </Text>
@@ -211,28 +211,29 @@ const styles = StyleSheet.create({
   // ---------- compact (yan yana Müşteri + Ürün düzeni) ----------
   compactCard: {
     flex: 1,
-    padding: 9,
+    minWidth: 0,
+    padding: 7,
     gap: 3,
   },
   compactTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   compactName: {
     flex: 1,
     fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.sm,
+    fontSize: 12,
     color: glass.ink,
   },
   compactSubtitle: {
     fontFamily: fonts.mono,
-    fontSize: 11,
+    fontSize: 10,
     color: glass.goldBright,
   },
   compactExpertHint: {
     fontFamily: fonts.body,
-    fontSize: 9.5,
+    fontSize: 8.5,
     color: glass.inkMuted,
     fontStyle: 'italic',
   },

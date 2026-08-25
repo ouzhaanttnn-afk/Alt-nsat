@@ -29,13 +29,38 @@ export function LineItemPicker({
   testedMap: Record<number, boolean>;
   activeIndex: number | null;
   onSelect: (index: number) => void;
-  layout?: 'grid' | 'row';
+  layout?: 'grid' | 'row' | 'chips';
 }) {
   const bubbles = lines.map((line, index) => {
     const result = results[index];
     const tested = testedMap[index];
     const isActive = activeIndex === index;
     const hasQuantity = (line.product.quantity ?? 1) > 1;
+    if (layout === 'chips') {
+      return (
+        <Pressable
+          key={index}
+          onPress={() => onSelect(index)}
+          style={({ pressed }) => [
+            styles.productChip,
+            isActive && styles.productChipActive,
+            pressed && styles.productChipPressed,
+          ]}
+        >
+          <ProductIcon category={line.product.category} name={line.product.name} size={14} />
+          <Text style={styles.productChipLabel} numberOfLines={1}>
+            {line.product.name}
+          </Text>
+          {result ? (
+            <Text style={[styles.productChipStatus, result.accepted ? styles.statusAccepted : styles.statusRejected]}>
+              {result.accepted ? '✓' : '✕'}
+            </Text>
+          ) : tested ? (
+            <Text style={styles.productChipTested}>TEST</Text>
+          ) : null}
+        </Pressable>
+      );
+    }
     return (
       <Pressable
         key={index}
@@ -77,6 +102,10 @@ export function LineItemPicker({
         {bubbles}
       </ScrollView>
     );
+  }
+
+  if (layout === 'chips') {
+    return <View style={styles.chipContainer}>{bubbles}</View>;
   }
 
   return (
@@ -125,6 +154,45 @@ const styles = StyleSheet.create({
   },
   bubblePressed: {
     backgroundColor: glass.panelBg,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  productChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    maxWidth: '100%',
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderRadius: 999,
+    backgroundColor: glass.panelBgAlt,
+    borderWidth: 1,
+    borderColor: glass.borderSoft,
+  },
+  productChipActive: {
+    borderColor: glass.gold,
+    backgroundColor: glass.purpleSoft,
+  },
+  productChipPressed: {
+    opacity: 0.8,
+  },
+  productChipLabel: {
+    flexShrink: 1,
+    fontFamily: fonts.bodyBold,
+    fontSize: 9,
+    color: glass.ink,
+  },
+  productChipStatus: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 9,
+  },
+  productChipTested: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 7,
+    color: glass.goldBright,
   },
   bubbleTopRow: {
     flexDirection: 'row',

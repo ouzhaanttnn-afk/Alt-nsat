@@ -63,20 +63,28 @@ export function OfferSlider({
       style={[styles.track, disabled && styles.trackDisabled]}
       {...panResponder.panHandlers}
     >
+      <View style={styles.rail} />
       <View style={[styles.fill, { width: `${ratio * 100}%` }]} />
       <View style={[styles.thumb, { left: `${ratio * 100}%` }]} />
     </View>
   );
 }
 
-const THUMB_SIZE = 20;
+const THUMB_SIZE = 16;
 
 const styles = StyleSheet.create({
   track: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: glass.sunken,
+    height: 24,
     justifyContent: 'center',
+  },
+  rail: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 9,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: glass.sunken,
   },
   trackDisabled: {
     opacity: 0.4,
@@ -84,9 +92,9 @@ const styles = StyleSheet.create({
   fill: {
     position: 'absolute',
     left: 0,
-    top: 0,
-    bottom: 0,
-    borderRadius: 4,
+    top: 9,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: glass.gold,
   },
   thumb: {
@@ -95,6 +103,7 @@ const styles = StyleSheet.create({
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,
     marginLeft: -THUMB_SIZE / 2,
+    top: 4,
     backgroundColor: glass.purpleBright,
     borderWidth: 2,
     borderColor: glass.gold,

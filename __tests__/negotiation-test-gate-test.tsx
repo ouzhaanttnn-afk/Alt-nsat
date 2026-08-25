@@ -41,7 +41,7 @@ afterEach(() => {
 it('keeps the offer controls closed until the product test completes', async () => {
   const view = await render(<NegotiationPanel incomingCustomer={customer} onClose={jest.fn()} />);
 
-  expect(view.getByText('Ürünü test etmeden teklif veremezsin.')).toBeTruthy();
+  expect(view.getByText('Teklif için önce ürünü test et.')).toBeTruthy();
   expect(view.queryByText('Teklifi Gönder')).toBeNull();
 
   await fireEvent.press(view.getByText('TEST'));
@@ -49,6 +49,6 @@ it('keeps the offer controls closed until the product test completes', async () 
     await jest.advanceTimersByTimeAsync(900);
   });
 
-  expect(view.queryByText('Ürünü test etmeden teklif veremezsin.')).toBeNull();
+  expect(view.queryByText('Teklif için önce ürünü test et.')).toBeNull();
   expect(view.getByText('Teklifi Gönder')).toBeTruthy();
 });

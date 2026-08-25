@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { fonts, fontSizes, radius } from '../theme';
+import { fonts } from '../theme';
 import { glass } from '../theme/glass';
 
 // Bölüm 4.3: Üç aksiyon — Teklifi Gönder (birincil) / Tam Fiyatı Öde + Reddet (ikili sıra).
@@ -36,7 +36,7 @@ export function NegotiationActions({
           >
             <Text style={styles.secondaryButtonLabel}>Tam Fiyatı Öde</Text>
           </Pressable>
-          {payFullHint && <Text style={styles.payFullHint}>{payFullHint}</Text>}
+          {payFullHint && <Text style={styles.payFullHint} numberOfLines={1}>{payFullHint}</Text>}
         </View>
         <Pressable
           disabled={disabled}
@@ -46,10 +46,6 @@ export function NegotiationActions({
           <Text style={[styles.secondaryButtonLabel, styles.rejectLabel]}>Reddet</Text>
         </Pressable>
       </View>
-
-      <Text style={styles.warning}>
-        Düşük teklif verirsen müşteri başka dükkâna gidebilir.
-      </Text>
     </View>
   );
 }
@@ -57,19 +53,19 @@ export function NegotiationActions({
 const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: glass.gold,
-    borderRadius: radius.md,
-    paddingVertical: 12,
+    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: 'center',
   },
   primaryButtonLabel: {
     fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.md,
+    fontSize: 13,
     color: '#3A2A00',
   },
   secondaryRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
+    gap: 6,
+    marginTop: 6,
     alignItems: 'flex-start',
   },
   secondaryColumn: {
@@ -77,15 +73,15 @@ const styles = StyleSheet.create({
   },
   payFullHint: {
     fontFamily: fonts.body,
-    fontSize: 11,
+    fontSize: 9,
     color: glass.warning,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 2,
   },
   secondaryButton: {
     flex: 1,
-    borderRadius: radius.md,
-    paddingVertical: 10,
+    borderRadius: 9,
+    paddingVertical: 8,
     alignItems: 'center',
     backgroundColor: glass.chipBg,
     borderWidth: 1,
@@ -96,7 +92,7 @@ const styles = StyleSheet.create({
   },
   secondaryButtonLabel: {
     fontFamily: fonts.bodyMedium,
-    fontSize: fontSizes.sm,
+    fontSize: 11,
     color: glass.ink,
   },
   rejectLabel: {
@@ -104,12 +100,5 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.4,
-  },
-  warning: {
-    fontFamily: fonts.body,
-    fontSize: fontSizes.xs,
-    color: glass.inkMuted,
-    textAlign: 'center',
-    marginTop: 8,
   },
 });

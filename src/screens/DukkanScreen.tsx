@@ -212,7 +212,7 @@ export function DukkanScreen() {
           {/* [DÜZELTME] Hız kontrolü artık ana içerik gibi büyük bir alan
               kaplamıyor — üst HUD'a ait, tek satırlık, küçük bir kontrol.
               Zil artık üst profil çubuğuna taşındı (bkz. topBar). */}
-          <View style={styles.hudSpeedRow}>
+          <View style={styles.hudControlRow}>
             <View style={styles.hudSpeedLeftGroup}>
               <Pressable
                 onPress={() => handleSpeedChange(speed === 0 ? 1 : 0)}
@@ -247,50 +247,47 @@ export function DukkanScreen() {
                 <Text style={styles.fourXCountdown}>4x: {Math.ceil(fourXMinutesLeft)} dk</Text>
               )}
             </View>
+            <View style={styles.reputationRow}>
+              <HudStatChip label="KARİZMA" value={`${reputation.score}/100`} size="inline" />
+              <HudStatChip label="TOPTANCI GÜVENİ" value={`${wholesalerTrust}/100`} size="inline" />
+            </View>
           </View>
 
-          {/* [DÜZELTME] Karizma + Toptancı Güveni artık ekonomik göstergelerden
-              ayrı, yan yana iki belirgin kart — oyuncunun itibar/sosyal
-              durumu ekonomik verinin arasında kaybolmasın. */}
-          <View style={styles.reputationRow}>
-            <HudStatChip label="KARİZMA" value={`${reputation.score}/100`} size="md" />
-            <HudStatChip label="TOPTANCI GÜVENİ" value={`${wholesalerTrust}/100`} size="md" />
-          </View>
-
-          {/* [DÜZELTME] Piyasa/Stok/Servet/Borç — küçük, yatay kaydırılabilir
-              bir gösterge şeridi; dev kartlara dönüşmüyor, taşma yapmıyor. */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.hudStatsRow}
-          >
+          {/* Piyasa/Stok/Servet/Borç mobil ekrana dört eşit, taşmayan hücre
+              halinde sığar; yatay kaydırma müşteri akışına gerekmez. */}
+          <View style={styles.hudStatsRow}>
             <HudStatChip label="PİYASA" value={formatTl(goldPrice.buyPricePerGram)} />
             <HudStatChip label="STOK" value={formatTl(capital.stockValueTl)} />
             <HudStatChip label="SERVET" value={formatTl(capital.cashTl + capital.stockValueTl - capital.debtTl)} />
             <HudStatChip label="BORÇ" value={formatTl(capital.debtTl)} warn={capital.debtTl > 0} />
-          </ScrollView>
+          </View>
 
           {/* [DÜZELTME] Kaba dev daire buton yerine şık, yatay hap (pill) buton —
               parlama artık arkaya çizilen bir şekilden değil, butonun kendi
               shadowColor/shadowRadius/elevation değerlerinden geliyor. */}
-          <Pressable
-            disabled={!canCallNext}
-            onPress={() => callNextCustomerToCounter()}
-            style={({ pressed }) => [
-              styles.callButton,
-              !canCallNext && styles.callButtonDisabled,
-              pressed && canCallNext && styles.callButtonPressed,
-            ]}
-          >
-            <Text style={styles.callButtonTitle}>
-              {incomingCustomer
-                ? 'TEZGÂH DOLU'
-                : waitingCustomers.length > 0
-                  ? 'Müşteriyi Karşıla'
-                  : 'Boş'}
-            </Text>
-            <Text style={styles.callButtonSubtitle}>Bekleyen: {waitingCustomers.length}</Text>
-          </Pressable>
+          {incomingCustomer ? (
+            <View style={styles.activeCounterStatus}>
+              <Text style={styles.activeCounterLabel}>TEZGÂH AKTİF</Text>
+              <Text style={styles.activeCounterValue} numberOfLines={1}>
+                {incomingCustomer.customer.name} ile işlem sürüyor
+              </Text>
+            </View>
+          ) : (
+            <Pressable
+              disabled={!canCallNext}
+              onPress={() => callNextCustomerToCounter()}
+              style={({ pressed }) => [
+                styles.callButton,
+                !canCallNext && styles.callButtonDisabled,
+                pressed && canCallNext && styles.callButtonPressed,
+              ]}
+            >
+              <Text style={styles.callButtonTitle}>
+                {waitingCustomers.length > 0 ? 'Müşteriyi Karşıla' : 'Boş'}
+              </Text>
+              <Text style={styles.callButtonSubtitle}>Bekleyen: {waitingCustomers.length}</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* [DÜZELTME] Müşteri ve isteği artık hero'nun HEMEN altında, ekranın
@@ -422,16 +419,16 @@ function HudStatChip({
   label: string;
   value: string;
   warn?: boolean;
-  /** [YENİ] 'md' — Karizma/Toptancı Güveni için daha belirgin, tam genişlikte kart. */
-  size?: 'sm' | 'md';
+  /** `inline` — hız kontrolü yanında duran kompakt sosyal statü kartı. */
+  size?: 'sm' | 'inline';
 }) {
   return (
-    <View style={[styles.hudStatChip, size === 'md' && styles.hudStatChipMd]}>
-      <Text style={[styles.hudStatChipLabel, size === 'md' && styles.hudStatChipLabelMd]}>{label}</Text>
+    <View style={[styles.hudStatChip, size === 'inline' && styles.hudStatChipInline]}>
+      <Text style={[styles.hudStatChipLabel, size === 'inline' && styles.hudStatChipLabelInline]}>{label}</Text>
       <Text
         style={[
           styles.hudStatChipValue,
-          size === 'md' && styles.hudStatChipValueMd,
+          size === 'inline' && styles.hudStatChipValueInline,
           warn && styles.hudStatChipValueWarn,
         ]}
         numberOfLines={1}
@@ -448,8 +445,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: 12,
-    gap: 6,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 12,
+    gap: 5,
   },
 
   // ---------- HERO ----------
@@ -458,16 +457,16 @@ const styles = StyleSheet.create({
   // görünmesi.
   hero: {
     backgroundColor: lux.panelBg,
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: lux.gold,
-    padding: 8,
-    gap: 6,
+    padding: 6,
+    gap: 4,
     shadowColor: lux.purple,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 4,
     overflow: 'hidden',
   },
   // [YENİ] Referans tasarımın (cepkaynak-referans-ekran3.html) `.gframe.topbar`
@@ -478,17 +477,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    borderRadius: 26,
-    paddingVertical: 7,
-    paddingHorizontal: 8,
+    borderRadius: 22,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
     borderWidth: 1,
     borderColor: 'rgba(232,180,74,0.55)',
     overflow: 'hidden',
     shadowColor: glass.refGold,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.28,
-    shadowRadius: 14,
-    elevation: 6,
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    elevation: 3,
   },
   topBarTint: {
     position: 'absolute',
@@ -503,28 +502,28 @@ const styles = StyleSheet.create({
   // kendisine değil) borderRadius=çap/2 vermek gerekiyor, yoksa ışıma kare
   // görünüyor.
   avatarRing: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: glass.refGold,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.24,
+    shadowRadius: 8,
+    elevation: 4,
   },
   avatarInner: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   avatarLetter: {
     fontFamily: fonts.displayBold,
-    fontSize: 18,
+    fontSize: 15,
     color: glass.refGold2,
   },
   levelGroup: {
@@ -538,8 +537,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   xpTrack: {
-    height: 11,
-    borderRadius: 8,
+    height: 7,
+    borderRadius: 5,
     backgroundColor: 'rgba(20,8,34,0.72)',
     borderWidth: 1,
     borderColor: 'rgba(232,180,74,0.5)',
@@ -547,26 +546,26 @@ const styles = StyleSheet.create({
   },
   xpFill: {
     height: '100%',
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: glass.refViolet2,
     shadowColor: glass.refViolet2,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.75,
-    shadowRadius: 10,
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
   },
   xpLabel: {
     fontFamily: fonts.numeric,
-    fontSize: 8.5,
+    fontSize: 8,
     letterSpacing: 0.2,
     color: glass.refTextDim,
-    marginTop: 4,
+    marginTop: 2,
   },
   balancePill: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(232,180,74,0.34)',
-    paddingVertical: 7,
-    paddingHorizontal: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
     overflow: 'hidden',
   },
   balancePillTint: {
@@ -579,7 +578,7 @@ const styles = StyleSheet.create({
   },
   balanceText: {
     fontFamily: fonts.numericBold,
-    fontSize: 11.5,
+    fontSize: 10.5,
     color: glass.refGold2,
     textShadowColor: 'rgba(232,180,74,0.4)',
     textShadowOffset: { width: 0, height: 0 },
@@ -613,15 +612,16 @@ const styles = StyleSheet.create({
   // [DÜZELTME] Hız kontrolü artık üst HUD'un parçası — tek satırlık, küçük.
   // Play/pause ayrı büyük bir buton değil, ufak bir daire; 1x/2x/4x tek bir
   // ince hap içinde. Amaç: hız kontrolü ana içerikmiş gibi görünmesin.
-  hudSpeedRow: {
+  hudControlRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 6,
   },
   hudSpeedLeftGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
   },
   // [YENİ] Müşteriler artık sekme değil — bu zil header'daki tek erişim
   // noktası. Rozet, TekliflerScreen'in "bekleyen" sayısını yansıtır.
@@ -645,9 +645,9 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   hudPauseBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: lux.purple,
     borderWidth: 1,
     borderColor: lux.gold,
@@ -665,12 +665,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: lux.gold,
     borderRadius: 999,
-    padding: 2,
-    gap: 2,
+    padding: 1,
+    gap: 1,
   },
   hudSpeedBtn: {
     paddingVertical: 3,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     borderRadius: 999,
   },
   hudSpeedBtnActive: {
@@ -688,53 +688,55 @@ const styles = StyleSheet.create({
   // yana iki belirgin kart (referans tasarım).
   reputationRow: {
     flexDirection: 'row',
-    gap: 8,
+    flex: 1,
+    gap: 4,
   },
   // [DÜZELTME] Piyasa/Stok/Servet/Borç artık küçük, yatay kaydırılabilir
   // bir HUD şeridi — yardımcı bilgi, ana müşteri akışının önüne geçecek
   // kadar dikey yer kaplamıyor.
   hudStatsRow: {
     flexDirection: 'row',
-    gap: 6,
-    paddingRight: 4,
+    gap: 4,
   },
   hudStatChip: {
-    minWidth: 72,
+    flex: 1,
+    minWidth: 0,
     backgroundColor: lux.glass,
     borderWidth: 1,
     borderColor: lux.gold,
-    borderRadius: 10,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 3,
     alignItems: 'center',
   },
-  hudStatChipMd: {
+  hudStatChipInline: {
     flex: 1,
     minWidth: 0,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingVertical: 3,
+    paddingHorizontal: 2,
+    borderRadius: 8,
   },
   hudStatChipLabel: {
     fontFamily: fonts.bodyMedium,
-    fontSize: 8,
-    letterSpacing: 0.5,
+    fontSize: 7,
+    letterSpacing: 0.25,
     color: lux.inkMuted,
     textAlign: 'center',
   },
-  hudStatChipLabelMd: {
-    fontSize: 9.5,
-    letterSpacing: 0.8,
+  hudStatChipLabelInline: {
+    fontSize: 6.5,
+    letterSpacing: 0.15,
   },
   hudStatChipValue: {
     fontFamily: fonts.monoBold,
-    fontSize: 11,
+    fontSize: 9,
     color: lux.ink,
     marginTop: 1,
     textAlign: 'center',
   },
-  hudStatChipValueMd: {
-    fontSize: 14,
-    marginTop: 2,
+  hudStatChipValueInline: {
+    fontSize: 10,
+    marginTop: 0,
   },
   hudStatChipValueWarn: {
     color: colors.negative,
@@ -744,20 +746,20 @@ const styles = StyleSheet.create({
   // shadowColor (mor) + elevation değerlerinden geliyor.
   callButton: {
     alignSelf: 'center',
-    width: '90%',
-    borderRadius: 16,
+    width: '82%',
+    borderRadius: 12,
     backgroundColor: lux.gold,
     borderWidth: 2,
     borderColor: lux.goldBright,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 6,
     gap: 1,
     shadowColor: lux.purple,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    elevation: 4,
   },
   callButtonPressed: {
     backgroundColor: lux.goldDeep,
@@ -768,14 +770,38 @@ const styles = StyleSheet.create({
   },
   callButtonTitle: {
     fontFamily: fonts.headingBold,
-    fontSize: 15,
+    fontSize: 13,
     color: '#3A2A00',
     letterSpacing: 0.4,
   },
   callButtonSubtitle: {
     fontFamily: fonts.bodyBold,
-    fontSize: 11,
+    fontSize: 10,
     color: '#4A3600',
+  },
+  activeCounterStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    backgroundColor: lux.glass,
+    borderWidth: 1,
+    borderColor: 'rgba(227, 184, 63, 0.45)',
+  },
+  activeCounterLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 8,
+    letterSpacing: 0.6,
+    color: lux.goldBright,
+  },
+  activeCounterValue: {
+    maxWidth: 210,
+    fontFamily: fonts.body,
+    fontSize: 10,
+    color: lux.inkMuted,
   },
   statsRow3: {
     flexDirection: 'row',

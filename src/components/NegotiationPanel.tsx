@@ -102,6 +102,7 @@ export function NegotiationPanel({
   // [YENİ] Referans tasarımı — teklif paneli artık collapse/expand olabiliyor;
   // test tamamlanır tamamlanmaz açık başlıyor, oyuncu istediğinde küçültebilir.
   const [offerExpanded, setOfferExpanded] = useState(true);
+  const [profitAnalysisExpanded, setProfitAnalysisExpanded] = useState(false);
 
   // Oyun, müşteri belirdiği anda tick() içinde zaten duraklatılmış olur
   // (bkz. useGameStore — React render döngüsünü beklemeden, preNegotiationSpeed
@@ -466,7 +467,7 @@ export function NegotiationPanel({
           devre dışı bırakılmış bir panel yerine sadece küçük bir bilgi
           metni gösteriliyor. Test zorunluluğu kuralı birebir korunuyor. */}
       {!pendingCounter && !saleCounter && !isSale && !tested && (
-        <Text style={styles.testGateHint}>Ürünü test etmeden teklif veremezsin.</Text>
+        <Text style={styles.testGateHint}>Teklif için önce ürünü test et.</Text>
       )}
 
       {!pendingCounter && !saleCounter && (isSale || tested) && (
@@ -537,7 +538,21 @@ export function NegotiationPanel({
             />
           )}
 
-          {showKarAnalizi && <KarAnaliziCard offerTl={offer} estimatedResaleTl={estimatedResaleTl} />}
+          {showKarAnalizi && (
+            <>
+              <Pressable
+                onPress={() => setProfitAnalysisExpanded((current) => !current)}
+                style={styles.profitToggle}
+                hitSlop={8}
+              >
+                <Text style={styles.profitToggleLabel}>Kâr analizi</Text>
+                <Text style={styles.profitToggleValue}>
+                  {profitAnalysisExpanded ? '▾' : '▸'}
+                </Text>
+              </Pressable>
+              {profitAnalysisExpanded && <KarAnaliziCard offerTl={offer} estimatedResaleTl={estimatedResaleTl} />}
+            </>
+          )}
         </CollapsibleOfferCard>
       )}
     </View>
@@ -618,19 +633,23 @@ function BulkLineNegotiationView({
           tüm kalemler yatay kaydırmadan görülüp dokunulabiliyor. Bir kalemin
           detayı açıldığında (activeIndex !== null) tekrar tek satır, çünkü
           o an LineItemNegotiation'ın kendi ürün kartı zaten gösteriliyor. */}
-      <CustomerNoteCard customer={customer} compact />
-      {activeIndex === null && (
-        <GlassCard style={styles.productPickerCardFull}>
+      <View style={styles.bulkHeaderRow}>
+        <View style={styles.bulkCustomerWrap}>
+          <CustomerNoteCard customer={customer} compact />
+        </View>
+        <View style={styles.bulkPickerWrap}>
+          <Text style={styles.bulkPickerLabel}>ÜRÜNLER</Text>
           <LineItemPicker
             lines={lines}
             results={results}
             testedMap={testedMap}
             activeIndex={activeIndex}
             onSelect={setActiveIndex}
-            layout="grid"
+            layout="chips"
           />
-        </GlassCard>
-      )}
+        </View>
+      </View>
+      {activeIndex === null && <Text style={styles.bulkSelectHint}>Pazarlığa başlamak için bir ürün seç.</Text>}
       {lines.map((line, index) => (
         <View key={index} style={index === activeIndex ? undefined : styles.hiddenLine}>
           <LineItemNegotiation
@@ -772,7 +791,7 @@ const styles = StyleSheet.create({
   // [DÜZELTME] Bileşenler arası boşluk daraltıldı — Müşteri → Ürün → Test →
   // Teklif aynı ekranda, az kaydırmayla görünsün.
   stack: {
-    gap: 8,
+    gap: 6,
   },
   // [YENİ] Aktif olmayan kalemin LineItemNegotiation'ı unmount edilmez —
   // sadece görünmez yapılır, böylece tartım/teklif ilerlemesi korunur.
@@ -786,14 +805,41 @@ const styles = StyleSheet.create({
   // yaklaşık eşit genişlikte, dikey alan kazandırmak için.
   customerProductRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     alignItems: 'stretch',
   },
   // [DÜZELTME] Çoklu kalem seçim ızgarası artık dar bir yan panelde değil,
   // tam genişlikte — 2 sütunlu grid tüm kalemleri yatay kaydırmadan gösterir.
-  productPickerCardFull: {
-    padding: 9,
+  bulkHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 6,
+  },
+  bulkCustomerWrap: {
+    flex: 0.46,
+  },
+  bulkPickerWrap: {
+    flex: 0.54,
+    padding: 6,
+    borderRadius: radius.md,
+    backgroundColor: glass.panelBg,
+    borderWidth: 1,
+    borderColor: glass.borderSoft,
+    justifyContent: 'center',
     gap: 4,
+  },
+  bulkPickerLabel: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 8,
+    letterSpacing: 0.8,
+    color: glass.inkMuted,
+  },
+  bulkSelectHint: {
+    fontFamily: fonts.body,
+    fontSize: 10,
+    color: glass.inkMuted,
+    textAlign: 'center',
+    paddingVertical: 3,
   },
   // [YENİ] Test edilmeden teklif alanı yerine gösterilen kompakt bilgi metni.
   testGateHint: {
@@ -802,6 +848,22 @@ const styles = StyleSheet.create({
     color: colors.inkMutedOnDark,
     textAlign: 'center',
     paddingVertical: 6,
+  },
+  profitToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 3,
+  },
+  profitToggleLabel: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 10,
+    color: glass.inkMuted,
+  },
+  profitToggleValue: {
+    fontFamily: fonts.headingBold,
+    fontSize: 12,
+    color: glass.gold,
   },
   compactWrap: {
     gap: 8,

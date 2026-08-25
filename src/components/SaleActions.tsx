@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { fonts, fontSizes, radius } from '../theme';
+import { fonts } from '../theme';
 import { glass } from '../theme/glass';
 
 // Bölüm 4.3 satış modu: dükkâna gelen müşteriye satarken sadece iki
@@ -35,8 +35,6 @@ export function SaleActions({
       >
         <Text style={styles.secondaryButtonLabel}>Satmak İstemiyorum</Text>
       </Pressable>
-
-      <Text style={styles.warning}>Fiyatı çok yüksek tutarsan müşteri alışveriş yapmadan ayrılabilir.</Text>
     </View>
   );
 }
@@ -44,19 +42,19 @@ export function SaleActions({
 const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: glass.gold,
-    borderRadius: radius.md,
-    paddingVertical: 12,
+    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: 'center',
   },
   primaryButtonLabel: {
     fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.md,
+    fontSize: 13,
     color: '#3A2A00',
   },
   secondaryButton: {
-    marginTop: 8,
-    borderRadius: radius.md,
-    paddingVertical: 10,
+    marginTop: 6,
+    borderRadius: 9,
+    paddingVertical: 8,
     alignItems: 'center',
     backgroundColor: glass.chipBg,
     borderWidth: 1,
@@ -64,24 +62,17 @@ const styles = StyleSheet.create({
   },
   secondaryButtonLabel: {
     fontFamily: fonts.bodyMedium,
-    fontSize: fontSizes.sm,
+    fontSize: 11,
     color: glass.negative,
   },
   disabled: {
     opacity: 0.4,
   },
-  warning: {
-    fontFamily: fonts.body,
-    fontSize: fontSizes.xs,
-    color: glass.inkMuted,
-    textAlign: 'center',
-    marginTop: 8,
-  },
   rejectionHint: {
     fontFamily: fonts.bodyMedium,
-    fontSize: fontSizes.xs,
+    fontSize: 10,
     color: glass.warning,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 5,
   },
 });

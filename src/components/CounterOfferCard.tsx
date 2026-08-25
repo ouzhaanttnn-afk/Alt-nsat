@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
-import { fonts, fontSizes, radius } from '../theme';
+import { fonts } from '../theme';
 import { glass } from '../theme/glass';
 import { formatTl } from '../utils/format';
 
@@ -31,8 +31,9 @@ export function CounterOfferCard({
   return (
     <Animated.View style={[styles.card, { opacity: fade }]}>
       <Text style={styles.speaker}>{customerName}</Text>
-      <Text style={styles.line}>"Bu fiyat biraz uygun değil."</Text>
-      <Text style={styles.line}>"{formatTl(counterAmountTl)} olursa anlaşabiliriz."</Text>
+      <Text style={styles.line} numberOfLines={2}>
+        “Bu fiyat bana düşük geldi — {formatTl(counterAmountTl)} olursa anlaşabiliriz.”
+      </Text>
 
       <View style={styles.actions}>
         <Pressable style={styles.acceptButton} onPress={onAccept}>
@@ -54,51 +55,46 @@ export function CounterOfferCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: glass.panelBg,
-    borderRadius: radius.md,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: glass.gold,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 4,
+    padding: 8,
   },
   speaker: {
     fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.sm,
+    fontSize: 11,
     color: glass.goldBright,
   },
   line: {
     fontFamily: fonts.body,
-    fontSize: fontSizes.md,
+    fontSize: 12,
     color: glass.ink,
     fontStyle: 'italic',
-    marginTop: 3,
+    marginTop: 1,
   },
   actions: {
-    marginTop: 10,
+    marginTop: 6,
   },
   acceptButton: {
     backgroundColor: glass.gold,
-    borderRadius: radius.md,
-    paddingVertical: 10,
+    borderRadius: 9,
+    paddingVertical: 8,
     alignItems: 'center',
   },
   acceptButtonLabel: {
     fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.sm,
+    fontSize: 11,
     color: '#3A2A00',
   },
   secondaryRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
+    gap: 6,
+    marginTop: 6,
   },
   secondaryButton: {
     flex: 1,
-    borderRadius: radius.md,
-    paddingVertical: 8,
+    borderRadius: 8,
+    paddingVertical: 7,
     alignItems: 'center',
     backgroundColor: glass.chipBg,
     borderWidth: 1,
@@ -106,7 +102,7 @@ const styles = StyleSheet.create({
   },
   secondaryButtonLabel: {
     fontFamily: fonts.bodyMedium,
-    fontSize: fontSizes.sm,
+    fontSize: 10,
     color: glass.ink,
   },
   walkAwayButton: {

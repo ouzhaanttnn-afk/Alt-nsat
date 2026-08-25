@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { fonts, fontSizes, radius } from '../theme';
+import { fonts } from '../theme';
 import { glass } from '../theme/glass';
 
 export interface OfferPreset {
@@ -34,12 +34,12 @@ export function OfferPresets({ presets, disabled }: { presets: OfferPreset[]; di
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 5,
   },
   button: {
     flex: 1,
-    borderRadius: radius.sm,
-    paddingVertical: 6,
+    borderRadius: 8,
+    paddingVertical: 4,
     alignItems: 'center',
     backgroundColor: glass.chipBg,
     borderWidth: 1,
@@ -50,12 +50,12 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.sm,
+    fontSize: 11,
     color: glass.ink,
   },
   sublabel: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 9,
     color: glass.inkMuted,
     marginTop: 1,
   },

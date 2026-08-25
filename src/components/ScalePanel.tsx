@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, fontSizes, radius, shadow } from '../theme';
+import { colors, fonts, radius, shadow } from '../theme';
 import { glass } from '../theme/glass';
 
 export interface ScaleReading {
@@ -29,16 +29,14 @@ export function ScalePanel({
 
   return (
     <View style={styles.panel}>
-      <View style={styles.captionRow}>
-        <Text style={styles.caption}>HASSAS TERAZİ</Text>
-        <Pressable onPress={onTest} style={styles.testButton} hitSlop={6}>
-          <Text style={styles.testButtonLabel}>TEST</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.caption}>HASSAS TERAZİ</Text>
       <View style={styles.readoutRow}>
         <Readout label="GRAM" value={displayGrams} />
         <Readout label="AYAR" value={displayKarat} />
         <Readout label="TEMİZLİK" value={displayClean} />
+        <Pressable onPress={onTest} style={styles.testButton} hitSlop={8}>
+          <Text style={styles.testButtonLabel}>TEST</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -48,7 +46,7 @@ function Readout({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.readout}>
       <Text style={styles.readoutLabel}>{label}</Text>
-      <Text style={styles.readoutValue}>{value}</Text>
+      <Text style={styles.readoutValue} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
@@ -59,50 +57,52 @@ const styles = StyleSheet.create({
   panel: {
     backgroundColor: colors.lcdBg,
     borderRadius: radius.md,
-    padding: 8,
+    padding: 6,
     borderWidth: 1,
     borderColor: glass.borderSoft,
     ...shadow,
   },
-  captionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
   caption: {
     fontFamily: fonts.bodyMedium,
-    fontSize: 9,
+    fontSize: 8,
     letterSpacing: 1.5,
     color: colors.lcdText,
     opacity: 0.7,
+    marginBottom: 2,
   },
   readoutRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   readout: {
     flex: 1,
+    minWidth: 0,
   },
   readoutLabel: {
     fontFamily: fonts.mono,
-    fontSize: 9,
+    fontSize: 8,
     color: colors.lcdText,
     opacity: 0.75,
   },
   readoutValue: {
     fontFamily: fonts.monoBold,
-    fontSize: fontSizes.sm,
+    fontSize: 12,
     color: colors.lcdText,
   },
   testButton: {
     backgroundColor: glass.gold,
-    borderRadius: 999,
+    minWidth: 52,
+    minHeight: 30,
+    borderRadius: 8,
     paddingVertical: 4,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   testButtonLabel: {
     fontFamily: fonts.bodyBold,
-    fontSize: 11,
+    fontSize: 10,
     letterSpacing: 0.5,
     color: '#3A2A00',
   },
