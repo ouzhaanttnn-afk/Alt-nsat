@@ -274,6 +274,20 @@ export function DukkanScreen() {
           )}
         </View>
 
+        {/* [HOTFIX] Müşteriyi görmek için aşırı kaydırma gerekiyordu — TEZGÂH
+            artık hero'nun HEMEN altında, tüm ikincil banner/kartlardan
+            (tutorial, acil kredi, 4x, toptancı, müşteri akını) önce geliyor. */}
+        <SectionLabel>TEZGÂH</SectionLabel>
+        {activeNegotiation ? (
+          <NegotiationPanel incomingCustomer={activeNegotiation} onClose={() => setActiveNegotiation(null)} />
+        ) : (
+          <Text style={styles.emptyHint}>
+            {waitingCustomers.length > 0
+              ? 'Kuyrukta bekleyen müşteri var — "Müşteriyi Karşıla"ya bas.'
+              : 'Şu an kuyrukta müşteri yok — birazdan biri gelecek.'}
+          </Text>
+        )}
+
         {/* ================= Fonksiyonel bölümler (mevcut sistemler) ================= */}
         {!hasCompletedTutorial && (
           <View style={styles.tutorialCard}>
@@ -327,17 +341,6 @@ export function DukkanScreen() {
           minutesLeft={customerHypeMinutesLeft}
           onWatchAd={watchAdForCustomerHype}
         />
-
-        <SectionLabel>TEZGÂH</SectionLabel>
-        {activeNegotiation ? (
-          <NegotiationPanel incomingCustomer={activeNegotiation} onClose={() => setActiveNegotiation(null)} />
-        ) : (
-          <Text style={styles.emptyHint}>
-            {waitingCustomers.length > 0
-              ? 'Kuyrukta bekleyen müşteri var — "Müşteriyi Karşıla"ya bas.'
-              : 'Şu an kuyrukta müşteri yok — birazdan biri gelecek.'}
-          </Text>
-        )}
 
         <CapitalSummary
           capital={capital}
