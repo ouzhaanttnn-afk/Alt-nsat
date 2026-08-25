@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, fontSizes, radius } from '../theme';
+import { fonts, fontSizes, radius } from '../theme';
+import { glass } from '../theme/glass';
 
 // Bölüm 4.3: Üç aksiyon — Teklifi Gönder (birincil) / Tam Fiyatı Öde + Reddet (ikili sıra).
 export function NegotiationActions({
@@ -55,7 +56,7 @@ export function NegotiationActions({
 
 const styles = StyleSheet.create({
   primaryButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: glass.gold,
     borderRadius: radius.md,
     paddingVertical: 12,
     alignItems: 'center',
@@ -63,7 +64,7 @@ const styles = StyleSheet.create({
   primaryButtonLabel: {
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.md,
-    color: colors.white,
+    color: '#3A2A00',
   },
   secondaryRow: {
     flexDirection: 'row',
@@ -77,7 +78,7 @@ const styles = StyleSheet.create({
   payFullHint: {
     fontFamily: fonts.body,
     fontSize: 11,
-    color: colors.warning,
+    color: glass.warning,
     textAlign: 'center',
     marginTop: 4,
   },
@@ -86,20 +87,20 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingVertical: 10,
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: glass.chipBg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: glass.borderSoft,
   },
   rejectButton: {
-    borderColor: colors.negative,
+    borderColor: glass.negative,
   },
   secondaryButtonLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: fontSizes.sm,
-    color: colors.ink,
+    color: glass.ink,
   },
   rejectLabel: {
-    color: colors.negative,
+    color: glass.negative,
   },
   disabled: {
     opacity: 0.4,
@@ -107,7 +108,7 @@ const styles = StyleSheet.create({
   warning: {
     fontFamily: fonts.body,
     fontSize: fontSizes.xs,
-    color: colors.inkMutedOnDark,
+    color: glass.inkMuted,
     textAlign: 'center',
     marginTop: 8,
   },

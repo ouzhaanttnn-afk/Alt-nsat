@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
-import { colors } from '../theme';
+import { glass } from '../theme/glass';
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -69,13 +69,13 @@ export function OfferSlider({
   );
 }
 
-const THUMB_SIZE = 24;
+const THUMB_SIZE = 20;
 
 const styles = StyleSheet.create({
   track: {
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.border,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: glass.sunken,
     justifyContent: 'center',
   },
   trackDisabled: {
@@ -86,8 +86,8 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    borderRadius: 5,
-    backgroundColor: colors.accent,
+    borderRadius: 4,
+    backgroundColor: glass.gold,
   },
   thumb: {
     position: 'absolute',
@@ -95,8 +95,8 @@ const styles = StyleSheet.create({
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,
     marginLeft: -THUMB_SIZE / 2,
-    backgroundColor: colors.surface,
+    backgroundColor: glass.purpleBright,
     borderWidth: 2,
-    borderColor: colors.accent,
+    borderColor: glass.gold,
   },
 });

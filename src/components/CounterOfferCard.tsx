@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, fontSizes, radius, shadow } from '../theme';
+import { fonts, fontSizes, radius } from '../theme';
+import { glass } from '../theme/glass';
 import { formatTl } from '../utils/format';
 
 // v2 pazarlık: müşterinin gerçek karşı teklifi. "Bu ürünü şu fiyata almalısın"
@@ -52,22 +53,26 @@ export function CounterOfferCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(46, 26, 82, 0.72)',
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.accent,
+    borderColor: glass.gold,
     padding: 12,
-    ...shadow,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
   },
   speaker: {
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.sm,
-    color: colors.accentDark,
+    color: glass.goldBright,
   },
   line: {
     fontFamily: fonts.body,
     fontSize: fontSizes.md,
-    color: colors.ink,
+    color: glass.ink,
     fontStyle: 'italic',
     marginTop: 3,
   },
@@ -75,7 +80,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   acceptButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: glass.gold,
     borderRadius: radius.md,
     paddingVertical: 10,
     alignItems: 'center',
@@ -83,7 +88,7 @@ const styles = StyleSheet.create({
   acceptButtonLabel: {
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.sm,
-    color: colors.white,
+    color: '#3A2A00',
   },
   secondaryRow: {
     flexDirection: 'row',
@@ -95,19 +100,21 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingVertical: 8,
     alignItems: 'center',
-    backgroundColor: colors.surfaceSunken,
+    backgroundColor: glass.chipBg,
+    borderWidth: 1,
+    borderColor: glass.borderSoft,
   },
   secondaryButtonLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: fontSizes.sm,
-    color: colors.ink,
+    color: glass.ink,
   },
   walkAwayButton: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: colors.negative,
+    borderColor: glass.negative,
   },
   walkAwayLabel: {
-    color: colors.negative,
+    color: glass.negative,
   },
 });

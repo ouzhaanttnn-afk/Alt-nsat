@@ -1,11 +1,13 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, fontSizes } from '../theme';
+import { fonts, fontSizes } from '../theme';
+import { glass } from '../theme/glass';
 import { formatTl } from '../utils/format';
-import { Card } from './Card';
 import { OfferSlider } from './OfferSlider';
 
 // Bölüm 4.3: Fiyat bloğu — piyasa değeri (üstü çizili referans),
 // kaydırmalı teklif çubuğu, canlı güncellenen teklif tutarı.
+// [DÜZELTME] Artık kendi Card'ını/"TEKLİFİN" başlığını taşımıyor — dışarıdan
+// CollapsibleOfferCard tarafından sarmalanıyor (tek, kompakt panel).
 export function PriceBlock({
   marketValueTl,
   min,
@@ -31,8 +33,7 @@ export function PriceBlock({
   obscureValue?: boolean;
 }) {
   return (
-    <Card style={styles.card}>
-      <Text style={styles.label}>TEKLİFİN</Text>
+    <View>
       <View style={styles.priceSection}>
         <View style={styles.priceRow}>
           <Text style={styles.marketValue}>{obscureValue ? '— önce tart —' : formatTl(marketValueTl)}</Text>
@@ -55,25 +56,13 @@ export function PriceBlock({
           Nakdin bu teklife yetiyor kadar — çubuğun tavanı kasandaki parayla sınırlı.
         </Text>
       )}
-    </Card>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // [DÜZELTME] Teklif alanı daha verimli — gereksiz boşluklar azaltıldı ki
-  // Ürün → Test → Teklif → Ölücü/Makul/Cömert → Gönder aynı ekranda dursun.
-  card: {
-    padding: 10,
-  },
-  label: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: fontSizes.xs,
-    color: colors.inkMuted,
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
   priceSection: {
-    marginBottom: 8,
+    marginBottom: 6,
   },
   priceRow: {
     flexDirection: 'row',
@@ -83,18 +72,18 @@ const styles = StyleSheet.create({
   marketValue: {
     fontFamily: fonts.mono,
     fontSize: fontSizes.sm,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
     textDecorationLine: 'line-through',
   },
   offerValue: {
     fontFamily: fonts.monoBold,
-    fontSize: fontSizes.xxl,
-    color: colors.ink,
+    fontSize: fontSizes.xl,
+    color: glass.goldBright,
   },
   unitPrice: {
     fontFamily: fonts.mono,
     fontSize: 11,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
     marginTop: 2,
   },
   sliderWrap: {
@@ -109,12 +98,12 @@ const styles = StyleSheet.create({
   rangeLabel: {
     fontFamily: fonts.mono,
     fontSize: 11,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
   },
   cashHint: {
     fontFamily: fonts.body,
     fontSize: 11,
-    color: colors.warning,
+    color: glass.warning,
     marginTop: 6,
   },
 });

@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, fontSizes, radius, shadow } from '../theme';
+import { glass } from '../theme/glass';
 
 export interface ScaleReading {
   grams: number;
@@ -76,6 +77,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lcdBg,
     borderRadius: radius.md,
     padding: 6,
+    borderWidth: 1,
+    borderColor: glass.borderSoft,
     ...shadow,
   },
   captionRow: {
@@ -118,18 +121,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 7,
     borderRadius: radius.sm,
-    backgroundColor: colors.surfaceSunken,
+    backgroundColor: glass.sunken,
   },
   controlButtonPrimary: {
-    backgroundColor: colors.ink,
+    backgroundColor: glass.gold,
   },
   controlButtonLabel: {
     fontFamily: fonts.bodyBold,
     fontSize: 12,
     letterSpacing: 0.5,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
   },
   controlButtonLabelLight: {
-    color: colors.white,
+    color: '#3A2A00',
   },
 });

@@ -2,8 +2,8 @@
 // antika altın vurgu. Neon/glassmorphism/emoji hâlâ YOK — düz renk, hafif
 // gölge, ince kontur; sadece palet ışıktan koyuya, bordodan altına taşındı.
 export const colors = {
-  // Zemin — koyu lacivert (vitrin/dükkân hissi)
-  background: '#101B2D',
+  // Zemin — koyu mistik mor-lacivert (premium kuyumcu/mistik finans hissi)
+  background: '#160F26',
   // Kart yüzeyi — sıcak fildişi/krem (ekranın çoğu içerik burada yaşıyor)
   surface: '#F6EEDD',
   // Kart İÇİNDE çukur/ikincil panel (rozet, stepper, ilerleme çubuğu zemini) —

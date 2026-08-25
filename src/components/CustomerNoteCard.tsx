@@ -1,8 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { NegotiationCustomer } from '../types/negotiation';
-import { colors, fonts, fontSizes } from '../theme';
+import { fonts, fontSizes } from '../theme';
+import { glass } from '../theme/glass';
 import { formatTl } from '../utils/format';
-import { Card } from './Card';
+import { GlassCard } from './GlassCard';
 import { AvatarInitial } from './icons/AvatarInitial';
 
 const styleLabel: Record<NegotiationCustomer['bargainingStyle'], string> = {
@@ -23,7 +24,7 @@ export function CustomerNoteCard({
   patienceRatio?: number;
 }) {
   return (
-    <Card style={styles.card}>
+    <GlassCard style={styles.card}>
       <View style={styles.topRow}>
         <AvatarInitial name={customer.name} size={36} />
         <View style={styles.info}>
@@ -48,7 +49,7 @@ export function CustomerNoteCard({
           <View style={[styles.patienceFill, { width: `${Math.round(Math.max(0, Math.min(1, patienceRatio)) * 100)}%` }]} />
         </View>
       )}
-    </Card>
+    </GlassCard>
   );
 }
 
@@ -74,10 +75,10 @@ const styles = StyleSheet.create({
   name: {
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.md,
-    color: colors.ink,
+    color: glass.ink,
   },
   typeTag: {
-    backgroundColor: colors.surfaceSunken,
+    backgroundColor: glass.sunken,
     borderRadius: 6,
     paddingVertical: 2,
     paddingHorizontal: 7,
@@ -85,12 +86,12 @@ const styles = StyleSheet.create({
   typeTagLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: 11,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
   },
   request: {
     fontFamily: fonts.body,
     fontSize: fontSizes.sm,
-    color: colors.ink,
+    color: glass.ink,
     marginTop: 2,
     fontStyle: 'italic',
   },
@@ -103,18 +104,18 @@ const styles = StyleSheet.create({
   metaItem: {
     fontFamily: fonts.mono,
     fontSize: 11,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
   },
   patienceTrack: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.surfaceSunken,
+    backgroundColor: glass.sunken,
     marginTop: 6,
     overflow: 'hidden',
   },
   patienceFill: {
     height: '100%',
-    backgroundColor: colors.warning,
+    backgroundColor: glass.warning,
     borderRadius: 3,
   },
 });

@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, fontSizes, radius } from '../theme';
+import { fonts, fontSizes, radius } from '../theme';
+import { glass } from '../theme/glass';
 
 // Bölüm 4.3 satış modu: dükkâna gelen müşteriye satarken sadece iki
 // aksiyon var — kredi/tam fiyat kavramları alım moduna özgü, burada yok.
@@ -42,29 +43,29 @@ export function SaleActions({
 
 const styles = StyleSheet.create({
   primaryButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: glass.gold,
     borderRadius: radius.md,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   primaryButtonLabel: {
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.md,
-    color: colors.white,
+    color: '#3A2A00',
   },
   secondaryButton: {
-    marginTop: 10,
+    marginTop: 8,
     borderRadius: radius.md,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: glass.chipBg,
     borderWidth: 1,
-    borderColor: colors.negative,
+    borderColor: glass.negative,
   },
   secondaryButtonLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: fontSizes.sm,
-    color: colors.negative,
+    color: glass.negative,
   },
   disabled: {
     opacity: 0.4,
@@ -72,15 +73,15 @@ const styles = StyleSheet.create({
   warning: {
     fontFamily: fonts.body,
     fontSize: fontSizes.xs,
-    color: colors.inkMutedOnDark,
+    color: glass.inkMuted,
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: 8,
   },
   rejectionHint: {
     fontFamily: fonts.bodyMedium,
     fontSize: fontSizes.xs,
-    color: colors.warning,
+    color: glass.warning,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
 });

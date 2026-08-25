@@ -1,8 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { UZMAN_GORUSU_BASE_ERROR_PERCENT, UZMAN_GORUSU_ERROR_REDUCTION_PER_LEVEL } from '../config/economyConfig';
 import type { NegotiationProduct } from '../types/negotiation';
-import { colors, fonts, fontSizes } from '../theme';
-import { Card } from './Card';
+import { fonts, fontSizes } from '../theme';
+import { glass } from '../theme/glass';
+import { GlassCard } from './GlassCard';
 import { ProductIcon } from './icons/ProductIcon';
 import { SealIcon } from './icons/SealIcon';
 
@@ -38,7 +39,7 @@ export function NegotiationProductCard({
   const revealsFlaw = isCraftedGood && uzmanGorusuLevel >= 5;
 
   return (
-    <Card style={styles.card}>
+    <GlassCard style={styles.card}>
       {product.sealVerified && (
         <View style={styles.seal}>
           <SealIcon size={32} />
@@ -88,7 +89,7 @@ export function NegotiationProductCard({
           )}
         </View>
       )}
-    </Card>
+    </GlassCard>
   );
 }
 
@@ -116,15 +117,15 @@ const styles = StyleSheet.create({
   name: {
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.md,
-    color: colors.ink,
+    color: glass.ink,
   },
   source: {
     fontFamily: fonts.body,
     fontSize: fontSizes.xs,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
   },
   testedBadge: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: glass.purpleSoft,
     borderRadius: 999,
     paddingVertical: 3,
     paddingHorizontal: 8,
@@ -133,7 +134,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 9,
     letterSpacing: 0.3,
-    color: colors.positive,
+    color: glass.positive,
   },
   badgeRow: {
     flexDirection: 'row',
@@ -141,38 +142,40 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   badge: {
-    backgroundColor: colors.surfaceSunken,
+    backgroundColor: glass.sunken,
     borderRadius: 6,
     paddingVertical: 3,
     paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: glass.borderSoft,
   },
   badgeLabel: {
     fontFamily: fonts.mono,
     fontSize: 12,
-    color: colors.ink,
+    color: glass.goldBright,
   },
   expertBox: {
     marginTop: 6,
     paddingTop: 6,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: glass.borderSoft,
   },
   expertLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: 10,
     letterSpacing: 1,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
     marginBottom: 2,
   },
   expertValue: {
     fontFamily: fonts.body,
     fontSize: fontSizes.sm,
-    color: colors.ink,
+    color: glass.ink,
   },
   expertLocked: {
     fontFamily: fonts.body,
     fontSize: 11,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
     fontStyle: 'italic',
   },
 });

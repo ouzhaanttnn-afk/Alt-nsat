@@ -20,10 +20,12 @@ import {
 } from '../config/economyConfig';
 import type { NegotiationCustomer, NegotiationProduct } from '../types/negotiation';
 import type { IncomingCustomer, NegotiationLine } from '../types/incomingCustomer';
+import { CollapsibleOfferCard } from './CollapsibleOfferCard';
 import { LineItemNegotiation } from './LineItemNegotiation';
 import { LineItemPicker } from './LineItemPicker';
 import { equivalentGrams, MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes, radius } from '../theme';
+import { glass } from '../theme/glass';
 import { formatTl } from '../utils/format';
 import { calculateOpportunityScore } from '../utils/opportunityScore';
 import { evaluateBuyOffer, evaluateSellOffer } from '../engine/negotiation';
@@ -98,6 +100,9 @@ export function NegotiationPanel({
 
   const [tested, setTested] = useState(false);
   const [measuring, setMeasuring] = useState(false);
+  // [YENİ] Referans tasarımı — teklif paneli artık collapse/expand olabiliyor;
+  // test tamamlanır tamamlanmaz açık başlıyor, oyuncu istediğinde küçültebilir.
+  const [offerExpanded, setOfferExpanded] = useState(true);
 
   // Oyun, müşteri belirdiği anda tick() içinde zaten duraklatılmış olur
   // (bkz. useGameStore — React render döngüsünü beklemeden, preNegotiationSpeed
@@ -464,7 +469,11 @@ export function NegotiationPanel({
       )}
 
       {!pendingCounter && !saleCounter && (isSale || tested) && (
-        <>
+        <CollapsibleOfferCard
+          offerValueTl={offer}
+          expanded={offerExpanded}
+          onToggle={() => setOfferExpanded((v) => !v)}
+        >
           <PriceBlock
             marketValueTl={product.marketValueTl}
             min={sliderMin}
@@ -525,7 +534,7 @@ export function NegotiationPanel({
               }
             />
           )}
-        </>
+        </CollapsibleOfferCard>
       )}
     </View>
   );
@@ -782,7 +791,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(46, 26, 82, 0.72)',
+    borderWidth: 1,
+    borderColor: glass.borderSoft,
     borderRadius: radius.md,
     padding: 14,
   },
@@ -808,18 +819,18 @@ const styles = StyleSheet.create({
   compactTitle: {
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.sm,
-    color: colors.ink,
+    color: glass.ink,
   },
   compactSubtitle: {
     fontFamily: fonts.body,
     fontSize: fontSizes.xs,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
     marginTop: 2,
   },
   borrowedNoteCompact: {
     fontFamily: fonts.bodyMedium,
     fontSize: 11,
-    color: colors.warning,
+    color: glass.warning,
     marginTop: 3,
   },
   resultContainer: {

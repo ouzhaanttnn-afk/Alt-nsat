@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NegotiationLine } from '../types/incomingCustomer';
-import { colors, fonts, fontSizes, radius } from '../theme';
+import { fonts, fontSizes, radius } from '../theme';
+import { glass } from '../theme/glass';
 import { ProductIcon } from './icons/ProductIcon';
 
 /**
@@ -79,7 +80,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyMedium,
     fontSize: 10,
     letterSpacing: 1,
-    color: colors.inkMutedOnDark,
+    color: glass.inkMuted,
   },
   grid: {
     flexDirection: 'row',
@@ -88,19 +89,19 @@ const styles = StyleSheet.create({
   },
   bubble: {
     width: '47%',
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(46, 26, 82, 0.6)',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: glass.borderSoft,
     borderRadius: radius.md,
     padding: 8,
     gap: 2,
   },
   bubbleActive: {
-    borderColor: colors.accent,
+    borderColor: glass.gold,
     borderWidth: 1.5,
   },
   bubblePressed: {
-    backgroundColor: colors.surfaceSunken,
+    backgroundColor: 'rgba(46, 26, 82, 0.85)',
   },
   bubbleTopRow: {
     flexDirection: 'row',
@@ -110,12 +111,12 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.xs,
-    color: colors.ink,
+    color: glass.ink,
   },
   subtitle: {
     fontFamily: fonts.mono,
     fontSize: 10,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
   },
   status: {
     fontFamily: fonts.bodyBold,
@@ -123,13 +124,13 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   statusAccepted: {
-    color: colors.positive,
+    color: glass.positive,
   },
   statusRejected: {
-    color: colors.negative,
+    color: glass.negative,
   },
   testedPill: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: glass.purpleSoft,
     borderRadius: 999,
     paddingVertical: 1,
     paddingHorizontal: 5,
@@ -138,6 +139,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 7,
     letterSpacing: 0.2,
-    color: colors.accentDark,
+    color: glass.goldBright,
   },
 });

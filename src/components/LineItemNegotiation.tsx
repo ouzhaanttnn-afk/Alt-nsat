@@ -19,8 +19,10 @@ import { evaluateBuyOffer } from '../engine/negotiation';
 import { equivalentGrams, useGameStore } from '../store/useGameStore';
 import type { NegotiationCustomer, NegotiationProduct } from '../types/negotiation';
 import type { ScaleReading } from './ScalePanel';
-import { colors, fonts, fontSizes } from '../theme';
+import { fonts, fontSizes } from '../theme';
+import { glass } from '../theme/glass';
 import { formatTl } from '../utils/format';
+import { CollapsibleOfferCard } from './CollapsibleOfferCard';
 import { CounterOfferCard } from './CounterOfferCard';
 import { NegotiationActions } from './NegotiationActions';
 import { NegotiationProductCard } from './NegotiationProductCard';
@@ -75,6 +77,7 @@ export function LineItemNegotiation({
 
   const [tested, setTested] = useState(false);
   const [measuring, setMeasuring] = useState(false);
+  const [offerExpanded, setOfferExpanded] = useState(true);
   const [pendingCounter, setPendingCounter] = useState<{ counterAmountTl: number } | null>(null);
   const [roundsUsed, setRoundsUsed] = useState(0);
   const [result, setResult] = useState<{ accepted: boolean; amountTl: number; borrowedTl: number; xp: number; reason: string } | null>(
@@ -189,7 +192,7 @@ export function LineItemNegotiation({
   if (result) {
     return (
       <View style={styles.resultWrap}>
-        <View style={[styles.resultBadge, { backgroundColor: result.accepted ? colors.positive : colors.negative }]}>
+        <View style={[styles.resultBadge, { backgroundColor: result.accepted ? glass.positive : glass.negative }]}>
           <Text style={styles.resultBadgeLabel}>{result.accepted ? '✓' : '✕'}</Text>
         </View>
         <View style={styles.resultTextBlock}>
@@ -236,7 +239,11 @@ export function LineItemNegotiation({
           onWalkAway={rejectLine}
         />
       ) : tested ? (
-        <>
+        <CollapsibleOfferCard
+          offerValueTl={offer}
+          expanded={offerExpanded}
+          onToggle={() => setOfferExpanded((v) => !v)}
+        >
           <PriceBlock
             marketValueTl={product.marketValueTl}
             min={sliderMin}
@@ -274,7 +281,7 @@ export function LineItemNegotiation({
             onPayFull={() => settleAccepted(product.marketValueTl, product.marketValueTl * customer.acceptanceThreshold, 0)}
             onReject={rejectLine}
           />
-        </>
+        </CollapsibleOfferCard>
       ) : null}
     </View>
   );
@@ -290,17 +297,17 @@ const styles = StyleSheet.create({
   backLabel: {
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.sm,
-    color: colors.accentDark,
+    color: glass.goldBright,
   },
   progressLabel: {
     fontFamily: fonts.mono,
     fontSize: 11,
-    color: colors.inkMutedOnDark,
+    color: glass.inkMuted,
   },
   testGateHint: {
     fontFamily: fonts.body,
     fontSize: fontSizes.xs,
-    color: colors.inkMutedOnDark,
+    color: glass.inkMuted,
     textAlign: 'center',
     paddingVertical: 6,
   },
@@ -316,19 +323,19 @@ const styles = StyleSheet.create({
   resultBadgeLabel: {
     fontFamily: fonts.headingBold,
     fontSize: fontSizes.md,
-    color: colors.white,
+    color: '#FFFFFF',
   },
   resultTextBlock: { alignItems: 'center' },
   resultTitle: {
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.sm,
-    color: colors.inkOnDark,
+    color: glass.ink,
     textAlign: 'center',
   },
   resultSubtitle: {
     fontFamily: fonts.body,
     fontSize: fontSizes.xs,
-    color: colors.inkMutedOnDark,
+    color: glass.inkMuted,
     textAlign: 'center',
     marginTop: 2,
   },

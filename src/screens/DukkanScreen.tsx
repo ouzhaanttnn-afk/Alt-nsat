@@ -33,24 +33,23 @@ type DukkanNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-// [YENİ] Lüks referans tasarımı (fildişi + altın çerçeve + mor ışıltı) —
-// KASITLI OLARAK sadece bu ekrana özel, yerel bir palet: uygulamanın geri
-// kalanının (Stok/Yetenekler/Profil/Müşteriler) mevcut lacivert/krem/altın
-// kimliği (theme/colors.ts) DEĞİŞTİRİLMEDİ — bu istek yalnızca DukkanScreen
-// içindi. "Hero" bölümü koyu lacivert zemin üzerinde duran, kendi içinde
-// tutarlı fildişi bir panel olarak kurgulandı.
+// [DÜZELTME] Premium mor+altın referans tasarımına taşındı — hero artık
+// krem/fildişi değil, ince altın çerçeveli koyu mor "cam" bir panel.
+// KASITLI OLARAK sadece bu ekrana özel, yerel bir palet: Stok/Yetenekler/
+// Profil/Müşteriler ekranlarının mevcut theme/colors.ts kimliği (dış zemin
+// hariç — bkz. colors.background) DEĞİŞTİRİLMEDİ.
 const lux = {
-  panelBg: '#F6F1E8',
-  panelBgSoft: 'rgba(255,255,255,0.6)',
-  glass: 'rgba(255,255,255,0.55)',
-  glassStrong: 'rgba(255,255,255,0.78)',
+  panelBg: 'rgba(36, 20, 66, 0.85)',
+  panelBgSoft: 'rgba(255,255,255,0.04)',
+  glass: 'rgba(255,255,255,0.06)',
+  glassStrong: 'rgba(255,255,255,0.11)',
   gold: '#D4AF37',
   goldBright: '#F3D77A',
   goldDeep: '#9C7A1E',
-  purple: '#5A2A82',
-  purpleBright: '#8C4FD1',
-  ink: '#2E2440',
-  inkMuted: '#7A6F8C',
+  purple: '#7B4FC9',
+  purpleBright: '#A97EE8',
+  ink: '#F1E6FF',
+  inkMuted: '#B7A6D9',
 };
 
 // Mockup birleşimi: Dükkân artık sadece sermaye/gün özeti değil — gelen
@@ -683,20 +682,22 @@ const styles = StyleSheet.create({
     color: colors.inkMutedOnDark,
   },
   tutorialCard: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: 'rgba(123, 79, 201, 0.16)',
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
     padding: 10,
     gap: 4,
   },
   tutorialText: {
     fontFamily: fonts.body,
     fontSize: fontSizes.sm,
-    color: colors.ink,
+    color: colors.inkOnDark,
   },
   tutorialDismiss: {
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.sm,
-    color: colors.accentDark,
+    color: colors.brass,
     alignSelf: 'flex-end',
   },
   emergencyCard: {

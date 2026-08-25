@@ -1,8 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
-import { colors, fonts, fontSizes } from '../theme';
+import { fonts, fontSizes } from '../theme';
+import { glass } from '../theme/glass';
 import { formatTl } from '../utils/format';
-import { Card } from './Card';
+import { GlassCard } from './GlassCard';
 
 const DONUT_SIZE = 84;
 const DONUT_STROKE_WIDTH = 12;
@@ -41,25 +42,25 @@ export function ProfitAnalysisCard({
   const secondaryPositive = secondary ? secondary.valueTl >= 0 : true;
 
   return (
-    <Card>
+    <GlassCard>
       <Text style={styles.label}>{title}</Text>
       <View style={styles.body}>
         <ProfitDonut costTl={costTl} profitTl={profitTl} marginPercent={marginPercent} />
         <View style={styles.rows}>
-          <Row dotColor={colors.inkMuted} label={costLabel} value={formatTl(costTl)} />
-          {showSaleValue && <Row dotColor={colors.inkMuted} label="Toplam Satım" value={formatTl(saleValueTl)} />}
+          <Row dotColor={glass.inkMuted} label={costLabel} value={formatTl(costTl)} />
+          {showSaleValue && <Row dotColor={glass.inkMuted} label="Toplam Satım" value={formatTl(saleValueTl)} />}
           <Row
-            dotColor={positive ? colors.positive : colors.negative}
+            dotColor={positive ? glass.positive : glass.negative}
             label={profitLabel}
             value={`${positive ? '+' : ''}${formatTl(profitTl)}`}
-            valueColor={positive ? colors.positive : colors.negative}
+            valueColor={positive ? glass.positive : glass.negative}
             bold
           />
           <Row
-            dotColor={positive ? colors.positive : colors.negative}
+            dotColor={positive ? glass.positive : glass.negative}
             label="Kâr Marjı"
             value={`%${marginPercent.toFixed(1)}`}
-            valueColor={positive ? colors.positive : colors.negative}
+            valueColor={positive ? glass.positive : glass.negative}
           />
         </View>
       </View>
@@ -68,7 +69,7 @@ export function ProfitAnalysisCard({
         <View style={styles.secondaryBlock}>
           <View style={styles.secondaryRow}>
             <Text style={styles.secondaryLabel}>{secondary.label}</Text>
-            <Text style={[styles.secondaryValue, { color: secondaryPositive ? colors.positive : colors.negative }]}>
+            <Text style={[styles.secondaryValue, { color: secondaryPositive ? glass.positive : glass.negative }]}>
               {secondaryPositive ? '+' : ''}
               {formatTl(secondary.valueTl)}
             </Text>
@@ -76,7 +77,7 @@ export function ProfitAnalysisCard({
           <Text style={styles.secondaryCaption}>{secondary.caption}</Text>
         </View>
       )}
-    </Card>
+    </GlassCard>
   );
 }
 
@@ -94,7 +95,7 @@ function ProfitDonut({
   const profitRatio = positive && resaleTl > 0 ? Math.min(1, profitTl / resaleTl) : 0;
   const profitLength = DONUT_CIRCUMFERENCE * profitRatio;
   const costLength = DONUT_CIRCUMFERENCE - profitLength;
-  const costColor = positive ? colors.inkMuted : colors.negative;
+  const costColor = positive ? glass.inkMuted : glass.negative;
 
   return (
     <View style={styles.donutWrap}>
@@ -114,7 +115,7 @@ function ProfitDonut({
               cx={DONUT_SIZE / 2}
               cy={DONUT_SIZE / 2}
               r={DONUT_RADIUS}
-              stroke={colors.positive}
+              stroke={glass.positive}
               strokeWidth={DONUT_STROKE_WIDTH}
               strokeDasharray={`${profitLength} ${DONUT_CIRCUMFERENCE - profitLength}`}
               strokeDashoffset={-costLength}
@@ -124,7 +125,7 @@ function ProfitDonut({
         </G>
       </Svg>
       <View style={styles.donutCenter}>
-        <Text style={[styles.donutMargin, { color: positive ? colors.positive : colors.negative }]}>
+        <Text style={[styles.donutMargin, { color: positive ? glass.positive : glass.negative }]}>
           %{marginPercent.toFixed(0)}
         </Text>
       </View>
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fonts.bodyMedium,
     fontSize: fontSizes.xs,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
     letterSpacing: 1,
     marginBottom: 10,
   },
@@ -209,12 +210,12 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontFamily: fonts.body,
     fontSize: fontSizes.sm,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
   },
   rowValue: {
     fontFamily: fonts.mono,
     fontSize: fontSizes.sm,
-    color: colors.ink,
+    color: glass.ink,
   },
   rowValueBold: {
     fontFamily: fonts.monoBold,
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
   tip: {
     fontFamily: fonts.body,
     fontSize: 11,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
     fontStyle: 'italic',
     marginTop: 10,
   },
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: glass.borderSoft,
   },
   secondaryRow: {
     flexDirection: 'row',
@@ -241,7 +242,7 @@ const styles = StyleSheet.create({
   secondaryLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: fontSizes.sm,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
   },
   secondaryValue: {
     fontFamily: fonts.monoBold,
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
   secondaryCaption: {
     fontFamily: fonts.body,
     fontSize: 11,
-    color: colors.inkMuted,
+    color: glass.inkMuted,
     marginTop: 3,
   },
 });
