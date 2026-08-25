@@ -616,27 +616,25 @@ function BulkLineNegotiationView({
 
   return (
     <View style={styles.stack}>
-      {/* [DÜZELTME] Müşteri + Ürünler artık yan yana: sol küçük müşteri
-          paneli, sağda "GETİRDİĞİ ÜRÜNLER" yatay çip şeridi. Bir kalemin
-          detayı açıkken (activeIndex !== null) sağ panel gizlenir — o an
-          LineItemNegotiation'ın kendi ürün kartı zaten gösteriliyor. */}
-      {activeIndex === null ? (
-        <View style={styles.customerProductRow}>
-          <CustomerNoteCard customer={customer} compact />
-          <GlassCard style={styles.productPickerCard}>
-            <Text style={styles.compactSectionLabel}>GETİRDİĞİ ÜRÜNLER</Text>
-            <LineItemPicker
-              lines={lines}
-              results={results}
-              testedMap={testedMap}
-              activeIndex={activeIndex}
-              onSelect={setActiveIndex}
-              layout="row"
-            />
-          </GlassCard>
-        </View>
-      ) : (
-        <CustomerNoteCard customer={customer} compact />
+      {/* [DÜZELTME] Çok kalemli getiride yan yana dar şerit, kalem sayısı
+          arttıkça yatay kaydırma gerektiriyordu (kullanılabilirlik sorunu).
+          Seçim adımında (activeIndex === null) artık müşteri kartı üstte
+          kompakt, ürünler altında TAM GENİŞLİK 2 sütunlu grid halinde —
+          tüm kalemler yatay kaydırmadan görülüp dokunulabiliyor. Bir kalemin
+          detayı açıldığında (activeIndex !== null) tekrar tek satır, çünkü
+          o an LineItemNegotiation'ın kendi ürün kartı zaten gösteriliyor. */}
+      <CustomerNoteCard customer={customer} compact />
+      {activeIndex === null && (
+        <GlassCard style={styles.productPickerCardFull}>
+          <LineItemPicker
+            lines={lines}
+            results={results}
+            testedMap={testedMap}
+            activeIndex={activeIndex}
+            onSelect={setActiveIndex}
+            layout="grid"
+          />
+        </GlassCard>
       )}
       {lines.map((line, index) => (
         <View key={index} style={index === activeIndex ? undefined : styles.hiddenLine}>
@@ -796,16 +794,11 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: 'stretch',
   },
-  productPickerCard: {
-    flex: 1,
+  // [DÜZELTME] Çoklu kalem seçim ızgarası artık dar bir yan panelde değil,
+  // tam genişlikte — 2 sütunlu grid tüm kalemleri yatay kaydırmadan gösterir.
+  productPickerCardFull: {
     padding: 9,
     gap: 4,
-  },
-  compactSectionLabel: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 9,
-    letterSpacing: 1,
-    color: colors.inkMutedOnDark,
   },
   // [YENİ] Test edilmeden teklif alanı yerine gösterilen kompakt bilgi metni.
   testGateHint: {
