@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   COUNTER_OFFER_MAX_ROUNDS,
-  COUNTER_OFFER_MEET_HALFWAY_RATIO,
   GENEROUS_OFFER_REPUTATION_BONUS,
   LOW_OFFER_REPUTATION_PENALTY,
   OFFER_PRESET_COMERT_RATIO,
@@ -29,10 +28,15 @@ import { colors, fonts, fontSizes, radius } from '../theme';
 import { glass } from '../theme/glass';
 import { formatTl } from '../utils/format';
 import { calculateOpportunityScore } from '../utils/opportunityScore';
-import { evaluateBuyOffer, evaluateSellOffer } from '../engine/negotiation';
+import {
+  evaluateNegotiationTurn,
+  initialNegotiationPatience,
+  type NegotiationReactionTone,
+} from '../engine/negotiation';
 import { Badge } from './Badge';
 import { CounterOfferCard } from './CounterOfferCard';
 import { CustomerNoteCard } from './CustomerNoteCard';
+import { CustomerReaction } from './CustomerReaction';
 import { KarAnaliziCard } from './KarAnaliziCard';
 import { NegotiationActions } from './NegotiationActions';
 import { NegotiationProductCard } from './NegotiationProductCard';
@@ -150,10 +154,16 @@ export function NegotiationPanel({
   const [result, setResult] = useState<Result>(null);
   const [borrowedTl, setBorrowedTl] = useState(0);
   const [xpToast, setXpToast] = useState<{ amount: number; reason: string } | null>(null);
-  // Karşı teklif turu: müşteri "şu tutar olursa anlaşırız" derse burada
-  // gösterilir — Kabul Et / yarı-yolda buluş / Vazgeç.
-  const [pendingCounter, setPendingCounter] = useState<{ counterAmountTl: number } | null>(null);
+  const [pendingCounter, setPendingCounter] = useState<{
+    counterAmountTl: number;
+    isFinal: boolean;
+    reaction: string;
+  } | null>(null);
   const [roundsUsed, setRoundsUsed] = useState(0);
+  const [patience, setPatience] = useState(() => initialNegotiationPatience(customer.bargainingStyle));
+  const [offerHistory, setOfferHistory] = useState<number[]>([]);
+  const [reaction, setReaction] = useState<{ text: string; tone: NegotiationReactionTone } | null>(null);
+  const terminalActionStartedRef = useRef(false);
 
   useEffect(() => {
     if (result !== null || pendingCounter !== null || minutesLeft > 0) return;
@@ -201,6 +211,8 @@ export function NegotiationPanel({
   };
 
   const completeDeal = (amount: number, originalThreshold: number, roundsUsedAtSettle: number) => {
+    if (terminalActionStartedRef.current) return;
+    terminalActionStartedRef.current = true;
     applyReputationForSettledAmount(amount, originalThreshold);
     const outcome = settleDeal(amount, {
       name: product.name,
@@ -238,88 +250,10 @@ export function NegotiationPanel({
     setResult('accepted');
   };
 
-  const rejectBuy = () => {
+  const rejectBuy = (amount = offer) => {
+    if (terminalActionStartedRef.current) return;
+    terminalActionStartedRef.current = true;
     setPendingCounter(null);
-    logCompletedOffer({
-      customerName: customer.name,
-      productName: product.name,
-      category: product.category,
-      karat: product.karat,
-      grams: product.grams,
-      offerAmountTl: offer,
-      marketValueTl: product.marketValueTl,
-      quantity: product.quantity,
-      status: 'red',
-    });
-    setResult('rejected');
-  };
-
-  // Bölüm 4.3/6: alım/bozdurma modunda "Teklifi Gönder" — artık anında
-  // sonuçlanıyor: kabul / karşı teklif / red (bkz. utils/negotiationEngine).
-  const sendBuyOffer = (amount: number, roundsUsedNow: number) => {
-    setOffer(amount);
-    const originalThreshold = product.marketValueTl * customer.acceptanceThreshold;
-    const adjustedThreshold =
-      originalThreshold * (1 - sikiPazarlikciLevel * SIKI_PAZARLIKCI_THRESHOLD_REDUCTION_PER_LEVEL);
-
-    const outcome = evaluateBuyOffer({
-      offerTl: amount,
-      thresholdTl: adjustedThreshold,
-      bargainingStyle: customer.bargainingStyle,
-      karizmaScore: reputationScore,
-      roundsUsed: roundsUsedNow,
-      maxRounds: COUNTER_OFFER_MAX_ROUNDS,
-    });
-
-    if (outcome.kind === 'accept') {
-      completeDeal(amount, originalThreshold, roundsUsedNow);
-      return;
-    }
-    if (outcome.kind === 'counter') {
-      setPendingCounter({ counterAmountTl: outcome.counterAmountTl });
-      setRoundsUsed(roundsUsedNow + 1);
-      return;
-    }
-    rejectBuy();
-  };
-
-  const acceptCounter = () => {
-    if (!pendingCounter) return;
-    const originalThreshold = product.marketValueTl * customer.acceptanceThreshold;
-    completeDeal(pendingCounter.counterAmountTl, originalThreshold, roundsUsed);
-  };
-
-  const meetCounterHalfway = () => {
-    if (!pendingCounter) return;
-    const raised = Math.round(offer + (pendingCounter.counterAmountTl - offer) * COUNTER_OFFER_MEET_HALFWAY_RATIO);
-    setPendingCounter(null);
-    sendBuyOffer(clampOffer(raised), roundsUsed);
-  };
-
-  // Bölüm 4.2 satış modu: dükkâna gelen müşteriye satış — artık aynı
-  // karşı-teklif motorunu kullanıyor (kabul / "biraz düşür" / vazgeç).
-  const [saleCounter, setSaleCounter] = useState<{ counterAmountTl: number } | null>(null);
-  const sendSaleAsk = (amount: number, roundsUsedNow: number) => {
-    setOffer(amount);
-    const ceiling = product.marketValueTl * customer.acceptanceThreshold;
-    const outcome = evaluateSellOffer({
-      askTl: amount,
-      thresholdTl: ceiling,
-      bargainingStyle: customer.bargainingStyle,
-      karizmaScore: reputationScore,
-      roundsUsed: roundsUsedNow,
-      maxRounds: COUNTER_OFFER_MAX_ROUNDS,
-    });
-
-    if (outcome.kind === 'accept') {
-      resolveSaleAccept(amount, roundsUsedNow);
-      return;
-    }
-    if (outcome.kind === 'counter') {
-      setSaleCounter({ counterAmountTl: outcome.counterAmountTl });
-      setRoundsUsed(roundsUsedNow + 1);
-      return;
-    }
     logCompletedOffer({
       customerName: customer.name,
       productName: product.name,
@@ -334,7 +268,100 @@ export function NegotiationPanel({
     setResult('rejected');
   };
 
+  // Her teklif deterministik bir pazarlık turudur: sabır, tekrar teklif ve
+  // son fiyat state'i engine'den gelir; para/stok işlemi yalnızca kabulde
+  // mevcut settlement fonksiyonundan geçer.
+  const sendBuyOffer = (amount: number, roundsUsedNow: number) => {
+    setOffer(amount);
+    const originalThreshold = product.marketValueTl * customer.acceptanceThreshold;
+    const adjustedThreshold =
+      originalThreshold * (1 - sikiPazarlikciLevel * SIKI_PAZARLIKCI_THRESHOLD_REDUCTION_PER_LEVEL);
+
+    const outcome = evaluateNegotiationTurn({
+      direction: 'buy',
+      offerTl: amount,
+      thresholdTl: adjustedThreshold,
+      bargainingStyle: customer.bargainingStyle,
+      urgency: customer.urgency,
+      karizmaScore: reputationScore,
+      patience,
+      previousOffers: offerHistory,
+      roundsUsed: roundsUsedNow,
+      maxRounds: COUNTER_OFFER_MAX_ROUNDS,
+    });
+    setOfferHistory((history) => [...history, amount]);
+    setPatience(outcome.patienceAfter);
+    setReaction({ text: outcome.reaction, tone: outcome.tone });
+
+    if (outcome.kind === 'accept') {
+      completeDeal(amount, originalThreshold, roundsUsedNow);
+      return;
+    }
+    if (outcome.kind === 'counter' || outcome.kind === 'final') {
+      setPendingCounter({
+        counterAmountTl: outcome.counterAmountTl,
+        isFinal: outcome.kind === 'final',
+        reaction: outcome.reaction,
+      });
+      setRoundsUsed(roundsUsedNow + 1);
+      return;
+    }
+    if (outcome.kind === 'leave') rejectBuy(amount);
+    else setRoundsUsed(roundsUsedNow + 1);
+  };
+
+  const acceptCounter = () => {
+    if (!pendingCounter) return;
+    const originalThreshold = product.marketValueTl * customer.acceptanceThreshold;
+    completeDeal(pendingCounter.counterAmountTl, originalThreshold, roundsUsed);
+  };
+
+  // Bölüm 4.2 satış modu: dükkâna gelen müşteriye satış — artık aynı
+  // karşı-teklif motorunu kullanıyor (kabul / karşı teklif / vazgeç).
+  const [saleCounter, setSaleCounter] = useState<{
+    counterAmountTl: number;
+    isFinal: boolean;
+    reaction: string;
+  } | null>(null);
+  const sendSaleAsk = (amount: number, roundsUsedNow: number) => {
+    setOffer(amount);
+    const ceiling = product.marketValueTl * customer.acceptanceThreshold;
+    const outcome = evaluateNegotiationTurn({
+      direction: 'sell',
+      thresholdTl: ceiling,
+      bargainingStyle: customer.bargainingStyle,
+      urgency: customer.urgency,
+      karizmaScore: reputationScore,
+      patience,
+      previousOffers: offerHistory,
+      roundsUsed: roundsUsedNow,
+      maxRounds: COUNTER_OFFER_MAX_ROUNDS,
+      offerTl: amount,
+    });
+    setOfferHistory((history) => [...history, amount]);
+    setPatience(outcome.patienceAfter);
+    setReaction({ text: outcome.reaction, tone: outcome.tone });
+
+    if (outcome.kind === 'accept') {
+      resolveSaleAccept(amount, roundsUsedNow);
+      return;
+    }
+    if (outcome.kind === 'counter' || outcome.kind === 'final') {
+      setSaleCounter({
+        counterAmountTl: outcome.counterAmountTl,
+        isFinal: outcome.kind === 'final',
+        reaction: outcome.reaction,
+      });
+      setRoundsUsed(roundsUsedNow + 1);
+      return;
+    }
+    if (outcome.kind === 'leave') rejectSale(amount);
+    else setRoundsUsed(roundsUsedNow + 1);
+  };
+
   const resolveSaleAccept = (amount: number, roundsUsedAtSettle: number) => {
+    if (terminalActionStartedRef.current) return;
+    terminalActionStartedRef.current = true;
     const settled = resolveIncomingCustomer(true, amount);
     setOffer(amount);
     setSaleCounter(null);
@@ -363,11 +390,22 @@ export function NegotiationPanel({
     resolveSaleAccept(saleCounter.counterAmountTl, roundsUsed);
   };
 
-  const lowerSaleHalfway = () => {
-    if (!saleCounter) return;
-    const lowered = Math.round(offer - (offer - saleCounter.counterAmountTl) * COUNTER_OFFER_MEET_HALFWAY_RATIO);
+  const rejectSale = (amount = offer) => {
+    if (terminalActionStartedRef.current) return;
+    terminalActionStartedRef.current = true;
     setSaleCounter(null);
-    sendSaleAsk(clampOffer(lowered), roundsUsed);
+    logCompletedOffer({
+      customerName: customer.name,
+      productName: product.name,
+      category: product.category,
+      karat: product.karat,
+      grams: product.grams,
+      offerAmountTl: amount,
+      marketValueTl: product.marketValueTl,
+      quantity: product.quantity,
+      status: 'red',
+    });
+    setResult('rejected');
   };
 
   const canAct = isSale ? result === null && saleCounter === null : tested && !measuring && result === null && pendingCounter === null;
@@ -443,9 +481,12 @@ export function NegotiationPanel({
         <CounterOfferCard
           customerName={customer.name}
           counterAmountTl={pendingCounter.counterAmountTl}
-          raiseLabel="Teklifi Yükselt"
+          direction="buy"
+          patience={patience}
+          reaction={pendingCounter.reaction}
+          isFinal={pendingCounter.isFinal}
           onAccept={acceptCounter}
-          onMeetHalfway={meetCounterHalfway}
+          onContinueNegotiating={() => setPendingCounter(null)}
           onWalkAway={rejectBuy}
         />
       )}
@@ -453,13 +494,13 @@ export function NegotiationPanel({
         <CounterOfferCard
           customerName={customer.name}
           counterAmountTl={saleCounter.counterAmountTl}
-          raiseLabel="Fiyatı Düşür"
+          direction="sell"
+          patience={patience}
+          reaction={saleCounter.reaction}
+          isFinal={saleCounter.isFinal}
           onAccept={acceptSaleCounter}
-          onMeetHalfway={lowerSaleHalfway}
-          onWalkAway={() => {
-            setSaleCounter(null);
-            setResult('rejected');
-          }}
+          onContinueNegotiating={() => setSaleCounter(null)}
+          onWalkAway={rejectSale}
         />
       )}
 
@@ -471,11 +512,13 @@ export function NegotiationPanel({
       )}
 
       {!pendingCounter && !saleCounter && (isSale || tested) && (
-        <CollapsibleOfferCard
-          offerValueTl={offer}
-          expanded={offerExpanded}
-          onToggle={() => setOfferExpanded((v) => !v)}
-        >
+        <>
+          {reaction && <CustomerReaction customerName={customer.name} reaction={reaction.text} patience={patience} />}
+          <CollapsibleOfferCard
+            offerValueTl={offer}
+            expanded={offerExpanded}
+            onToggle={() => setOfferExpanded((v) => !v)}
+          >
           <PriceBlock
             marketValueTl={product.marketValueTl}
             min={sliderMin}
@@ -522,9 +565,7 @@ export function NegotiationPanel({
             <SaleActions
               disabled={!canAct}
               onOfferPrice={() => sendSaleAsk(offer, roundsUsed)}
-              onReject={() => {
-                setResult('rejected');
-              }}
+              onReject={rejectSale}
             />
           ) : (
             <NegotiationActions
@@ -553,7 +594,8 @@ export function NegotiationPanel({
               {profitAnalysisExpanded && <KarAnaliziCard offerTl={offer} estimatedResaleTl={estimatedResaleTl} />}
             </>
           )}
-        </CollapsibleOfferCard>
+          </CollapsibleOfferCard>
+        </>
       )}
     </View>
   );

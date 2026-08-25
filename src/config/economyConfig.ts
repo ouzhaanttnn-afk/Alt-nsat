@@ -255,6 +255,20 @@ export const KARIZMA_NEUTRAL_SCORE = 50;
 export const KARIZMA_THRESHOLD_EFFECT_PER_POINT = 0.0015;
 export const KARIZMA_COUNTER_POSITION_EFFECT_PER_POINT = 0.002;
 
+// ---- Pazarlık turu: sabır / tekrar teklif / son fiyat --------------------
+// Bunlar fiyatlandırma ya da ekonomi dengesi değil, aktif müşteriyle yapılan
+// tek bir pazarlığın davranış sınırlarıdır. Motor bu değerlerle deterministik
+// çalışır; aynı teklif tekrarlarında yeni bir kabul zarı atılmaz.
+export const NEGOTIATION_INITIAL_PATIENCE: Record<BargainingStyle, number> = {
+  kolay: 4,
+  dengeli: 3,
+  sert: 4,
+};
+export const NEGOTIATION_REPEAT_OFFER_BAND_RATIO = 0.01;
+export const NEGOTIATION_MINOR_GAP_RATIO = 0.06;
+export const NEGOTIATION_LOW_GAP_RATIO = 0.12;
+export const NEGOTIATION_INSULTING_GAP_RATIO = 0.28;
+
 // ---- XP — işlem başına görünür kazanım (Bölüm 23-24 UX iyileştirmesi) ----
 // Mevcut has-gram-bazlı temel XP'nin (XP_PER_EQUIVALENT_GRAM_TRADED) üstüne,
 // oyuncunun "neden XP geldiğini" anlaması için görünür, isimlendirilmiş

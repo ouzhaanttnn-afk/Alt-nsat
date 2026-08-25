@@ -7,6 +7,19 @@ import { SectionLabel } from './SectionLabel';
 
 // Mockup birleşimi: Dükkân'ın altında stoğun kısa bir önizlemesi —
 // tam envanter/atölye/yatırım detayları Stok sekmesinde.
+function inventoryPreviewKey(item: InventoryItem, index: number): string {
+  return [
+    item.id || 'legacy-stock',
+    item.category,
+    item.name,
+    item.karat,
+    item.actualKarat ?? 'declared',
+    item.grams,
+    item.acquiredDay,
+    index,
+  ].join(':');
+}
+
 export function StokOzetiCard({ items, onSeeAll }: { items: InventoryItem[]; onSeeAll: () => void }) {
   const topItems = items.filter((i) => i.category !== 'pirlanta').slice(0, 4);
 
@@ -18,8 +31,8 @@ export function StokOzetiCard({ items, onSeeAll }: { items: InventoryItem[]; onS
           <Text style={styles.emptyHint}>Henüz stok yok — Stok sekmesinden toptancıdan al.</Text>
         ) : (
           <View style={styles.itemsRow}>
-            {topItems.map((item) => (
-              <View key={item.id} style={styles.itemCell}>
+            {topItems.map((item, index) => (
+              <View key={inventoryPreviewKey(item, index)} style={styles.itemCell}>
                 <ProductIcon category={item.category} name={item.name} size={26} />
                 <Text style={styles.itemQty}>{item.quantity} adet</Text>
               </View>

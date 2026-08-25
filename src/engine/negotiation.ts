@@ -5,6 +5,11 @@ import {
   KARIZMA_COUNTER_POSITION_EFFECT_PER_POINT,
   KARIZMA_NEUTRAL_SCORE,
   KARIZMA_THRESHOLD_EFFECT_PER_POINT,
+  NEGOTIATION_INITIAL_PATIENCE,
+  NEGOTIATION_INSULTING_GAP_RATIO,
+  NEGOTIATION_LOW_GAP_RATIO,
+  NEGOTIATION_MINOR_GAP_RATIO,
+  NEGOTIATION_REPEAT_OFFER_BAND_RATIO,
 } from '../config/economyConfig';
 import type { BargainingStyle } from '../types/negotiation';
 
@@ -120,4 +125,166 @@ export function evaluateLineItemOffer(
   args: EvaluateArgs & { offerTl: number; thresholdTl: number },
 ): BargainOutcome {
   return evaluateBuyOffer(args);
+}
+
+export type NegotiationDirection = 'buy' | 'sell';
+export type NegotiationReactionTone = 'accept' | 'counter' | 'warning' | 'repeat' | 'final' | 'leave';
+
+export type NegotiationTurnOutcome =
+  | { kind: 'accept'; patienceAfter: number; reaction: string; tone: 'accept' }
+  | { kind: 'counter'; counterAmountTl: number; patienceAfter: number; reaction: string; tone: 'counter' }
+  | { kind: 'warning'; patienceAfter: number; reaction: string; tone: 'warning' | 'repeat' }
+  | { kind: 'final'; counterAmountTl: number; patienceAfter: number; reaction: string; tone: 'final' }
+  | { kind: 'leave'; patienceAfter: 0; reaction: string; tone: 'leave' };
+
+export interface EvaluateNegotiationTurnArgs {
+  direction: NegotiationDirection;
+  offerTl: number;
+  thresholdTl: number;
+  bargainingStyle: BargainingStyle;
+  urgency?: string;
+  karizmaScore: number;
+  patience: number;
+  previousOffers: number[];
+  roundsUsed: number;
+  maxRounds: number;
+}
+
+function isUrgent(urgency?: string): boolean {
+  return urgency?.toLocaleLowerCase('tr-TR').includes('acil') ?? false;
+}
+
+function adjustedTurnThreshold(
+  direction: NegotiationDirection,
+  thresholdTl: number,
+  karizmaScore: number,
+): number {
+  const charismaDelta = (karizmaScore - KARIZMA_NEUTRAL_SCORE) * KARIZMA_THRESHOLD_EFFECT_PER_POINT;
+  const factor = direction === 'buy' ? 1 - charismaDelta : 1 + charismaDelta;
+  return thresholdTl * clamp(factor, 0.85, 1.15);
+}
+
+function unfavorableGapRatio(direction: NegotiationDirection, offerTl: number, thresholdTl: number): number {
+  if (direction === 'buy') return Math.max(0, (thresholdTl - offerTl) / thresholdTl);
+  return Math.max(0, (offerTl - thresholdTl) / thresholdTl);
+}
+
+function isNearRepeat(offerTl: number, previousOffers: number[], thresholdTl: number): boolean {
+  const toleranceTl = Math.max(1, thresholdTl * NEGOTIATION_REPEAT_OFFER_BAND_RATIO);
+  return previousOffers.some((previousOffer) => Math.abs(previousOffer - offerTl) <= toleranceTl);
+}
+
+function counterAmount(
+  direction: NegotiationDirection,
+  offerTl: number,
+  thresholdTl: number,
+  bargainingStyle: BargainingStyle,
+  karizmaScore: number,
+): number {
+  const position = counterPosition(bargainingStyle, karizmaScore);
+  if (direction === 'buy') {
+    const roundedCounter = Math.round(offerTl + (thresholdTl - offerTl) * position);
+    return Math.ceil(Math.min(thresholdTl, Math.max(roundedCounter, offerTl + 1)));
+  }
+
+  const roundedCounter = Math.round(offerTl - (offerTl - thresholdTl) * position);
+  return Math.floor(Math.max(thresholdTl, Math.min(roundedCounter, offerTl - 1)));
+}
+
+/**
+ * Evaluates one active bargaining turn without randomness. The existing
+ * threshold and Karizma math is reused; this layer adds visible patience,
+ * repeat-offer protection and a finite final-price state for the UI.
+ */
+export function evaluateNegotiationTurn(args: EvaluateNegotiationTurnArgs): NegotiationTurnOutcome {
+  const adjustedThreshold = adjustedTurnThreshold(args.direction, args.thresholdTl, args.karizmaScore);
+  const gapRatio = unfavorableGapRatio(args.direction, args.offerTl, adjustedThreshold);
+
+  if (gapRatio === 0) {
+    return {
+      kind: 'accept',
+      patienceAfter: args.patience,
+      tone: 'accept',
+      reaction: args.direction === 'buy' ? 'Tamamdır, bu rakam olur.' : 'Peki, bu fiyattan alırım.',
+    };
+  }
+
+  const urgent = isUrgent(args.urgency);
+  const patienceLoss = gapRatio >= NEGOTIATION_INSULTING_GAP_RATIO ? 2 : gapRatio >= NEGOTIATION_LOW_GAP_RATIO ? 1 : 0;
+  const patienceAfter = Math.max(0, args.patience - patienceLoss);
+
+  if (isNearRepeat(args.offerTl, args.previousOffers, adjustedThreshold)) {
+    const repeatedPatience = Math.max(0, args.patience - Math.max(1, patienceLoss));
+    if (repeatedPatience === 0) {
+      return { kind: 'leave', patienceAfter: 0, tone: 'leave', reaction: 'Olmayacak galiba, iyi günler.' };
+    }
+    return {
+      kind: 'warning',
+      patienceAfter: repeatedPatience,
+      tone: 'repeat',
+      reaction: 'Az önce de aynı rakamı söylediniz.',
+    };
+  }
+
+  if (patienceAfter === 0) {
+    return { kind: 'leave', patienceAfter: 0, tone: 'leave', reaction: 'Bu fiyata verecek değilim. İyi günler.' };
+  }
+
+  if (gapRatio >= NEGOTIATION_INSULTING_GAP_RATIO) {
+    return {
+      kind: 'warning',
+      patienceAfter,
+      tone: 'warning',
+      reaction: args.direction === 'buy' ? 'Bu rakama veremem.' : 'Bu fiyat fazla yüksek.',
+    };
+  }
+
+  const finalRound = args.roundsUsed >= args.maxRounds - 1 || (urgent && args.roundsUsed >= 1) || patienceAfter === 1;
+  const proposedCounter = counterAmount(
+    args.direction,
+    args.offerTl,
+    adjustedThreshold,
+    args.bargainingStyle,
+    args.karizmaScore,
+  );
+
+  if (finalRound) {
+    return {
+      kind: 'final',
+      counterAmountTl: proposedCounter,
+      patienceAfter,
+      tone: 'final',
+      reaction: 'Son fiyatım bu.',
+    };
+  }
+
+  if (gapRatio >= NEGOTIATION_LOW_GAP_RATIO) {
+    return {
+      kind: 'warning',
+      patienceAfter,
+      tone: 'warning',
+      reaction: args.direction === 'buy' ? 'Bu rakam bana düşük geldi.' : 'Biraz daha makul bir fiyat bekliyorum.',
+    };
+  }
+
+  if (gapRatio <= NEGOTIATION_MINOR_GAP_RATIO || args.bargainingStyle !== 'kolay') {
+    return {
+      kind: 'counter',
+      counterAmountTl: proposedCounter,
+      patienceAfter,
+      tone: 'counter',
+      reaction: args.direction === 'buy' ? 'Biraz daha çıkarsanız anlaşabiliriz.' : 'Biraz daha inerseniz anlaşabiliriz.',
+    };
+  }
+
+  return {
+    kind: 'warning',
+    patienceAfter,
+    tone: 'warning',
+    reaction: args.direction === 'buy' ? 'Biraz daha ciddi bir teklif bekliyorum.' : 'Bu fiyat bana yüksek geldi.',
+  };
+}
+
+export function initialNegotiationPatience(bargainingStyle: BargainingStyle): number {
+  return NEGOTIATION_INITIAL_PATIENCE[bargainingStyle];
 }

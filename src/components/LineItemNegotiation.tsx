@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   COUNTER_OFFER_MAX_ROUNDS,
-  COUNTER_OFFER_MEET_HALFWAY_RATIO,
   GENEROUS_OFFER_REPUTATION_BONUS,
   LOW_OFFER_REPUTATION_PENALTY,
   OFFER_PRESET_COMERT_RATIO,
@@ -15,7 +14,11 @@ import {
   XP_BONUS_DEAL_COMPLETED,
   XP_BONUS_GOOD_BARGAIN,
 } from '../config/economyConfig';
-import { evaluateBuyOffer } from '../engine/negotiation';
+import {
+  evaluateNegotiationTurn,
+  initialNegotiationPatience,
+  type NegotiationReactionTone,
+} from '../engine/negotiation';
 import { equivalentGrams, useGameStore } from '../store/useGameStore';
 import type { NegotiationCustomer, NegotiationProduct } from '../types/negotiation';
 import type { ScaleReading } from './ScalePanel';
@@ -24,6 +27,7 @@ import { glass } from '../theme/glass';
 import { formatTl } from '../utils/format';
 import { CollapsibleOfferCard } from './CollapsibleOfferCard';
 import { CounterOfferCard } from './CounterOfferCard';
+import { CustomerReaction } from './CustomerReaction';
 import { NegotiationActions } from './NegotiationActions';
 import { NegotiationProductCard } from './NegotiationProductCard';
 import { OfferPresets } from './OfferPresets';
@@ -78,8 +82,16 @@ export function LineItemNegotiation({
   const [tested, setTested] = useState(false);
   const [measuring, setMeasuring] = useState(false);
   const [offerExpanded, setOfferExpanded] = useState(true);
-  const [pendingCounter, setPendingCounter] = useState<{ counterAmountTl: number } | null>(null);
+  const [pendingCounter, setPendingCounter] = useState<{
+    counterAmountTl: number;
+    isFinal: boolean;
+    reaction: string;
+  } | null>(null);
   const [roundsUsed, setRoundsUsed] = useState(0);
+  const [patience, setPatience] = useState(() => initialNegotiationPatience(customer.bargainingStyle));
+  const [offerHistory, setOfferHistory] = useState<number[]>([]);
+  const [reaction, setReaction] = useState<{ text: string; tone: NegotiationReactionTone } | null>(null);
+  const terminalActionStartedRef = useRef(false);
   const [result, setResult] = useState<{ accepted: boolean; amountTl: number; borrowedTl: number; xp: number; reason: string } | null>(
     null,
   );
@@ -110,6 +122,8 @@ export function LineItemNegotiation({
   };
 
   const settleAccepted = (amount: number, originalThreshold: number, roundsUsedAtSettle: number) => {
+    if (terminalActionStartedRef.current) return;
+    terminalActionStartedRef.current = true;
     const offerRatio = amount / product.marketValueTl;
     if (offerRatio < OFFER_PRESET_OLUCU_RATIO) adjustReputation(-LOW_OFFER_REPUTATION_PENALTY);
     else if (offerRatio >= OFFER_PRESET_COMERT_RATIO) adjustReputation(GENEROUS_OFFER_REPUTATION_BONUS);
@@ -147,7 +161,9 @@ export function LineItemNegotiation({
     setResult({ accepted: true, amountTl: amount, borrowedTl: outcome.borrowedTl, xp: outcome.xpGained + bonus.amount, reason: bonus.reason });
   };
 
-  const rejectLine = () => {
+  const rejectLine = (amount = offer) => {
+    if (terminalActionStartedRef.current) return;
+    terminalActionStartedRef.current = true;
     setPendingCounter(null);
     logCompletedOffer({
       customerName: customer.name,
@@ -155,7 +171,7 @@ export function LineItemNegotiation({
       category: product.category,
       karat: product.karat,
       grams: product.grams,
-      offerAmountTl: offer,
+      offerAmountTl: amount,
       marketValueTl: product.marketValueTl,
       quantity: product.quantity,
       status: 'red',
@@ -167,24 +183,36 @@ export function LineItemNegotiation({
     setOffer(amount);
     const originalThreshold = product.marketValueTl * customer.acceptanceThreshold;
     const adjustedThreshold = originalThreshold * (1 - sikiPazarlikciLevel * SIKI_PAZARLIKCI_THRESHOLD_REDUCTION_PER_LEVEL);
-    const outcome = evaluateBuyOffer({
+    const outcome = evaluateNegotiationTurn({
+      direction: 'buy',
       offerTl: amount,
       thresholdTl: adjustedThreshold,
       bargainingStyle: customer.bargainingStyle,
+      urgency: customer.urgency,
       karizmaScore: reputationScore,
+      patience,
+      previousOffers: offerHistory,
       roundsUsed: roundsUsedNow,
       maxRounds: COUNTER_OFFER_MAX_ROUNDS,
     });
+    setOfferHistory((history) => [...history, amount]);
+    setPatience(outcome.patienceAfter);
+    setReaction({ text: outcome.reaction, tone: outcome.tone });
     if (outcome.kind === 'accept') {
       settleAccepted(amount, originalThreshold, roundsUsedNow);
       return;
     }
-    if (outcome.kind === 'counter') {
-      setPendingCounter({ counterAmountTl: outcome.counterAmountTl });
+    if (outcome.kind === 'counter' || outcome.kind === 'final') {
+      setPendingCounter({
+        counterAmountTl: outcome.counterAmountTl,
+        isFinal: outcome.kind === 'final',
+        reaction: outcome.reaction,
+      });
       setRoundsUsed(roundsUsedNow + 1);
       return;
     }
-    rejectLine();
+    if (outcome.kind === 'leave') rejectLine(amount);
+    else setRoundsUsed(roundsUsedNow + 1);
   };
 
   const canAct = tested && !measuring && result === null && pendingCounter === null;
@@ -229,21 +257,22 @@ export function LineItemNegotiation({
         <CounterOfferCard
           customerName={customer.name}
           counterAmountTl={pendingCounter.counterAmountTl}
-          raiseLabel="Teklifi Yükselt"
+          direction="buy"
+          patience={patience}
+          reaction={pendingCounter.reaction}
+          isFinal={pendingCounter.isFinal}
           onAccept={() => settleAccepted(pendingCounter.counterAmountTl, product.marketValueTl * customer.acceptanceThreshold, roundsUsed)}
-          onMeetHalfway={() => {
-            const raised = Math.round(offer + (pendingCounter.counterAmountTl - offer) * COUNTER_OFFER_MEET_HALFWAY_RATIO);
-            setPendingCounter(null);
-            sendOffer(clampOffer(raised), roundsUsed);
-          }}
+          onContinueNegotiating={() => setPendingCounter(null)}
           onWalkAway={rejectLine}
         />
       ) : tested ? (
-        <CollapsibleOfferCard
-          offerValueTl={offer}
-          expanded={offerExpanded}
-          onToggle={() => setOfferExpanded((v) => !v)}
-        >
+        <>
+          {reaction && <CustomerReaction customerName={customer.name} reaction={reaction.text} patience={patience} />}
+          <CollapsibleOfferCard
+            offerValueTl={offer}
+            expanded={offerExpanded}
+            onToggle={() => setOfferExpanded((v) => !v)}
+          >
           <PriceBlock
             marketValueTl={product.marketValueTl}
             min={sliderMin}
@@ -281,7 +310,8 @@ export function LineItemNegotiation({
             onPayFull={() => settleAccepted(product.marketValueTl, product.marketValueTl * customer.acceptanceThreshold, 0)}
             onReject={rejectLine}
           />
-        </CollapsibleOfferCard>
+          </CollapsibleOfferCard>
+        </>
       ) : null}
     </View>
   );
