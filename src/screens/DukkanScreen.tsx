@@ -39,17 +39,17 @@ type DukkanNavigationProp = CompositeNavigationProp<
 // Profil/Müşteriler ekranlarının mevcut theme/colors.ts kimliği (dış zemin
 // hariç — bkz. colors.background) DEĞİŞTİRİLMEDİ.
 const lux = {
-  panelBg: 'rgba(36, 20, 66, 0.85)',
-  panelBgSoft: 'rgba(255,255,255,0.04)',
-  glass: 'rgba(255,255,255,0.06)',
-  glassStrong: 'rgba(255,255,255,0.11)',
-  gold: '#D4AF37',
-  goldBright: '#F3D77A',
-  goldDeep: '#9C7A1E',
-  purple: '#7B4FC9',
-  purpleBright: '#A97EE8',
-  ink: '#F1E6FF',
-  inkMuted: '#B7A6D9',
+  panelBg: 'rgba(58, 32, 91, 0.9)',
+  panelBgSoft: 'rgba(154, 69, 232, 0.08)',
+  glass: 'rgba(154, 69, 232, 0.14)',
+  glassStrong: 'rgba(154, 69, 232, 0.24)',
+  gold: '#E3B83F',
+  goldBright: '#F0C95A',
+  goldDeep: '#A9761E',
+  purple: '#812ED0',
+  purpleBright: '#9A45E8',
+  ink: '#F4ECFF',
+  inkMuted: '#C8B8D9',
 };
 
 // Mockup birleşimi: Dükkân artık sadece sermaye/gün özeti değil — gelen
@@ -232,16 +232,21 @@ export function DukkanScreen() {
             </Pressable>
           </View>
 
-          {/* [DÜZELTME] Karizma/Toptancı/Piyasa/Stok/Servet/Borç artık tek,
-              yatay kaydırılabilir bir HUD şeridi — yardımcı bilgi, ana
-              müşteri akışının önüne geçecek kadar yer kaplamıyor. */}
+          {/* [DÜZELTME] Karizma + Toptancı Güveni artık ekonomik göstergelerden
+              ayrı, yan yana iki belirgin kart — oyuncunun itibar/sosyal
+              durumu ekonomik verinin arasında kaybolmasın. */}
+          <View style={styles.reputationRow}>
+            <HudStatChip label="KARİZMA" value={`${reputation.score}/100`} size="md" />
+            <HudStatChip label="TOPTANCI GÜVENİ" value={`${wholesalerTrust}/100`} size="md" />
+          </View>
+
+          {/* [DÜZELTME] Piyasa/Stok/Servet/Borç — küçük, yatay kaydırılabilir
+              bir gösterge şeridi; dev kartlara dönüşmüyor, taşma yapmıyor. */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.hudStatsRow}
           >
-            <HudStatChip label="KARİZMA" value={`${reputation.score}/100`} />
-            <HudStatChip label="TOPTANCI" value={`${wholesalerTrust}/100`} />
             <HudStatChip label="PİYASA" value={formatTl(goldPrice.buyPricePerGram)} />
             <HudStatChip label="STOK" value={formatTl(capital.stockValueTl)} />
             <HudStatChip label="SERVET" value={formatTl(capital.cashTl + capital.stockValueTl - capital.debtTl)} />
@@ -388,11 +393,29 @@ export function DukkanScreen() {
   );
 }
 
-function HudStatChip({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
+function HudStatChip({
+  label,
+  value,
+  warn,
+  size = 'sm',
+}: {
+  label: string;
+  value: string;
+  warn?: boolean;
+  /** [YENİ] 'md' — Karizma/Toptancı Güveni için daha belirgin, tam genişlikte kart. */
+  size?: 'sm' | 'md';
+}) {
   return (
-    <View style={styles.hudStatChip}>
-      <Text style={styles.hudStatChipLabel}>{label}</Text>
-      <Text style={[styles.hudStatChipValue, warn && styles.hudStatChipValueWarn]} numberOfLines={1}>
+    <View style={[styles.hudStatChip, size === 'md' && styles.hudStatChipMd]}>
+      <Text style={[styles.hudStatChipLabel, size === 'md' && styles.hudStatChipLabelMd]}>{label}</Text>
+      <Text
+        style={[
+          styles.hudStatChipValue,
+          size === 'md' && styles.hudStatChipValueMd,
+          warn && styles.hudStatChipValueWarn,
+        ]}
+        numberOfLines={1}
+      >
         {value}
       </Text>
     </View>
@@ -574,9 +597,15 @@ const styles = StyleSheet.create({
   hudSpeedLabelActive: {
     color: lux.goldBright,
   },
-  // [DÜZELTME] Karizma/Toptancı/Piyasa/Stok/Servet/Borç artık tek, yatay
-  // kaydırılabilir bir HUD şeridi — yardımcı bilgi, ana müşteri akışının
-  // önüne geçecek kadar dikey yer kaplamıyor.
+  // [YENİ] Karizma + Toptancı Güveni — ekonomik göstergelerden ayrı, yan
+  // yana iki belirgin kart (referans tasarım).
+  reputationRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  // [DÜZELTME] Piyasa/Stok/Servet/Borç artık küçük, yatay kaydırılabilir
+  // bir HUD şeridi — yardımcı bilgi, ana müşteri akışının önüne geçecek
+  // kadar dikey yer kaplamıyor.
   hudStatsRow: {
     flexDirection: 'row',
     gap: 6,
@@ -592,6 +621,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     alignItems: 'center',
   },
+  hudStatChipMd: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
   hudStatChipLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: 8,
@@ -599,12 +634,20 @@ const styles = StyleSheet.create({
     color: lux.inkMuted,
     textAlign: 'center',
   },
+  hudStatChipLabelMd: {
+    fontSize: 9.5,
+    letterSpacing: 0.8,
+  },
   hudStatChipValue: {
     fontFamily: fonts.monoBold,
     fontSize: 11,
     color: lux.ink,
     marginTop: 1,
     textAlign: 'center',
+  },
+  hudStatChipValueMd: {
+    fontSize: 14,
+    marginTop: 2,
   },
   hudStatChipValueWarn: {
     color: colors.negative,
@@ -682,10 +725,10 @@ const styles = StyleSheet.create({
     color: colors.inkMutedOnDark,
   },
   tutorialCard: {
-    backgroundColor: 'rgba(123, 79, 201, 0.16)',
+    backgroundColor: 'rgba(129, 46, 208, 0.2)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.35)',
+    borderColor: 'rgba(227, 184, 63, 0.38)',
     padding: 10,
     gap: 4,
   },

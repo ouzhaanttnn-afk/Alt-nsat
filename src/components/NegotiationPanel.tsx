@@ -21,6 +21,7 @@ import {
 import type { NegotiationCustomer, NegotiationProduct } from '../types/negotiation';
 import type { IncomingCustomer, NegotiationLine } from '../types/incomingCustomer';
 import { CollapsibleOfferCard } from './CollapsibleOfferCard';
+import { GlassCard } from './GlassCard';
 import { LineItemNegotiation } from './LineItemNegotiation';
 import { LineItemPicker } from './LineItemPicker';
 import { equivalentGrams, MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
@@ -425,9 +426,17 @@ export function NegotiationPanel({
 
   return (
     <View style={styles.stack}>
-      <CustomerNoteCard customer={customer} patienceRatio={patienceRatio} />
-      <Text style={styles.productSectionLabel}>{isSale ? 'İSTEDİĞİ ÜRÜN' : 'GETİRDİĞİ ÜRÜN'}</Text>
-      <NegotiationProductCard product={product} uzmanGorusuLevel={uzmanGorusuLevel} tested={!isSale && tested} />
+      {/* [DÜZELTME] Müşteri + Ürün artık alt alta değil, yan yana iki kompakt
+          panel — dikey alan kazanmak için (referans tasarım). */}
+      <View style={styles.customerProductRow}>
+        <CustomerNoteCard customer={customer} patienceRatio={patienceRatio} compact />
+        <NegotiationProductCard
+          product={product}
+          uzmanGorusuLevel={uzmanGorusuLevel}
+          tested={!isSale && tested}
+          compact
+        />
+      </View>
       {showFirsatSkoru && (
         <View style={styles.scoreRow}>
           <Badge tone="positive" label={`Fırsat Skoru: ${firsatSkoru}/100`} />
@@ -607,15 +616,27 @@ function BulkLineNegotiationView({
 
   return (
     <View style={styles.stack}>
-      <CustomerNoteCard customer={customer} />
-      {activeIndex === null && (
-        <LineItemPicker
-          lines={lines}
-          results={results}
-          testedMap={testedMap}
-          activeIndex={activeIndex}
-          onSelect={setActiveIndex}
-        />
+      {/* [DÜZELTME] Müşteri + Ürünler artık yan yana: sol küçük müşteri
+          paneli, sağda "GETİRDİĞİ ÜRÜNLER" yatay çip şeridi. Bir kalemin
+          detayı açıkken (activeIndex !== null) sağ panel gizlenir — o an
+          LineItemNegotiation'ın kendi ürün kartı zaten gösteriliyor. */}
+      {activeIndex === null ? (
+        <View style={styles.customerProductRow}>
+          <CustomerNoteCard customer={customer} compact />
+          <GlassCard style={styles.productPickerCard}>
+            <Text style={styles.compactSectionLabel}>GETİRDİĞİ ÜRÜNLER</Text>
+            <LineItemPicker
+              lines={lines}
+              results={results}
+              testedMap={testedMap}
+              activeIndex={activeIndex}
+              onSelect={setActiveIndex}
+              layout="row"
+            />
+          </GlassCard>
+        </View>
+      ) : (
+        <CustomerNoteCard customer={customer} compact />
       )}
       {lines.map((line, index) => (
         <View key={index} style={index === activeIndex ? undefined : styles.hiddenLine}>
@@ -768,13 +789,23 @@ const styles = StyleSheet.create({
   scoreRow: {
     marginTop: -6,
   },
-  // [YENİ] "GETİRDİĞİ ÜRÜN" / "İSTEDİĞİ ÜRÜN" mini bölüm etiketi.
-  productSectionLabel: {
+  // [YENİ] Müşteri + Ürün yan yana satırı (referans tasarım) — ikisi de
+  // yaklaşık eşit genişlikte, dikey alan kazandırmak için.
+  customerProductRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'stretch',
+  },
+  productPickerCard: {
+    flex: 1,
+    padding: 9,
+    gap: 4,
+  },
+  compactSectionLabel: {
     fontFamily: fonts.bodyMedium,
-    fontSize: 10,
+    fontSize: 9,
     letterSpacing: 1,
     color: colors.inkMutedOnDark,
-    marginBottom: -2,
   },
   // [YENİ] Test edilmeden teklif alanı yerine gösterilen kompakt bilgi metni.
   testGateHint: {
@@ -791,7 +822,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: 'rgba(46, 26, 82, 0.72)',
+    backgroundColor: glass.panelBg,
     borderWidth: 1,
     borderColor: glass.borderSoft,
     borderRadius: radius.md,

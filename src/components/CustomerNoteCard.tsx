@@ -16,13 +16,49 @@ const styleLabel: Record<NegotiationCustomer['bargainingStyle'], string> = {
 // bütçe/aciliyet/pazarlık eğilimi bilgisi. patienceRatio verilirse (Dükkân'a
 // gömülü pazarlık paneli), müşterinin ne kadar sabrı kaldığını (oyun
 // saatine göre) bir kum saati çubuğu olarak gösterir.
+// [YENİ] `compact` — müşteri+ürün artık yan yana iki panel: bu modda kart
+// daha az yer kaplar (küçük avatar, tip etiketi yok, talep 2 satıra sınırlı,
+// aciliyet/pazarlık tek satırda birleşik).
 export function CustomerNoteCard({
   customer,
   patienceRatio,
+  compact,
 }: {
   customer: NegotiationCustomer;
   patienceRatio?: number;
+  compact?: boolean;
 }) {
+  const metaLine = [customer.urgency, styleLabel[customer.bargainingStyle]].filter(Boolean).join(' · ');
+
+  if (compact) {
+    return (
+      <GlassCard style={styles.compactCard}>
+        <View style={styles.compactTopRow}>
+          <AvatarInitial name={customer.name} size={24} />
+          <Text style={styles.compactName} numberOfLines={1}>
+            {customer.name}
+          </Text>
+        </View>
+        <Text style={styles.compactRequest} numberOfLines={2}>
+          “{customer.request}”
+        </Text>
+        <Text style={styles.compactMeta} numberOfLines={1}>
+          {metaLine}
+        </Text>
+        {patienceRatio !== undefined && (
+          <View style={styles.patienceTrack}>
+            <View
+              style={[
+                styles.patienceFill,
+                { width: `${Math.round(Math.max(0, Math.min(1, patienceRatio)) * 100)}%` },
+              ]}
+            />
+          </View>
+        )}
+      </GlassCard>
+    );
+  }
+
   return (
     <GlassCard style={styles.card}>
       <View style={styles.topRow}>
@@ -117,5 +153,34 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: glass.warning,
     borderRadius: 3,
+  },
+  // ---------- compact (yan yana Müşteri + Ürün düzeni) ----------
+  compactCard: {
+    flex: 1,
+    padding: 9,
+    gap: 4,
+  },
+  compactTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  compactName: {
+    flex: 1,
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.sm,
+    color: glass.ink,
+  },
+  compactRequest: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: glass.ink,
+    fontStyle: 'italic',
+    lineHeight: 14,
+  },
+  compactMeta: {
+    fontFamily: fonts.mono,
+    fontSize: 9.5,
+    color: glass.inkMuted,
   },
 });

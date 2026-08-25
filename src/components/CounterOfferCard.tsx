@@ -53,7 +53,7 @@ export function CounterOfferCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(46, 26, 82, 0.72)',
+    backgroundColor: glass.panelBg,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: glass.gold,

@@ -15,11 +15,14 @@ export function NegotiationProductCard({
   product,
   uzmanGorusuLevel = 0,
   tested,
+  compact,
 }: {
   product: NegotiationProduct;
   uzmanGorusuLevel?: number;
   /** [YENİ] Terazi ile tartıldıysa küçük bir "TEST EDİLDİ" rozeti gösterir. */
   tested?: boolean;
+  /** [YENİ] Müşteri+Ürün yan yana yerleşiminde kullanılan dar/kısa versiyon. */
+  compact?: boolean;
 }) {
   const hasQuantity = (product.quantity ?? 1) > 1;
   const isCraftedGood = product.category === 'iscilikli';
@@ -37,6 +40,33 @@ export function NegotiationProductCard({
     };
   }
   const revealsFlaw = isCraftedGood && uzmanGorusuLevel >= 5;
+
+  if (compact) {
+    return (
+      <GlassCard style={styles.compactCard}>
+        <View style={styles.compactTopRow}>
+          <ProductIcon category={product.category} name={product.name} size={22} />
+          <Text style={styles.compactName} numberOfLines={1}>
+            {hasQuantity ? `${product.quantity} adet ${product.name}` : product.name}
+          </Text>
+          {tested && (
+            <View style={styles.testedBadgeCompact}>
+              <Text style={styles.testedBadgeLabel}>✓</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.compactSubtitle} numberOfLines={1}>
+          {product.karat} Ayar · {product.grams.toLocaleString('tr-TR')} g
+          {hasQuantity ? '/adet' : ''}
+        </Text>
+        {isCraftedGood && (
+          <Text style={styles.compactExpertHint} numberOfLines={1}>
+            {expertRange ? `Tahmini: ${expertRange.min}–${expertRange.max} ayar` : 'Ayar beyana dayalı'}
+          </Text>
+        )}
+      </GlassCard>
+    );
+  }
 
   return (
     <GlassCard style={styles.card}>
@@ -177,5 +207,41 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: glass.inkMuted,
     fontStyle: 'italic',
+  },
+  // ---------- compact (yan yana Müşteri + Ürün düzeni) ----------
+  compactCard: {
+    flex: 1,
+    padding: 9,
+    gap: 3,
+  },
+  compactTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  compactName: {
+    flex: 1,
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.sm,
+    color: glass.ink,
+  },
+  compactSubtitle: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: glass.goldBright,
+  },
+  compactExpertHint: {
+    fontFamily: fonts.body,
+    fontSize: 9.5,
+    color: glass.inkMuted,
+    fontStyle: 'italic',
+  },
+  testedBadgeCompact: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: glass.purpleSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

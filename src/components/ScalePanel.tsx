@@ -10,6 +10,8 @@ export interface ScaleReading {
 
 // Bölüm 4.3: Hassas Terazi paneli — imza bileşen. Gerçek dijital terazi
 // görünümü (LCD zemin, segment font) + TEST kontrolü.
+// [DÜZELTME] TEST butonu artık ayrı bir satır kaplamıyor — başlığın sağında,
+// tek satırlık kompakt bir buton olarak duruyor (referans tasarım).
 export function ScalePanel({
   reading,
   tested,
@@ -26,20 +28,17 @@ export function ScalePanel({
   const displayClean = measuring ? '- - - -' : tested ? reading.cleanliness : '--';
 
   return (
-    <View>
-      <View style={styles.panel}>
-        <View style={styles.captionRow}>
-          <Text style={styles.caption}>HASSAS TERAZİ</Text>
-        </View>
-        <View style={styles.readoutRow}>
-          <Readout label="GRAM" value={displayGrams} />
-          <Readout label="AYAR" value={displayKarat} />
-          <Readout label="TEMİZLİK" value={displayClean} />
-        </View>
+    <View style={styles.panel}>
+      <View style={styles.captionRow}>
+        <Text style={styles.caption}>HASSAS TERAZİ</Text>
+        <Pressable onPress={onTest} style={styles.testButton} hitSlop={6}>
+          <Text style={styles.testButtonLabel}>TEST</Text>
+        </Pressable>
       </View>
-
-      <View style={styles.controlsRow}>
-        <ControlButton label="TEST" onPress={onTest} primary />
+      <View style={styles.readoutRow}>
+        <Readout label="GRAM" value={displayGrams} />
+        <Readout label="AYAR" value={displayKarat} />
+        <Readout label="TEMİZLİK" value={displayClean} />
       </View>
     </View>
   );
@@ -54,29 +53,13 @@ function Readout({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ControlButton({
-  label,
-  onPress,
-  primary,
-}: {
-  label: string;
-  onPress: () => void;
-  primary?: boolean;
-}) {
-  return (
-    <Pressable onPress={onPress} style={[styles.controlButton, primary && styles.controlButtonPrimary]}>
-      <Text style={[styles.controlButtonLabel, primary && styles.controlButtonLabelLight]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  // [DÜZELTME] Panel ~%60 daha kompakt — tek bakışta gram/ayar/temizlik +
+  // [DÜZELTME] Panel çok daha kompakt — tek bakışta gram/ayar/temizlik +
   // TEST butonu, ama ekranın yarısını kaplamıyor.
   panel: {
     backgroundColor: colors.lcdBg,
     borderRadius: radius.md,
-    padding: 6,
+    padding: 8,
     borderWidth: 1,
     borderColor: glass.borderSoft,
     ...shadow,
@@ -85,7 +68,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   caption: {
     fontFamily: fonts.bodyMedium,
@@ -111,28 +94,16 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.lcdText,
   },
-  controlsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 6,
-  },
-  controlButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 7,
-    borderRadius: radius.sm,
-    backgroundColor: glass.sunken,
-  },
-  controlButtonPrimary: {
+  testButton: {
     backgroundColor: glass.gold,
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: 14,
   },
-  controlButtonLabel: {
+  testButtonLabel: {
     fontFamily: fonts.bodyBold,
-    fontSize: 12,
+    fontSize: 11,
     letterSpacing: 0.5,
-    color: glass.inkMuted,
-  },
-  controlButtonLabelLight: {
     color: '#3A2A00',
   },
 });
