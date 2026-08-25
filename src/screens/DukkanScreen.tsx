@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActiveOfferSummary, type ActiveOffer } from '../components/ActiveOfferSummary';
 import { BellIcon } from '../components/icons/BellIcon';
 import { MetalRing, RadialOrb } from '../components/icons/MetalRing';
+import { BankShortcutIcon, GemShortcutIcon, HammerShortcutIcon } from '../components/icons/ShortcutIcons';
 import { ShieldBadge } from '../components/icons/ShieldBadge';
 import { glass } from '../theme/glass';
 import { EMERGENCY_MICRO_LOAN_MAX_CASH_TL, EMERGENCY_MICRO_LOAN_TL } from '../config/economyConfig';
@@ -326,21 +327,21 @@ export function DukkanScreen() {
             style={styles.bottomGlassCard}
             onPress={() => navigation.navigate('Stok', { scrollTo: 'iscilikli' })}
           >
-            <Text style={styles.bottomCardIcon}>💎</Text>
+            <GemShortcutIcon color={lux.goldBright} />
             <Text style={styles.bottomCardLabel}>İşçilikli</Text>
           </Pressable>
           <Pressable
             style={styles.bottomGlassCard}
             onPress={() => navigation.navigate('Stok', { scrollTo: 'atolye' })}
           >
-            <Text style={styles.bottomCardIcon}>⚒️</Text>
+            <HammerShortcutIcon color={lux.goldBright} />
             <Text style={styles.bottomCardLabel}>Atölye</Text>
           </Pressable>
           <Pressable
             style={styles.bottomGlassCard}
             onPress={() => navigation.navigate('Stok', { scrollTo: 'yatirimlar' })}
           >
-            <Text style={styles.bottomCardIcon}>🏦</Text>
+            <BankShortcutIcon color={lux.goldBright} />
             <Text style={styles.bottomCardLabel}>Yatırımlar</Text>
           </Pressable>
         </View>
@@ -797,9 +798,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: 'center',
     gap: 2,
-  },
-  bottomCardIcon: {
-    fontSize: 20,
   },
   bottomCardLabel: {
     fontFamily: fonts.bodyMedium,
