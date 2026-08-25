@@ -205,6 +205,16 @@ export const ATOLYE_GRAMS_PER_DAY_PER_LEVEL = 3;
 // * goldPrice.buyPricePerGram * multiplier^level).
 export const ATOLYE_UPGRADE_BASE_COST_GRAMS = 200;
 export const ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL = 2.2;
+// v0.2 Aşama 4: işçilikli ürün atölye işlemi has altın üretmez; yalnızca
+// kartın tahmini işçilik/satış primini tek seferlik artırır.
+export const CRAFTED_WORKSHOP_PROCESSING_DAYS_BY_SIZE = {
+  small: 1,
+  medium: 2,
+  large: 3,
+};
+export const CRAFTED_WORKSHOP_MIN_CRAFT_PREMIUM_RATIO = 0.08;
+export const CRAFTED_WORKSHOP_VALUE_BONUS_RATIO = 0.25;
+export const CRAFTED_WORKSHOP_OPERATION_COST_RATIO = 0.02;
 
 // ---- Takı Yatırımı — Parça & Set (Bölüm 18-20, v3 modeli) -----------------
 // [YENİ] Eski "30 gün kilitli anapara paketi" modeli KALDIRILDI — kullanıcı

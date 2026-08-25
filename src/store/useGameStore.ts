@@ -19,6 +19,7 @@ import {
   CRAFTED_GOOD_CUSTOMER_PROBABILITY,
   CRAFTED_GOOD_KARAT_MISMATCH,
   CRAFTED_GOOD_MIN_COUNTERFEIT_RISK,
+  CRAFTED_WORKSHOP_OPERATION_COST_RATIO,
   MAX_WAITING_QUEUE_LENGTH,
   MULTI_ITEM_CUSTOMER_PROBABILITY,
   CUSTOMER_HYPE_AD_DURATION_MINUTES,
@@ -74,6 +75,7 @@ import {
   computeJewelryTotalDailyReturnTl,
   type JewelryHoldings,
 } from '../engine/jewelry';
+import { craftedWorkshopDurationDays, craftedWorkshopResult } from '../engine/craftedGoods';
 import { CUSTOMER_PERSONAS, INCOMING_CUSTOMER_NAMES } from '../data/incomingCustomerPool';
 import { toptanciStock } from '../data/toptanciStock';
 import type { PirlantaCatalogItem } from '../data/mockPirlanta';
@@ -406,6 +408,7 @@ interface GameState {
       estimatedSellPriceTl?: number;
       /** Bölüm 10: büyük işlemler — tek pazarlıkta N adet aynı SKU'nun toplu alımı. Belirtilmezse 1. */
       quantity?: number;
+      source?: string;
       /** Bölüm 11-16: sadece category:'iscilikli' — karat/grams beyan, bunlar gizli gerçek değerler. */
       actualKarat?: number;
       hasHiddenFlaw?: boolean;
@@ -426,6 +429,10 @@ interface GameState {
    * müşteriye satılmaz — tek çıkış yolu budur.
    */
   meltCraftedGood: (itemId: string) => boolean;
+  /** v0.2 Aşama 4: işçilikli ürünü tek seferlik değer artırımı için atölyeye gönderir. */
+  startCraftedGoodWorkshop: (itemId: string) => boolean;
+  /** v0.2 Aşama 4: süresi bitmiş atölye işini teslim alır; has gramı değiştirmez. */
+  collectCraftedGoodWorkshop: (itemId: string) => boolean;
   /** Bölüm 17: Atölye'yi bir seviye yükseltir (TL karşılığında) — para yoksa ya da zaten maksimumdaysa false döner. */
   upgradeAtolye: () => boolean;
   /** [YENİ] v3: bir Takı Yatırımı parçası satın alır — Seviye 7 altında, parça zaten sahipse ya da nakit yetmiyorsa false döner. */
@@ -773,6 +780,15 @@ export const useGameStore = create<GameState>()(
       meltingJob = null;
     }
 
+    inventory = inventory.map((item) =>
+      item.category === 'iscilikli' &&
+      item.workshopStatus === 'processing' &&
+      item.workshopEndsAtTotalMinutes !== undefined &&
+      currentTotalMinutes >= item.workshopEndsAtTotalMinutes
+        ? { ...item, workshopStatus: 'ready' }
+        : item,
+    );
+
     // Bölüm 17: Atölye — oyun hızından bağımsız, sürekli ve pasif has altın
     // üretimi (XP üretmez — GDD'nin "XP sadece aktif alım-satımdan" kuralı).
     const atolyeGramsProduced =
@@ -1119,10 +1135,14 @@ export const useGameStore = create<GameState>()(
               quantity,
               costBasisTl: paidAmountTl,
               acquiredDay: state.day,
-              estimatedValueTl: item.estimatedSellPriceTl,
+              acquiredMinuteOfDay: state.minuteOfDay,
+              source: item.source,
+              estimatedValueTl: item.estimatedSellPriceTl ?? (item.category === 'iscilikli' ? item.marketValueTl : undefined),
               actualKarat: item.actualKarat,
               hasHiddenFlaw: item.hasHiddenFlaw,
               stoneValueTl: item.stoneValueTl,
+              workshopStatus: item.category === 'iscilikli' ? 'none' : undefined,
+              workshopProcessed: item.category === 'iscilikli' ? false : undefined,
             } satisfies InventoryItem,
           ];
 
@@ -1250,6 +1270,70 @@ export const useGameStore = create<GameState>()(
         stoneValueTl,
         costBasisTl: item.costBasisTl,
         completesAtTotalMinutes: totalMinutesNow + minutes,
+      },
+    });
+    return true;
+  },
+
+  startCraftedGoodWorkshop: (itemId) => {
+    const state = get();
+    if (state.level < ATOLYE_REQUIRED_LEVEL) return false;
+    const item = state.inventory.find((i) => i.id === itemId);
+    if (!item || item.category !== 'iscilikli') return false;
+    if ((item.workshopStatus ?? 'none') !== 'none' || item.workshopProcessed) return false;
+
+    const operationCostTl = Math.round(item.costBasisTl * CRAFTED_WORKSHOP_OPERATION_COST_RATIO);
+    if (operationCostTl > state.capital.cashTl) return false;
+
+    const totalMinutesNow = state.day * MINUTES_PER_DAY + state.minuteOfDay;
+    const processingEndsAt = totalMinutesNow + craftedWorkshopDurationDays(item) * MINUTES_PER_DAY;
+    const inventory = state.inventory.map((inventoryItem) =>
+      inventoryItem.id === itemId
+        ? {
+            ...inventoryItem,
+            workshopStatus: 'processing' as const,
+            workshopStartedAtTotalMinutes: totalMinutesNow,
+            workshopEndsAtTotalMinutes: processingEndsAt,
+            workshopCostTl: operationCostTl,
+          }
+        : inventoryItem,
+    );
+
+    set({
+      inventory,
+      capital: {
+        ...state.capital,
+        cashTl: state.capital.cashTl - operationCostTl,
+        stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
+      },
+    });
+    return true;
+  },
+
+  collectCraftedGoodWorkshop: (itemId) => {
+    const state = get();
+    const item = state.inventory.find((i) => i.id === itemId);
+    if (!item || item.category !== 'iscilikli') return false;
+    if (item.workshopStatus !== 'ready' || item.workshopProcessed) return false;
+
+    const workshopResult = craftedWorkshopResult(item, state.goldPrice.buyPricePerGram);
+    const inventory = state.inventory.map((inventoryItem) =>
+      inventoryItem.id === itemId
+        ? {
+            ...inventoryItem,
+            estimatedValueTl: workshopResult.estimatedValueTl,
+            workshopStatus: 'none' as const,
+            workshopProcessed: true,
+            workshopValueAddedTl: workshopResult.valueAddedTl,
+          }
+        : inventoryItem,
+    );
+
+    set({
+      inventory,
+      capital: {
+        ...state.capital,
+        stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
       },
     });
     return true;

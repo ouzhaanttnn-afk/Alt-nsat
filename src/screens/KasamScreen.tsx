@@ -47,6 +47,8 @@ export function KasamScreen() {
   const purchasePirlanta = useGameStore((s) => s.purchasePirlanta);
   const meltingJob = useGameStore((s) => s.meltingJob);
   const meltCraftedGood = useGameStore((s) => s.meltCraftedGood);
+  const startCraftedGoodWorkshop = useGameStore((s) => s.startCraftedGoodWorkshop);
+  const collectCraftedGoodWorkshop = useGameStore((s) => s.collectCraftedGoodWorkshop);
   const day = useGameStore((s) => s.day);
   const minuteOfDay = useGameStore((s) => s.minuteOfDay);
   const cashTl = useGameStore((s) => s.capital.cashTl);
@@ -67,12 +69,49 @@ export function KasamScreen() {
   // Bölüm 4: "Beklet" — satmayı erteleme kararını görünür kılan hafif bir
   // onay; hiçbir state'i değiştirmiyor, sadece kararın alındığını teyit ediyor.
   const [holdHintItemId, setHoldHintItemId] = useState<string | null>(null);
+  const [craftedFeedback, setCraftedFeedback] = useState<string | null>(null);
   const holdHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const craftedFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showCraftedFeedback = (message: string) => {
+    setCraftedFeedback(message);
+    if (craftedFeedbackTimer.current) clearTimeout(craftedFeedbackTimer.current);
+    craftedFeedbackTimer.current = setTimeout(() => setCraftedFeedback(null), 2600);
+  };
   const handleHold = (itemId: string) => {
     setHoldHintItemId(itemId);
     if (holdHintTimer.current) clearTimeout(holdHintTimer.current);
     holdHintTimer.current = setTimeout(() => setHoldHintItemId(null), 1800);
   };
+  const handleMeltCraftedGood = (itemId: string) => {
+    const item = inventory.find((inventoryItem) => inventoryItem.id === itemId);
+    if (!item) return;
+    if (meltCraftedGood(itemId)) {
+      showCraftedFeedback(`${item.name} eritiliyor · işçilik değeri kaybedilecek.`);
+    }
+  };
+  const handleStartWorkshop = (itemId: string) => {
+    const item = inventory.find((inventoryItem) => inventoryItem.id === itemId);
+    if (!item) return;
+    if (startCraftedGoodWorkshop(itemId)) {
+      showCraftedFeedback(`${item.name} atölyeye gönderildi.`);
+    }
+  };
+  const handleCollectWorkshop = (itemId: string) => {
+    const item = inventory.find((inventoryItem) => inventoryItem.id === itemId);
+    if (!item) return;
+    if (collectCraftedGoodWorkshop(itemId)) {
+      showCraftedFeedback(`${item.name} atölyeden teslim alındı · işçilik değeri arttı.`);
+    }
+  };
+
+  useEffect(
+    () => () => {
+      if (saleBannerTimer.current) clearTimeout(saleBannerTimer.current);
+      if (holdHintTimer.current) clearTimeout(holdHintTimer.current);
+      if (craftedFeedbackTimer.current) clearTimeout(craftedFeedbackTimer.current);
+    },
+    [],
+  );
 
   // Hızlı Erişim (Dükkân): ilgili bölüme kaydırmalı geçiş için Y konumları.
   // Stok ekranı ilk kez mount olduğunda onLayout ölçümleri scrollTo efektinden
@@ -213,11 +252,12 @@ export function KasamScreen() {
           style={styles.sectionAnchor}
           onLayout={(e) => recordSectionOffset('iscilikli', e.nativeEvent.layout.y)}
         >
-          <SectionLabel>İŞÇİLİKLİ ÜRÜNLER (ERİTİLECEK)</SectionLabel>
+          <SectionLabel>İŞÇİLİKLİ ÜRÜNLER</SectionLabel>
           <Text style={styles.emptyHint}>
-            Müşteriden bozdurma yoluyla gelen kolye/yüzük/küpe gibi parçalar — GDD kararı gereği
-            başka bir müşteriye asla işçilikli ürün olarak satılmaz, tek çıkış yolu eritmek.
+            Müşteriden gelen kolye/yüzük/küpe gibi parçalar. Erit hızlı likidite sağlar; Atölye
+            zamanla işçilik değerini artırır.
           </Text>
+          {craftedFeedback && <Text style={styles.craftedFeedback}>{craftedFeedback}</Text>}
           {meltingJob && <MeltingJobBanner job={meltingJob} minutesLeft={meltingMinutesLeft} />}
           {craftedGoodItems.length === 0 ? (
             <Text style={styles.emptyHint}>Elinde henüz eritilecek işçilikli ürün yok.</Text>
@@ -226,8 +266,16 @@ export function KasamScreen() {
               <CraftedGoodCard
                 key={item.id}
                 item={item}
-                disabled={meltingJob !== null}
-                onMelt={() => meltCraftedGood(item.id)}
+                buyPricePerGram={goldPrice.buyPricePerGram}
+                meltDisabled={meltingJob !== null}
+                workshopLocked={atolyeLocked}
+                workshopDisabled={false}
+                requiredLevel={ATOLYE_REQUIRED_LEVEL}
+                holdActive={holdHintItemId === item.id}
+                onHold={() => handleHold(item.id)}
+                onMelt={() => handleMeltCraftedGood(item.id)}
+                onStartWorkshop={() => handleStartWorkshop(item.id)}
+                onCollectWorkshop={() => handleCollectWorkshop(item.id)}
               />
             ))
           )}
@@ -398,6 +446,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.inkMutedOnDark,
     marginTop: 6,
+    textAlign: 'center',
+  },
+  craftedFeedback: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.accent,
     textAlign: 'center',
   },
 });

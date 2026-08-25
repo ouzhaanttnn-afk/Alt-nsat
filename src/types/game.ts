@@ -45,6 +45,8 @@ export interface InventoryItem {
   /** Bu pozisyon için toplam ödenen maliyet (adet başına ortalama = costBasisTl / quantity). */
   costBasisTl: number;
   acquiredDay: number;
+  acquiredMinuteOfDay?: number;
+  source?: string;
   /**
    * Sadece takı: vitrin vadesi (30 gün) sonunda ulaşılacak tahmini satış
    * değeri. Günlük pasif gelir = (estimatedValueTl - costBasisTl) / 30 gün
@@ -67,4 +69,11 @@ export interface InventoryItem {
   hasHiddenFlaw?: boolean;
   /** Sadece işçilikli/taşlı ürün: taşın altından bağımsız ayrı değeri — Taş Ustası olmadan eritmede kaybolur. */
   stoneValueTl?: number;
+  /** Sadece işçilikli ürün: atölye karar döngüsünün ürün üstündeki durumu. */
+  workshopStatus?: 'none' | 'processing' | 'ready';
+  workshopStartedAtTotalMinutes?: number;
+  workshopEndsAtTotalMinutes?: number;
+  workshopProcessed?: boolean;
+  workshopValueAddedTl?: number;
+  workshopCostTl?: number;
 }

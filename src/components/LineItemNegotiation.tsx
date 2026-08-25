@@ -139,6 +139,7 @@ export function LineItemNegotiation({
       grams: product.grams,
       marketValueTl: product.marketValueTl,
       quantity: product.quantity,
+      source: product.source,
     });
     setPendingCounter(null);
     if (!outcome.success) {

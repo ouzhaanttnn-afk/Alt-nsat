@@ -222,6 +222,7 @@ export function NegotiationPanel({
       marketValueTl: product.marketValueTl,
       estimatedSellPriceTl: product.estimatedSellPriceTl,
       quantity: product.quantity,
+      source: product.source,
       actualKarat: product.actualKarat,
       hasHiddenFlaw: product.hasHiddenFlaw,
       stoneValueTl: product.stoneValueTl,
