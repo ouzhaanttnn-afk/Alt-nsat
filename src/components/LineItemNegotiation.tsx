@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   COUNTER_OFFER_MAX_ROUNDS,
   COUNTER_OFFER_MEET_HALFWAY_RATIO,
@@ -47,13 +47,17 @@ export function LineItemNegotiation({
   product,
   reading,
   customer,
-  lineLabel,
+  itemProgressLabel,
+  onBack,
   onSettled,
 }: {
   product: NegotiationProduct;
   reading: ScaleReading;
   customer: NegotiationCustomer;
-  lineLabel: string;
+  /** [YENİ] UX revizyonu — teknik "Kalem N/M" yerine küçük, doğal ilerleme metni (ör. "Ürün 1 / 2"). */
+  itemProgressLabel: string;
+  /** [YENİ] UX revizyonu — ürün listesine geri dönüş; oyuncu istediği zaman kalemler arasında geçebilmeli. */
+  onBack: () => void;
   onSettled: (result: { accepted: boolean; amountTl: number }) => void;
 }) {
   const reputationScore = useGameStore((s) => s.reputation.score);
@@ -186,7 +190,7 @@ export function LineItemNegotiation({
         </View>
         <View style={styles.resultTextBlock}>
           <Text style={styles.resultTitle}>
-            {result.accepted ? `${lineLabel} — kabul edildi` : `${lineLabel} — reddedildi`}
+            {product.name} — {result.accepted ? 'kabul edildi' : 'reddedildi'}
           </Text>
           {result.accepted && (
             <Text style={styles.resultSubtitle}>
@@ -201,7 +205,10 @@ export function LineItemNegotiation({
 
   return (
     <View style={styles.stack}>
-      <Text style={styles.lineLabel}>{lineLabel}</Text>
+      <Pressable onPress={onBack} hitSlop={8} style={styles.backRow}>
+        <Text style={styles.backLabel}>‹ Ürünlere dön</Text>
+        <Text style={styles.progressLabel}>{itemProgressLabel}</Text>
+      </Pressable>
       <NegotiationProductCard product={product} />
       <ScalePanel reading={reading} tested={tested} measuring={measuring} onTest={handleTest} />
       {!tested && <Text style={styles.hint}>Teklif vermeden önce ürünü tart — TEST'e bas.</Text>}
@@ -267,10 +274,20 @@ export function LineItemNegotiation({
 
 const styles = StyleSheet.create({
   stack: { gap: 12 },
-  lineLabel: {
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backLabel: {
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.sm,
     color: colors.accentDark,
+  },
+  progressLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkMutedOnDark,
   },
   hint: {
     fontFamily: fonts.body,

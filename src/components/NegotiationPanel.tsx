@@ -21,6 +21,7 @@ import {
 import type { NegotiationCustomer, NegotiationProduct } from '../types/negotiation';
 import type { IncomingCustomer, NegotiationLine } from '../types/incomingCustomer';
 import { LineItemNegotiation } from './LineItemNegotiation';
+import { LineItemPicker } from './LineItemPicker';
 import { equivalentGrams, MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes, radius } from '../theme';
 import { formatTl } from '../utils/format';
@@ -528,12 +529,18 @@ export function NegotiationPanel({
 }
 
 /**
- * [YENİ] v3 — Toplu Alım: kalemleri sırayla gösterir (her biri kendi
- * LineItemNegotiation state ağacıyla, `key={lineIndex}` sayesinde her
- * kalemde temiz bir başlangıç), sonunda kısa bir toplam özet gösterip
- * kendiliğinden kapanır. Basitleştirme (v3 kapsam sınırı): tüm toplu alım
- * boyunca tek bir sabır/zaman aşımı sayacı YOKTUR — müşteri tüm kalemler
- * bitene kadar bekler.
+ * [YENİ] v3 — Toplu Alım. UX revizyonu: artık kalemleri teknik bir
+ * "Kalem N/M" sırasıyla dayatmıyor — önce müşterinin getirdiği TÜM ürünleri
+ * doğal bir liste halinde gösteriyor (LineItemPicker), oyuncu istediği
+ * ürüne dokunup pazarlığını açıyor, istediği zaman listeye dönüp başka bir
+ * ürüne geçebiliyor (bkz. Bölüm gereksinimleri #3/#4). Her kalemin
+ * LineItemNegotiation örneği baştan sona MOUNTED kalır (sadece `display:
+ * 'none'` ile gizlenir) — böylece bir üründen ayrılıp geri dönüldüğünde
+ * tartım/teklif/karşı-teklif ilerlemesi SIFIRLANMAZ; pazarlık motoru
+ * (evaluateBuyOffer, terminal red, spam-istismarına kapalı deterministik
+ * eşik) ve Hassas Terazi zorunluluğu hiç değişmedi. Basitleştirme (v3
+ * kapsam sınırı): tüm toplu alım boyunca tek bir sabır/zaman aşımı sayacı
+ * YOKTUR — müşteri tüm kalemler bitene kadar bekler.
  */
 function BulkLineNegotiationView({
   customer,
@@ -544,8 +551,8 @@ function BulkLineNegotiationView({
   lines: NegotiationLine[];
   onClose: () => void;
 }) {
-  const [lineIndex, setLineIndex] = useState(0);
-  const [summary, setSummary] = useState({ accepted: 0, rejected: 0, totalTl: 0 });
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [results, setResults] = useState<Record<number, { accepted: boolean; amountTl: number }>>({});
   const [done, setDone] = useState(false);
 
   useEffect(() => {
@@ -555,6 +562,9 @@ function BulkLineNegotiationView({
   }, [done, onClose]);
 
   if (done) {
+    const accepted = Object.values(results).filter((r) => r.accepted).length;
+    const rejected = Object.values(results).length - accepted;
+    const totalTl = Object.values(results).reduce((sum, r) => sum + (r.accepted ? r.amountTl : 0), 0);
     return (
       <View style={styles.compactWrap}>
         <View style={styles.compactResult}>
@@ -564,8 +574,7 @@ function BulkLineNegotiationView({
           <View style={styles.compactTextBlock}>
             <Text style={styles.compactTitle}>Toplu alım tamamlandı</Text>
             <Text style={styles.compactSubtitle}>
-              {summary.accepted} kalem kabul edildi, {summary.rejected} kalem reddedildi — toplam{' '}
-              {formatTl(summary.totalTl)} ödendi.
+              {accepted} kalem kabul edildi, {rejected} kalem reddedildi — toplam {formatTl(totalTl)} ödendi.
             </Text>
           </View>
         </View>
@@ -573,26 +582,34 @@ function BulkLineNegotiationView({
     );
   }
 
-  const current = lines[lineIndex];
+  const handleSettled = (index: number, result: { accepted: boolean; amountTl: number }) => {
+    const nextResults = { ...results, [index]: result };
+    setResults(nextResults);
+    if (Object.keys(nextResults).length >= lines.length) {
+      setDone(true);
+    } else {
+      setActiveIndex(null);
+    }
+  };
+
   return (
     <View style={styles.stack}>
       <CustomerNoteCard customer={customer} />
-      <LineItemNegotiation
-        key={lineIndex}
-        product={current.product}
-        reading={current.scaleReading}
-        customer={customer}
-        lineLabel={`Kalem ${lineIndex + 1}/${lines.length}: ${current.product.name}`}
-        onSettled={(result) => {
-          setSummary((s) => ({
-            accepted: s.accepted + (result.accepted ? 1 : 0),
-            rejected: s.rejected + (result.accepted ? 0 : 1),
-            totalTl: s.totalTl + (result.accepted ? result.amountTl : 0),
-          }));
-          if (lineIndex + 1 >= lines.length) setDone(true);
-          else setLineIndex((i) => i + 1);
-        }}
-      />
+      {activeIndex === null && (
+        <LineItemPicker lines={lines} results={results} onSelect={setActiveIndex} />
+      )}
+      {lines.map((line, index) => (
+        <View key={index} style={index === activeIndex ? undefined : styles.hiddenLine}>
+          <LineItemNegotiation
+            product={line.product}
+            reading={line.scaleReading}
+            customer={customer}
+            itemProgressLabel={`Ürün ${index + 1} / ${lines.length}`}
+            onBack={() => setActiveIndex(null)}
+            onSettled={(result) => handleSettled(index, result)}
+          />
+        </View>
+      ))}
     </View>
   );
 }
@@ -720,6 +737,11 @@ function NegotiationResult({
 const styles = StyleSheet.create({
   stack: {
     gap: 14,
+  },
+  // [YENİ] Aktif olmayan kalemin LineItemNegotiation'ı unmount edilmez —
+  // sadece görünmez yapılır, böylece tartım/teklif ilerlemesi korunur.
+  hiddenLine: {
+    display: 'none',
   },
   scoreRow: {
     marginTop: -6,

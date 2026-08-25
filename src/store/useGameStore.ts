@@ -967,7 +967,11 @@ export const useGameStore = create<GameState>()(
             customer: {
               name: customerName,
               type: persona.type,
-              request: `${lines.length} farklı kalem bozdurmak istiyorum: ${lines.map((l) => l.product.name).join(', ')}.`,
+              // [DÜZELTME] Teknik "N farklı kalem bozdurmak istiyorum: A, B."
+              // ifadesi doğal bir müşteri cümlesine çevrildi — ürünlerin
+              // dökümü artık ayrı bir liste UI'sinde (bkz. NegotiationPanel'in
+              // BulkLineNegotiationView'ı) gösteriliyor, alıntı metninde değil.
+              request: 'Şunları bozdurmak istiyorum:',
               urgency: persona.urgency,
               bargainingStyle: persona.bargainingStyle,
               acceptanceThreshold: persona.minAcceptRatio,
