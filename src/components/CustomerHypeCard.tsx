@@ -19,13 +19,11 @@ export function CustomerHypeCard({
   const extraPercent = Math.round((CUSTOMER_HYPE_ARRIVAL_MULTIPLIER - 1) * 100);
   return (
     <Pressable style={styles.banner} onPress={onWatchAd}>
-      <Text style={styles.title}>
+      <Text style={styles.title} numberOfLines={1}>
         {active ? `Müşteri Akını aktif · ${Math.ceil(minutesLeft)} dk kaldı` : 'MÜŞTERİ AKINI'}
       </Text>
-      <Text style={styles.cta}>
-        {active
-          ? 'Reklam İzle · +15 dk'
-          : `Reklam izle → 15 dakika boyunca +%${extraPercent} daha fazla müşteri`}
+      <Text style={styles.cta} numberOfLines={1}>
+        {active ? 'Reklam İzle · +15 dk' : `Reklam izle → 15 dk boyunca +%${extraPercent} müşteri`}
       </Text>
     </Pressable>
   );
@@ -35,13 +33,13 @@ const styles = StyleSheet.create({
   banner: {
     backgroundColor: colors.ink,
     borderRadius: radius.md,
-    paddingVertical: 10,
+    paddingVertical: 7,
     paddingHorizontal: 14,
     ...shadow,
   },
   title: {
     fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.sm,
+    fontSize: fontSizes.xs,
     color: colors.white,
     textAlign: 'center',
   },
@@ -51,6 +49,6 @@ const styles = StyleSheet.create({
     color: colors.white,
     opacity: 0.85,
     textAlign: 'center',
-    marginTop: 2,
+    marginTop: 1,
   },
 });
