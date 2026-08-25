@@ -137,6 +137,11 @@ export function DukkanScreen() {
   }, [offers]);
 
   const canCallNext = !incomingCustomer && waitingCustomers.length > 0;
+  const hasUsableLiquidInventory = inventory.some(
+    (item) => item.category !== 'pirlanta' && item.category !== 'iscilikli' && item.quantity > 0,
+  );
+  const canUseEmergencyLoan =
+    capital.cashTl <= EMERGENCY_MICRO_LOAN_MAX_CASH_TL && capital.debtTl > 0 && !hasUsableLiquidInventory;
 
   // [YENİ] Header zili — Müşteriler artık sekme değil, buradan açılan bir
   // modal. Badge, TekliflerScreen'in kendi tanımladığı "bekleyen" sayısıyla
@@ -346,7 +351,7 @@ export function DukkanScreen() {
           </View>
         )}
 
-        {capital.cashTl <= EMERGENCY_MICRO_LOAN_MAX_CASH_TL && (
+        {canUseEmergencyLoan && (
           <View style={styles.emergencyCard}>
             <Text style={styles.emergencyText}>Kasan neredeyse boş — hiçbir işlem yapamayabilirsin.</Text>
             <Pressable style={styles.emergencyButton} onPress={takeEmergencyMicroLoan}>

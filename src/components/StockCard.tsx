@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { StockSpec } from '../data/toptanciStock';
 import type { GoldPriceState, InventoryItem } from '../types/game';
+import { LOW_CASH_WARNING_THRESHOLD_TL } from '../config/economyConfig';
 import { colors, fonts, fontSizes, radius } from '../theme';
 import { formatTl } from '../utils/format';
 import { Badge } from './Badge';
@@ -34,9 +35,11 @@ export function StockCard({
   const wholesalerPricePerGram = Math.max(1, goldPrice.sellPricePerGram - wholesalerBuyMarginTlPerGram);
   const unitPriceTl = equivGrams * wholesalerPricePerGram;
   const totalCostTl = unitPriceTl * quantity;
+  const cashAfterTl = cashTl - totalCostTl;
 
   const ownedQuantity = ownedItem?.quantity ?? 0;
   const canBuy = totalCostTl <= cashTl;
+  const leavesLowCash = canBuy && cashAfterTl < LOW_CASH_WARNING_THRESHOLD_TL;
 
   return (
     <Card style={styles.card}>
@@ -57,8 +60,18 @@ export function StockCard({
       </View>
 
       <View style={styles.priceRow}>
-        <Text style={styles.priceLabel}>TOPTANCI FİYATI (alırsın)</Text>
+        <Text style={styles.priceLabel}>BİRİM ALIŞ</Text>
         <Text style={styles.priceValue}>{formatTl(unitPriceTl)}</Text>
+      </View>
+      <View style={styles.priceRowCompact}>
+        <Text style={styles.priceLabel}>Toplam</Text>
+        <Text style={styles.priceValueSmall}>{formatTl(totalCostTl)}</Text>
+      </View>
+      <View style={styles.priceRowCompact}>
+        <Text style={styles.priceLabel}>İşlem sonrası nakit</Text>
+        <Text style={[styles.priceValueSmall, leavesLowCash && styles.warningValue]}>
+          {formatTl(Math.max(0, cashAfterTl))}
+        </Text>
       </View>
 
       <View style={styles.stepperRow}>
@@ -84,6 +97,9 @@ export function StockCard({
         </Pressable>
       </View>
       {!canBuy && <Text style={styles.hint}>Nakdin yetmiyor.</Text>}
+      {leavesLowCash && (
+        <Text style={styles.hint}>Uyarı: Bu alımdan sonra nakit tamponun çok düşecek.</Text>
+      )}
     </Card>
   );
 }
@@ -115,6 +131,12 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     marginTop: 10,
   },
+  priceRowCompact: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginTop: 4,
+  },
   priceLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: 11,
@@ -124,6 +146,14 @@ const styles = StyleSheet.create({
     fontFamily: fonts.monoBold,
     fontSize: fontSizes.md,
     color: colors.ink,
+  },
+  priceValueSmall: {
+    fontFamily: fonts.monoBold,
+    fontSize: fontSizes.sm,
+    color: colors.ink,
+  },
+  warningValue: {
+    color: colors.warning,
   },
   stepperRow: {
     flexDirection: 'row',

@@ -11,6 +11,7 @@ import {
   BOZDURMA_BULK_LOT_MIN_GRAMS,
   BOZDURMA_BULK_LOT_PROBABILITY,
   BOZDURMA_DIRECTION_PROBABILITY,
+  BROKER_LIQUIDATION_MAX_COST_RECOVERY_RATIO,
   BROKER_DEAL_TIMEOUT_TRUST_PENALTY,
   BROKER_DEAL_WINDOW_MINUTES,
   EMERGENCY_MICRO_LOAN_MAX_CASH_TL,
@@ -185,6 +186,10 @@ function mergeIntoGramAltin(
           acquiredDay,
         } satisfies InventoryItem,
       ];
+}
+
+function hasUsableLiquidInventory(inventory: InventoryItem[]): boolean {
+  return inventory.some((item) => item.category !== 'pirlanta' && item.category !== 'iscilikli' && item.quantity > 0);
 }
 
 interface BozdurmaCandidate {
@@ -415,8 +420,8 @@ interface GameState {
   ) => { success: true; borrowedTl: number; xpGained: number } | { success: false; borrowedTl: 0; xpGained: 0 };
   /**
    * Bölüm 9: açık Toptancı Bağlantısı'nı hemen kullanır — o işlemden gelen
-   * malı toptancıya (genel ALIŞ + toptancı marjı üzerinden) anında satar,
-   * kesin bir kâr cebe atar. Bağlantı yoksa ya da süresi geçmişse null döner.
+   * malı genel ALIŞ fiyatından acil likiditeye çevirir. Bu bir kâr kanalı
+   * değil, borç/soft-lock riskini yönetmek için sınırlı tasfiye penceresidir.
    */
   resolveBrokerDeal: () => { saleValueTl: number; profitTl: number } | null;
   /**
@@ -1194,10 +1199,12 @@ export const useGameStore = create<GameState>()(
     // dönüştürüyordu. Kâr/zarar artık tamamen müşteriyle yapılan ASIL
     // pazarlığın sonucuna bağlı (ucuza alınmışsa hâlâ kârlı olabilir, ama
     // toptancı buna EK bir garanti eklemiyor).
+    const soldCostBasisTl = (item.costBasisTl / item.quantity) * sellQuantity;
     const wholesalerPricePerGram = state.goldPrice.buyPricePerGram;
     const unitPriceTl = equivalentGrams(item.grams, item.karat) * wholesalerPricePerGram;
-    const saleValueTl = unitPriceTl * sellQuantity;
-    const soldCostBasisTl = (item.costBasisTl / item.quantity) * sellQuantity;
+    const marketSaleValueTl = unitPriceTl * sellQuantity;
+    const liquidationCapTl = soldCostBasisTl * BROKER_LIQUIDATION_MAX_COST_RECOVERY_RATIO;
+    const saleValueTl = Math.min(marketSaleValueTl, liquidationCapTl);
     const profitTl = saleValueTl - soldCostBasisTl;
     const remainingQuantity = item.quantity - sellQuantity;
 
@@ -1469,7 +1476,7 @@ export const useGameStore = create<GameState>()(
   sellInvestmentUnits: (itemId, quantity) => {
     const state = get();
     const item = state.inventory.find((i) => i.id === itemId);
-    if (!item || item.category !== 'yatirim') return null;
+    if (!item || item.category === 'pirlanta' || item.category === 'iscilikli') return null;
     const sellQuantity = Math.min(quantity, item.quantity);
     if (sellQuantity <= 0) return null;
 
@@ -1710,6 +1717,8 @@ export const useGameStore = create<GameState>()(
   takeEmergencyMicroLoan: () => {
     const state = get();
     if (state.capital.cashTl > EMERGENCY_MICRO_LOAN_MAX_CASH_TL) return false;
+    if (state.capital.debtTl <= 0) return false;
+    if (hasUsableLiquidInventory(state.inventory)) return false;
     set({
       capital: {
         ...state.capital,

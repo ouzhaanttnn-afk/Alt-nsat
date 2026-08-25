@@ -1,6 +1,6 @@
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { MainTabsParamList, StokScrollTarget } from '../navigation/types';
 import { AtolyeCard } from '../components/AtolyeCard';
@@ -20,8 +20,11 @@ import {
   ATOLYE_UPGRADE_BASE_COST_GRAMS,
   ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL,
   JEWELRY_REQUIRED_LEVEL,
+  LOW_CASH_WARNING_THRESHOLD_TL,
+  MINUTES_PER_DAY,
   XP_BONUS_DEAL_COMPLETED,
   XP_BONUS_PROFITABLE_SALE,
+  XP_PER_EQUIVALENT_GRAM_TRADED,
 } from '../config/economyConfig';
 import { XpToast } from '../components/XpToast';
 import { BRAND_STAGES } from '../data/brandStages';
@@ -29,7 +32,7 @@ import { JEWELRY_PIECES, JEWELRY_TIERS } from '../data/jewelryInvestments';
 import { pirlantaCatalog } from '../data/mockPirlanta';
 import { computeJewelryPieceDailyReturnTl, computeJewelryPiecePriceTl, isJewelrySetComplete } from '../engine/jewelry';
 import { toptanciStock } from '../data/toptanciStock';
-import { currentPositionValueTl, MINUTES_PER_DAY, useGameStore } from '../store/useGameStore';
+import { currentPositionValueTl, equivalentGrams, useGameStore } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatTl } from '../utils/format';
 
@@ -43,6 +46,7 @@ export function KasamScreen() {
   const inventory = useGameStore((s) => s.inventory);
   const goldPrice = useGameStore((s) => s.goldPrice);
   const sellInventoryItem = useGameStore((s) => s.sellInventoryItem);
+  const sellInvestmentUnits = useGameStore((s) => s.sellInvestmentUnits);
   const realizedTradingProfitTl = useGameStore((s) => s.realizedTradingProfitTl);
   const purchasePirlanta = useGameStore((s) => s.purchasePirlanta);
   const meltingJob = useGameStore((s) => s.meltingJob);
@@ -52,6 +56,9 @@ export function KasamScreen() {
   const day = useGameStore((s) => s.day);
   const minuteOfDay = useGameStore((s) => s.minuteOfDay);
   const cashTl = useGameStore((s) => s.capital.cashTl);
+  const debtTl = useGameStore((s) => s.capital.debtTl);
+  const loanDueDay = useGameStore((s) => s.loanDueDay);
+  const repayDebt = useGameStore((s) => s.repayDebt);
   const atolyeLevel = useGameStore((s) => s.atolyeLevel);
   const upgradeAtolye = useGameStore((s) => s.upgradeAtolye);
   const jewelryHoldings = useGameStore((s) => s.jewelryHoldings);
@@ -135,6 +142,12 @@ export function KasamScreen() {
   }, [scrollTo, layoutTick]);
 
   const sarrafiyeItems = inventory.filter((item) => item.category !== 'pirlanta' && item.category !== 'iscilikli');
+  const sarrafiyeCurrentValueTl = sarrafiyeItems.reduce(
+    (sum, item) => sum + currentPositionValueTl(item, goldPrice.buyPricePerGram),
+    0,
+  );
+  const sarrafiyeCostBasisTl = sarrafiyeItems.reduce((sum, item) => sum + item.costBasisTl, 0);
+  const unrealizedTradingProfitTl = sarrafiyeCurrentValueTl - sarrafiyeCostBasisTl;
   const craftedGoodItems = inventory.filter((item) => item.category === 'iscilikli');
   const pirlantaItems = inventory.filter((item) => item.category === 'pirlanta');
   const meltingMinutesLeft = meltingJob
@@ -166,11 +179,57 @@ export function KasamScreen() {
     grantBonusXp(bonus.amount);
     setXpToast({ amount: result.xpGained + bonus.amount, reason: bonus.reason });
   };
+  const handleSellQuantity = (itemId: string, quantity: number) => {
+    const item = inventory.find((inventoryItem) => inventoryItem.id === itemId);
+    if (!item) return;
+    const result = sellInvestmentUnits(itemId, quantity);
+    if (!result) return;
+    setSaleBanner({ profitTl: result.profitTl });
+    if (saleBannerTimer.current) clearTimeout(saleBannerTimer.current);
+    saleBannerTimer.current = setTimeout(() => setSaleBanner(null), BANNER_VISIBLE_MS);
+
+    const bonus =
+      result.profitTl > 0
+        ? { amount: XP_BONUS_PROFITABLE_SALE, reason: 'Kârlı kısmi satış' }
+        : { amount: XP_BONUS_DEAL_COMPLETED, reason: 'Kısmi satış tamamlandı' };
+    grantBonusXp(bonus.amount);
+    const baseXp = equivalentGrams(item.grams, item.karat) * result.quantity * XP_PER_EQUIVALENT_GRAM_TRADED;
+    setXpToast({ amount: baseXp + bonus.amount, reason: bonus.reason });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView ref={scrollViewRef} contentContainerStyle={styles.content}>
         <Text style={styles.title}>Stok</Text>
+
+        <Card>
+          <View style={styles.cashDebtHeader}>
+            <View>
+              <Text style={styles.summaryLabel}>Nakit</Text>
+              <Text style={[styles.cashValue, cashTl < LOW_CASH_WARNING_THRESHOLD_TL && styles.warningText]}>
+                {formatTl(cashTl)}
+              </Text>
+            </View>
+            <View style={styles.debtBlock}>
+              <Text style={styles.summaryLabel}>Borç</Text>
+              <Text style={[styles.cashValue, debtTl > 0 && styles.debtText]}>{formatTl(debtTl)}</Text>
+            </View>
+          </View>
+          {debtTl > 0 && (
+            <View style={styles.debtActionRow}>
+              <Text style={styles.summaryHintMuted}>
+                {loanDueDay !== null ? `Vade: Gün ${loanDueDay}` : 'Vade yok'} · ödeme nakitten düşer.
+              </Text>
+              <Pressable
+                disabled={cashTl <= 0}
+                style={[styles.debtPayButton, cashTl <= 0 && styles.disabledButton]}
+                onPress={() => repayDebt(debtTl)}
+              >
+                <Text style={styles.debtPayButtonLabel}>Öde</Text>
+              </Pressable>
+            </View>
+          )}
+        </Card>
 
         <SectionLabel>TOPTANCIDAN STOK AL</SectionLabel>
         {toptanciStock.map((spec) => {
@@ -224,6 +283,20 @@ export function KasamScreen() {
             {formatTl(realizedTradingProfitTl)}
           </Text>
           <Text style={styles.summaryHintMuted}>Alış ve satış fiyatın arasındaki makastan gelir.</Text>
+          <View style={styles.divider} />
+          <Text style={styles.summaryLabel}>Stok Potansiyeli</Text>
+          <Text
+            style={[
+              styles.summaryValueSmall,
+              { color: unrealizedTradingProfitTl >= 0 ? colors.positive : colors.negative },
+            ]}
+          >
+            {unrealizedTradingProfitTl >= 0 ? '+' : ''}
+            {formatTl(unrealizedTradingProfitTl)}
+          </Text>
+          <Text style={styles.summaryHintMuted}>
+            Henüz gerçekleşmedi · stok satılırsa nakde döner.
+          </Text>
         </Card>
 
         {sarrafiyeItems.length === 0 ? (
@@ -239,6 +312,7 @@ export function KasamScreen() {
                 currentValueTl={currentPositionValueTl(item, goldPrice.buyPricePerGram)}
                 currentDay={day}
                 onSell={() => handleSell(item.id)}
+                onSellQuantity={(quantity) => handleSellQuantity(item.id, quantity)}
                 onHold={() => handleHold(item.id)}
               />
               {holdHintItemId === item.id && (
@@ -447,6 +521,61 @@ const styles = StyleSheet.create({
     color: colors.inkMutedOnDark,
     marginTop: 6,
     textAlign: 'center',
+  },
+  summaryValueSmall: {
+    fontFamily: fonts.headingBold,
+    fontSize: fontSizes.lg,
+    color: colors.ink,
+    marginTop: 4,
+  },
+  cashDebtHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 14,
+  },
+  cashValue: {
+    fontFamily: fonts.monoBold,
+    fontSize: fontSizes.lg,
+    color: colors.ink,
+    marginTop: 2,
+  },
+  debtBlock: {
+    alignItems: 'flex-end',
+  },
+  debtText: {
+    color: colors.negative,
+  },
+  warningText: {
+    color: colors.warning,
+  },
+  debtActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  debtPayButton: {
+    backgroundColor: colors.ink,
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  disabledButton: {
+    opacity: 0.45,
+  },
+  debtPayButtonLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    color: colors.white,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 10,
   },
   craftedFeedback: {
     fontFamily: fonts.bodyMedium,

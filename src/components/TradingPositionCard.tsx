@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { InventoryItem } from '../types/game';
 import { colors, fonts, fontSizes, radius } from '../theme';
@@ -15,6 +16,7 @@ export function TradingPositionCard({
   currentValueTl,
   currentDay,
   onSell,
+  onSellQuantity,
   onHold,
 }: {
   item: InventoryItem;
@@ -22,14 +24,32 @@ export function TradingPositionCard({
   /** Bölüm 4/6: kaç gündür stokta olduğunu göstermek için bugünün gün sayısı. */
   currentDay: number;
   onSell: () => void;
+  onSellQuantity?: (quantity: number) => void;
   /** "Beklet" — satmayı erteleme kararını görünür kılan, hafif bir dokunuş. */
   onHold?: () => void;
 }) {
+  const initialSellQuantity = Math.min(1, item.quantity);
+  const [sellQuantity, setSellQuantity] = useState(initialSellQuantity);
   const avgCostPerUnit = item.costBasisTl / item.quantity;
   const currentValuePerUnit = currentValueTl / item.quantity;
   const profitTl = currentValueTl - item.costBasisTl;
+  const selectedQuantity = Math.min(item.quantity, Math.max(initialSellQuantity, sellQuantity));
+  const selectedSaleValueTl = currentValuePerUnit * selectedQuantity;
+  const selectedCostBasisTl = avgCostPerUnit * selectedQuantity;
+  const selectedProfitTl = selectedSaleValueTl - selectedCostBasisTl;
   const isProfit = profitTl >= 0;
   const daysHeld = Math.max(0, currentDay - item.acquiredDay);
+  const canPartialSell = !!onSellQuantity && item.quantity > initialSellQuantity;
+  const changeSellQuantity = (delta: number) => {
+    setSellQuantity((current) => Math.min(item.quantity, Math.max(initialSellQuantity, current + delta)));
+  };
+  const sellSelected = () => {
+    if (!onSellQuantity) {
+      onSell();
+      return;
+    }
+    onSellQuantity(selectedQuantity);
+  };
 
   return (
     <Card style={styles.card}>
@@ -58,10 +78,30 @@ export function TradingPositionCard({
         </View>
       </View>
 
+      {canPartialSell && (
+        <View style={styles.sellQuantityRow}>
+          <Text style={styles.priceLabel}>Satılacak adet</Text>
+          <View style={styles.stepper}>
+            <Pressable style={styles.stepperButton} onPress={() => changeSellQuantity(-1)}>
+              <Text style={styles.stepperButtonLabel}>−</Text>
+            </Pressable>
+            <Text style={styles.stepperValue}>
+              {selectedQuantity.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}
+            </Text>
+            <Pressable style={styles.stepperButton} onPress={() => changeSellQuantity(1)}>
+              <Text style={styles.stepperButtonLabel}>+</Text>
+            </Pressable>
+            <Pressable style={styles.allButton} onPress={() => setSellQuantity(item.quantity)}>
+              <Text style={styles.allButtonLabel}>Tümü</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       <View style={styles.footer}>
         <Badge
           tone={isProfit ? 'positive' : 'negative'}
-          label={`${isProfit ? 'Kâr' : 'Zarar'}: ${isProfit ? '+' : ''}${formatTl(profitTl)}`}
+          label={`Potansiyel ${isProfit ? 'kâr' : 'zarar'}: ${isProfit ? '+' : ''}${formatTl(profitTl)}`}
         />
         <View style={styles.buttonGroup}>
           {onHold && (
@@ -69,11 +109,19 @@ export function TradingPositionCard({
               <Text style={styles.holdButtonLabel}>Beklet</Text>
             </Pressable>
           )}
-          <Pressable style={styles.sellButton} onPress={onSell}>
-            <Text style={styles.sellButtonLabel}>Sat</Text>
+          <Pressable style={styles.sellButton} onPress={sellSelected}>
+            <Text style={styles.sellButtonLabel}>
+              Sat · {formatTl(canPartialSell ? selectedSaleValueTl : currentValueTl)}
+            </Text>
           </Pressable>
         </View>
       </View>
+      {canPartialSell && (
+        <Text style={[styles.selectedHint, { color: selectedProfitTl >= 0 ? colors.positive : colors.negative }]}>
+          Seçili satış sonucu: {selectedProfitTl >= 0 ? '+' : ''}
+          {formatTl(selectedProfitTl)}
+        </Text>
+      )}
     </Card>
   );
 }
@@ -132,6 +180,52 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
+  sellQuantityRow: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceSunken,
+    borderRadius: radius.sm,
+  },
+  stepperButton: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperButtonLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.md,
+    color: colors.ink,
+  },
+  stepperValue: {
+    fontFamily: fonts.monoBold,
+    fontSize: fontSizes.sm,
+    color: colors.ink,
+    minWidth: 34,
+    textAlign: 'center',
+  },
+  allButton: {
+    paddingHorizontal: 9,
+    height: 30,
+    justifyContent: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: colors.border,
+  },
+  allButtonLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    color: colors.inkMuted,
+  },
   buttonGroup: {
     flexDirection: 'row',
     gap: 8,
@@ -153,6 +247,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     paddingVertical: 5,
     paddingHorizontal: 14,
+  },
+  selectedHint: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11,
+    marginTop: 6,
+    textAlign: 'right',
   },
   sellButtonLabel: {
     fontFamily: fonts.bodyMedium,

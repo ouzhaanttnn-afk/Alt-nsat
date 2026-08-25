@@ -18,22 +18,21 @@ export const MAX_REAL_SECONDS_PER_TICK = 5;
 // toptancı stoğunun tamamı ilk dakikada peşin alınabiliyordu. Kullanıcı
 // isteğiyle sabit, mütevazı bir nakit bakiyeyle değiştirildi: oyuncu
 // gerçek bir "az sermayeyle başlayan kuyumcu" hissi yaşamalı.
-// [GEÇİCİ TEST DEĞERİ] Test kolaylığı için kullanıcı isteğiyle 100.000'den
-// yükseltildi — dengelemeye dönülürse yukarıdaki orijinal mütevazı değere
-// (100.000) geri alınabilir. Sadece YENİ oyunları etkiler, mevcut kayıtlı
-// kasa bakiyesini değiştirmez.
-export const STARTING_CASH_TL = 1000000;
+// v0.2 Aşama 5: başlangıç artık hedeflenen erken oyun karar döngüsüne
+// dönüyor — 100.000 TL nakit, 0 stok, 0 borç. Sadece YENİ oyunları etkiler,
+// mevcut kayıtlı kasa bakiyesini değiştirmez.
+export const STARTING_CASH_TL = 100000;
 export const STARTING_REFERENCE_PRICE = 6845; // TL, gram altın referans (orta) fiyatı — sadece piyasa başlangıcı için, sermaye artık buna bağlı değil.
 // Bölüm 2: Sermaye Kademeleri — her yeni kademe bir Yetenek Ağacı puanı kazandırır.
 export const CAPITAL_TIERS = [100000, 500000, 2000000, 10000000, 50000000, 250000000];
 
 // ---- Piyasa / Dinamik Fiyat + Makas (Bölüm 4.4) -------------------------
-// Referans (orta) fiyat her 30 oyun-dakikasında bir kez ±%3-5 rastgele
+// Referans (orta) fiyat her 30 oyun-dakikasında bir kez küçük bir rastgele
 // hareket eder. Aynı anda birden fazla 30-dakikalık eşik geçilirse
 // (yüksek hız / uzun tick), o kadar bağımsız adım art arda uygulanır.
 export const MARKET_STEP_MINUTES = 30;
-export const MARKET_STEP_MIN_PERCENT = 3;
-export const MARKET_STEP_MAX_PERCENT = 5;
+export const MARKET_STEP_MIN_PERCENT = 0.3;
+export const MARKET_STEP_MAX_PERCENT = 1.2;
 // Uygulama kapatılıp yeniden açıldığında (rehydration) referans fiyata
 // bir kez daha ekstra ±%3-5 dalgalanma uygulanır.
 export const RESTART_FLUCTUATION_MIN_PERCENT = 3;
@@ -305,6 +304,9 @@ export const EMERGENCY_MICRO_LOAN_TL = 20000;
 // Aynı acil krediyi arka arkaya spam'lemeyi anlamsızlaştırmak için: sadece
 // kasa bu eşiğin altındayken kullanılabilir.
 export const EMERGENCY_MICRO_LOAN_MAX_CASH_TL = 500;
+// Büyük alım/yatırım sonrası kasa bunun altına düşerse UI oyuncuyu uyarır;
+// işlem engellenmez, sadece "nakit tamponun eriyor" sinyali verilir.
+export const LOW_CASH_WARNING_THRESHOLD_TL = 10000;
 
 // ---- Büyük Bozdurmalar + Toptancı Bağlantısı (Bölüm 9) -------------------
 // Müşteriden nakit yetmeyen bir alım yapılıp borca yazıldığında, oyuncu
@@ -313,3 +315,7 @@ export const EMERGENCY_MICRO_LOAN_MAX_CASH_TL = 500;
 // süre için açık kalır; süresi dolarsa toptancı güveni düşer.
 export const BROKER_DEAL_WINDOW_MINUTES = 10;
 export const BROKER_DEAL_TIMEOUT_TRUST_PENALTY = 10;
+// Borçla alınan malın Toptancı Bağlantısı üzerinden anında çevrilmesi bir
+// acil likidite/tasfiye hamlesidir, kâr stratejisi değil. Piyasa zıplasa
+// bile satış bedeli maliyetin bu oranını aşamaz.
+export const BROKER_LIQUIDATION_MAX_COST_RECOVERY_RATIO = 0.98;
