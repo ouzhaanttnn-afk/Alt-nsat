@@ -75,7 +75,6 @@ export function NegotiationPanel({
   const customer = incomingCustomer.customer;
   const product = incomingCustomer.product;
   const reading = incomingCustomer.scaleReading ?? { grams: product.grams, karat: product.karat, cleanliness: 'Temiz' };
-  const incomingCustomerId = incomingCustomer.id;
 
   const day = useGameStore((s) => s.day);
   const minuteOfDay = useGameStore((s) => s.minuteOfDay);
@@ -88,7 +87,6 @@ export function NegotiationPanel({
   const logCompletedOffer = useGameStore((s) => s.logCompletedOffer);
   const grantBonusXp = useGameStore((s) => s.grantBonusXp);
   const resolveIncomingCustomer = useGameStore((s) => s.resolveIncomingCustomer);
-  const clearIncomingCustomer = useGameStore((s) => s.clearIncomingCustomer);
   const adjustReputation = useGameStore((s) => s.adjustReputation);
   const skillLevels = useGameStore((s) => s.skillLevels);
   const brokerDeal = useGameStore((s) => s.brokerDeal);
@@ -158,11 +156,9 @@ export function NegotiationPanel({
 
   useEffect(() => {
     if (result !== null || pendingCounter !== null || minutesLeft > 0) return;
-    if (isSale) resolveIncomingCustomer(false);
-    else if (incomingCustomerId) clearIncomingCustomer(incomingCustomerId);
     setResult('timedOut');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [minutesLeft, result, pendingCounter, isSale, incomingCustomerId]);
+  }, [minutesLeft, result, pendingCounter]);
 
   // Accepted/rejected/timedOut artık tam ekran bir onay beklemiyor — kısa bir
   // özet gösterip kendiliğinden ana oyuna dönüyor (Bölüm section 3: "oyuncuyu
@@ -219,7 +215,6 @@ export function NegotiationPanel({
     });
     setOffer(amount);
     setPendingCounter(null);
-    if (incomingCustomerId) clearIncomingCustomer(incomingCustomerId);
     if (!outcome.success) {
       setResult('creditDenied');
       return;
@@ -244,7 +239,6 @@ export function NegotiationPanel({
 
   const rejectBuy = () => {
     setPendingCounter(null);
-    if (incomingCustomerId) clearIncomingCustomer(incomingCustomerId);
     logCompletedOffer({
       customerName: customer.name,
       productName: product.name,
@@ -325,7 +319,6 @@ export function NegotiationPanel({
       setRoundsUsed(roundsUsedNow + 1);
       return;
     }
-    resolveIncomingCustomer(false);
     logCompletedOffer({
       customerName: customer.name,
       productName: product.name,
@@ -463,7 +456,6 @@ export function NegotiationPanel({
           onAccept={acceptSaleCounter}
           onMeetHalfway={lowerSaleHalfway}
           onWalkAway={() => {
-            resolveIncomingCustomer(false);
             setSaleCounter(null);
             setResult('rejected');
           }}
@@ -530,7 +522,6 @@ export function NegotiationPanel({
               disabled={!canAct}
               onOfferPrice={() => sendSaleAsk(offer, roundsUsed)}
               onReject={() => {
-                resolveIncomingCustomer(false);
                 setResult('rejected');
               }}
             />

@@ -27,7 +27,6 @@ import type { ClockSpeed } from '../store/useGameStore';
 import { MINUTES_PER_DAY, useGameStore, xpRequiredForLevel } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatGameTime, formatTl } from '../utils/format';
-import type { IncomingCustomer } from '../types/incomingCustomer';
 
 // [DÜZELTME] "Müşteriler" artık bir sekme değil, üst stack'e (RootNavigator)
 // ait bir modal — header'daki zile basınca oraya gitmek için sekme
@@ -88,6 +87,7 @@ export function DukkanScreen() {
   const incomingCustomer = useGameStore((s) => s.incomingCustomer);
   const waitingCustomers = useGameStore((s) => s.waitingCustomers);
   const callNextCustomerToCounter = useGameStore((s) => s.callNextCustomerToCounter);
+  const clearIncomingCustomer = useGameStore((s) => s.clearIncomingCustomer);
   const hasCompletedTutorial = useGameStore((s) => s.hasCompletedTutorial);
   const completeTutorial = useGameStore((s) => s.completeTutorial);
   const takeEmergencyMicroLoan = useGameStore((s) => s.takeEmergencyMicroLoan);
@@ -101,17 +101,6 @@ export function DukkanScreen() {
     0,
     Math.min(1, (totalXp - xpForCurrentLevel) / Math.max(1, xpForNextLevel - xpForCurrentLevel)),
   );
-
-  // Bölüm 6: dükkâna gelen (artık: TEZGAHA ÇAĞRILAN) müşteri belirdiğinde
-  // bir kez yakalanır — pazarlık paneli kendi sonuç ekranını gösterirken
-  // store'daki incomingCustomer (kabul/red/gönderildi anında) null'a dönse
-  // bile panel ekranda kalmaya devam eder, oyuncu "Devam Et"e basınca kapanır.
-  const [activeNegotiation, setActiveNegotiation] = useState<IncomingCustomer | null>(null);
-  useEffect(() => {
-    if (incomingCustomer && !activeNegotiation) {
-      setActiveNegotiation(incomingCustomer);
-    }
-  }, [incomingCustomer, activeNegotiation]);
 
   // Bölüm 22: 4x'in reklamla açılan penceresi GERÇEK DÜNYA süresiyle
   // ölçülür (oyun saatiyle değil) — canlı geri sayım için ayrı, saniyede
@@ -309,8 +298,11 @@ export function DukkanScreen() {
             ikincil banner/kartlar (kısayollar, tutorial, acil kredi, 4x,
             toptancı, müşteri akını) TEZGÂH'tan SONRA geliyor. */}
         <SectionLabel>TEZGÂH</SectionLabel>
-        {activeNegotiation ? (
-          <NegotiationPanel incomingCustomer={activeNegotiation} onClose={() => setActiveNegotiation(null)} />
+        {incomingCustomer ? (
+          <NegotiationPanel
+            incomingCustomer={incomingCustomer}
+            onClose={() => clearIncomingCustomer(incomingCustomer.id)}
+          />
         ) : (
           <Text style={styles.emptyHint}>
             {waitingCustomers.length > 0

@@ -489,10 +489,11 @@ interface GameState {
     status: 'kabul' | 'red';
   }) => void;
   /**
-   * Aktif gelen müşteriye (direction:'satis') yanıt verir. Kabulde
+   * Aktif gelen müşterinin satış işlemini (direction:'satis') sonuçlandırır. Kabulde
    * (accepted=true, saleAmountTl ile) stoktan bir adet düşülür,
-   * karşılığında pazarlıkla anlaşılan tutar nakde eklenir. Reddde
-   * müşteri elini boş dönüp gider.
+   * karşılığında pazarlıkla anlaşılan tutar nakde eklenir. Aktif müşteri
+   * burada temizlenmez; sonuç ekranı kapanırken clearIncomingCustomer(id)
+   * tek kontrollü kapanış noktasıdır.
    */
   resolveIncomingCustomer: (
     accepted: boolean,
@@ -796,24 +797,13 @@ export const useGameStore = create<GameState>()(
       brandStageCashDelta = dailyBrandIncomeTl * daysElapsed;
     }
 
-    // [YENİ] Müşteri Bekleme Kuyruğu: tezgahtaki (incomingCustomer) müşteri
-    // ile bekleme kuyruğu (waitingCustomers) artık BAĞIMSIZ iki kavram.
-    // Tezgahtaki müşterinin süresi dolduysa (ya da 'satis' yönünde istediği
-    // ürün stoktan tükendiyse) elini boş dönüp gider — bu, kuyruktan yeni
-    // birinin çağrılmasını (callNextCustomerToCounter) ETKİLEMEZ.
-    let incomingCustomer = postOfferState.incomingCustomer;
-    if (incomingCustomer) {
-      const expired = currentTotalMinutes >= incomingCustomer.expiresAtTotalMinutes;
-      const staleSatisTarget =
-        incomingCustomer.direction === 'satis' &&
-        (() => {
-          const target = inventory.find((i) => i.id === incomingCustomer!.inventoryItemId);
-          return !target || target.quantity < (incomingCustomer!.unitsRequired ?? 1);
-        })();
-      if (expired || staleSatisTarget) {
-        incomingCustomer = null;
-      }
-    }
+    // Tezgâha çağrılan müşteri, işlem yaşam döngüsünün tek kaynağı olan
+    // incomingCustomer'da tutulur. Kuyruktaki sabır zaman aşımı yalnızca
+    // waitingCustomers için geçerlidir; aktif müşteriyi tick() üzerinden
+    // silmek pazarlık ekranını React render'ı tamamlanmadan kapatabilirdi.
+    // Aktif müşteri yalnızca sonuç akışının kontrollü kapanışında
+    // clearIncomingCustomer(id) ile temizlenir.
+    const incomingCustomer = postOfferState.incomingCustomer;
 
     // Kuyruktaki müşterilerden sabrı (expiresAtTotalMinutes) dolanlar,
     // tezgaha hiç çağrılmadan otomatik olarak kuyruktan silinir.
@@ -1502,17 +1492,11 @@ export const useGameStore = create<GameState>()(
     const customer = state.incomingCustomer;
     if (!customer || customer.direction !== 'satis') return null;
 
-    if (!accepted) {
-      set({ incomingCustomer: null });
-      return null;
-    }
+    if (!accepted) return null;
 
     const item = state.inventory.find((i) => i.id === customer.inventoryItemId);
     const unitsRequired = customer.unitsRequired ?? 1;
-    if (!item || item.quantity < unitsRequired) {
-      set({ incomingCustomer: null });
-      return null;
-    }
+    if (!item || item.quantity < unitsRequired) return null;
 
     const amountTl = saleAmountTl ?? 0;
     const costBasisPerUnit = item.costBasisTl / item.quantity;
@@ -1533,7 +1517,6 @@ export const useGameStore = create<GameState>()(
 
     set({
       inventory,
-      incomingCustomer: null,
       realizedTradingProfitTl: state.realizedTradingProfitTl + profitTl,
       totalTradingCostBasisTl: state.totalTradingCostBasisTl + soldCostBasisTl,
       capital: {
