@@ -1,5 +1,6 @@
+import { useNavigation } from '@react-navigation/native';
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FilterTabs, type FilterOption } from '../components/FilterTabs';
 import { OfferCard } from '../components/OfferCard';
@@ -29,6 +30,7 @@ function formatRemaining(remainingMinutes: number): string {
 // "Bekleyen" durumu/filtresi geriye dönük uyumluluk için duruyor ama yeni
 // akışta neredeyse hiç oluşmuyor — sonuç artık pazarlık ekranında anında belli.
 export function TekliflerScreen() {
+  const navigation = useNavigation();
   const offers = useGameStore((s) => s.offers);
   const day = useGameStore((s) => s.day);
   const minuteOfDay = useGameStore((s) => s.minuteOfDay);
@@ -51,11 +53,16 @@ export function TekliflerScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>Müşteriler</Text>
-          {pendingCount > 0 && (
-            <View style={styles.pendingBadge}>
-              <Text style={styles.pendingBadgeLabel}>{pendingCount} bekleyen</Text>
-            </View>
-          )}
+          <View style={styles.headerRight}>
+            {pendingCount > 0 && (
+              <View style={styles.pendingBadge}>
+                <Text style={styles.pendingBadgeLabel}>{pendingCount} bekleyen</Text>
+              </View>
+            )}
+            <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={styles.closeButton}>
+              <Text style={styles.closeButtonLabel}>✕</Text>
+            </Pressable>
+          </View>
         </View>
 
         <FilterTabs options={FILTER_OPTIONS} value={filter} onChange={setFilter} />
@@ -107,6 +114,11 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xl,
     color: colors.inkOnDark,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   pendingBadge: {
     backgroundColor: colors.accentSoft,
     borderRadius: 999,
@@ -117,6 +129,19 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.xs,
     color: colors.accentDark,
+  },
+  closeButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.surfaceSunken,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeButtonLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.sm,
+    color: colors.inkMuted,
   },
   list: {
     gap: 10,

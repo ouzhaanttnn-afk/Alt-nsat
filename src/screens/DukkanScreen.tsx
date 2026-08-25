@@ -1,10 +1,12 @@
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActiveOfferSummary, type ActiveOffer } from '../components/ActiveOfferSummary';
 import { AvatarInitial } from '../components/icons/AvatarInitial';
+import { BellIcon } from '../components/icons/BellIcon';
 import { EMERGENCY_MICRO_LOAN_MAX_CASH_TL, EMERGENCY_MICRO_LOAN_TL } from '../config/economyConfig';
 import { BrokerDealBanner } from '../components/BrokerDealBanner';
 import { CapitalSummary } from '../components/CapitalSummary';
@@ -16,14 +18,20 @@ import { OFFER_STATUS_LABEL } from '../components/OfferCard';
 import { SectionLabel } from '../components/SectionLabel';
 import { StokOzetiCard } from '../components/StokOzetiCard';
 import { WholesalerAccessBanner } from '../components/WholesalerAccessBanner';
-import type { MainTabsParamList } from '../navigation/types';
+import type { MainTabsParamList, RootStackParamList } from '../navigation/types';
 import type { ClockSpeed } from '../store/useGameStore';
 import { MINUTES_PER_DAY, useGameStore, xpRequiredForLevel } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatGameTime, formatTl } from '../utils/format';
 import type { IncomingCustomer } from '../types/incomingCustomer';
 
-type DukkanNavigationProp = BottomTabNavigationProp<MainTabsParamList, 'Dükkân'>;
+// [DÜZELTME] "Müşteriler" artık bir sekme değil, üst stack'e (RootNavigator)
+// ait bir modal — header'daki zile basınca oraya gitmek için sekme
+// navigasyonu + üst stack navigasyonunu birleştiren bir composite tip gerekiyor.
+type DukkanNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabsParamList, 'Dükkân'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 // [YENİ] Lüks referans tasarımı (fildişi + altın çerçeve + mor ışıltı) —
 // KASITLI OLARAK sadece bu ekrana özel, yerel bir palet: uygulamanın geri
@@ -138,6 +146,14 @@ export function DukkanScreen() {
 
   const canCallNext = !incomingCustomer && waitingCustomers.length > 0;
 
+  // [YENİ] Header zili — Müşteriler artık sekme değil, buradan açılan bir
+  // modal. Badge, TekliflerScreen'in kendi tanımladığı "bekleyen" sayısıyla
+  // birebir aynı metriği kullanıyor (offers, status:'bekleyen').
+  const pendingCustomerCount = useMemo(
+    () => offers.filter((offer) => offer.status === 'bekleyen').length,
+    [offers],
+  );
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -164,40 +180,57 @@ export function DukkanScreen() {
           </View>
 
           {/* [DÜZELTME] Hız kontrolü artık ana içerik gibi büyük bir alan
-              kaplamıyor — üst HUD'a ait, tek satırlık, küçük bir kontrol. */}
+              kaplamıyor — üst HUD'a ait, tek satırlık, küçük bir kontrol.
+              Aynı satırda, sağda: Müşteriler'i açan zil + bekleyen rozeti. */}
           <View style={styles.hudSpeedRow}>
+            <View style={styles.hudSpeedLeftGroup}>
+              <Pressable
+                onPress={() => handleSpeedChange(speed === 0 ? 1 : 0)}
+                style={styles.hudPauseBtn}
+                hitSlop={8}
+              >
+                <Text style={styles.hudPauseLabel}>{speed === 0 ? '▶' : 'II'}</Text>
+              </Pressable>
+              <View style={styles.hudSpeedCluster}>
+                <Pressable
+                  onPress={() => handleSpeedChange(1)}
+                  style={[styles.hudSpeedBtn, speed === 1 && styles.hudSpeedBtnActive]}
+                >
+                  <Text style={[styles.hudSpeedLabel, speed === 1 && styles.hudSpeedLabelActive]}>1x</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => handleSpeedChange(2)}
+                  style={[styles.hudSpeedBtn, speed === 2 && styles.hudSpeedBtnActive]}
+                >
+                  <Text style={[styles.hudSpeedLabel, speed === 2 && styles.hudSpeedLabelActive]}>2x</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => handleSpeedChange(4)}
+                  style={[styles.hudSpeedBtn, speed === 4 && styles.hudSpeedBtnActive]}
+                >
+                  <Text style={[styles.hudSpeedLabel, speed === 4 && styles.hudSpeedLabelActive]}>
+                    4x{!fourXUnlocked ? '🔒' : ''}
+                  </Text>
+                </Pressable>
+              </View>
+              {fourXMinutesLeft > 0 && (
+                <Text style={styles.fourXCountdown}>4x: {Math.ceil(fourXMinutesLeft)} dk</Text>
+              )}
+            </View>
             <Pressable
-              onPress={() => handleSpeedChange(speed === 0 ? 1 : 0)}
-              style={styles.hudPauseBtn}
+              onPress={() => navigation.navigate('Müşteriler')}
+              style={styles.hudBellBtn}
               hitSlop={8}
             >
-              <Text style={styles.hudPauseLabel}>{speed === 0 ? '▶' : 'II'}</Text>
+              <BellIcon color={lux.purple} size={18} />
+              {pendingCustomerCount > 0 && (
+                <View style={styles.hudBellBadge}>
+                  <Text style={styles.hudBellBadgeLabel}>
+                    {pendingCustomerCount > 9 ? '9+' : pendingCustomerCount}
+                  </Text>
+                </View>
+              )}
             </Pressable>
-            <View style={styles.hudSpeedCluster}>
-              <Pressable
-                onPress={() => handleSpeedChange(1)}
-                style={[styles.hudSpeedBtn, speed === 1 && styles.hudSpeedBtnActive]}
-              >
-                <Text style={[styles.hudSpeedLabel, speed === 1 && styles.hudSpeedLabelActive]}>1x</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => handleSpeedChange(2)}
-                style={[styles.hudSpeedBtn, speed === 2 && styles.hudSpeedBtnActive]}
-              >
-                <Text style={[styles.hudSpeedLabel, speed === 2 && styles.hudSpeedLabelActive]}>2x</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => handleSpeedChange(4)}
-                style={[styles.hudSpeedBtn, speed === 4 && styles.hudSpeedBtnActive]}
-              >
-                <Text style={[styles.hudSpeedLabel, speed === 4 && styles.hudSpeedLabelActive]}>
-                  4x{!fourXUnlocked ? '🔒' : ''}
-                </Text>
-              </Pressable>
-            </View>
-            {fourXMinutesLeft > 0 && (
-              <Text style={styles.fourXCountdown}>4x: {Math.ceil(fourXMinutesLeft)} dk</Text>
-            )}
           </View>
 
           {/* [DÜZELTME] Karizma/Toptancı/Piyasa/Stok/Servet/Borç artık tek,
@@ -464,7 +497,43 @@ const styles = StyleSheet.create({
   hudSpeedRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  hudSpeedLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
+  },
+  // [YENİ] Müşteriler artık sekme değil — bu zil header'daki tek erişim
+  // noktası. Rozet, TekliflerScreen'in "bekleyen" sayısını yansıtır.
+  hudBellBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: lux.glassStrong,
+    borderWidth: 1,
+    borderColor: lux.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hudBellBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 15,
+    height: 15,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: colors.negative,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: lux.panelBg,
+  },
+  hudBellBadgeLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 9,
+    color: colors.white,
   },
   hudPauseBtn: {
     width: 24,

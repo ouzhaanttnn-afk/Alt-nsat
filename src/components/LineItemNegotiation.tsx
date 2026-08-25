@@ -49,6 +49,7 @@ export function LineItemNegotiation({
   customer,
   itemProgressLabel,
   onBack,
+  onTestedChange,
   onSettled,
 }: {
   product: NegotiationProduct;
@@ -58,6 +59,8 @@ export function LineItemNegotiation({
   itemProgressLabel: string;
   /** [YENİ] UX revizyonu — ürün listesine geri dönüş; oyuncu istediği zaman kalemler arasında geçebilmeli. */
   onBack: () => void;
+  /** [YENİ] Bu kalemin test edilip edilmediğini üst listeye (mini kart rozeti için) bildirir. */
+  onTestedChange?: (tested: boolean) => void;
   onSettled: (result: { accepted: boolean; amountTl: number }) => void;
 }) {
   const reputationScore = useGameStore((s) => s.reputation.score);
@@ -99,6 +102,7 @@ export function LineItemNegotiation({
     setTimeout(() => {
       setMeasuring(false);
       setTested(true);
+      onTestedChange?.(true);
     }, MEASURE_DURATION_MS);
   };
 
@@ -209,9 +213,14 @@ export function LineItemNegotiation({
         <Text style={styles.backLabel}>‹ Ürünlere dön</Text>
         <Text style={styles.progressLabel}>{itemProgressLabel}</Text>
       </Pressable>
-      <NegotiationProductCard product={product} />
+      <NegotiationProductCard product={product} tested={tested} />
       <ScalePanel reading={reading} tested={tested} measuring={measuring} onTest={handleTest} />
-      {!tested && <Text style={styles.hint}>Teklif vermeden önce ürünü tart — TEST'e bas.</Text>}
+
+      {/* [DÜZELTME] Teklif alanı test edilmeden AÇILMIYOR — kompakt bir bilgi
+          metni gösteriliyor, büyük devre dışı bir panel değil. */}
+      {!tested && !pendingCounter && (
+        <Text style={styles.testGateHint}>Ürünü test etmeden teklif veremezsin.</Text>
+      )}
 
       {pendingCounter ? (
         <CounterOfferCard
@@ -226,7 +235,7 @@ export function LineItemNegotiation({
           }}
           onWalkAway={rejectLine}
         />
-      ) : (
+      ) : tested ? (
         <>
           <PriceBlock
             marketValueTl={product.marketValueTl}
@@ -235,7 +244,6 @@ export function LineItemNegotiation({
             value={offer}
             onChange={setOffer}
             disabled={!canAct}
-            obscureValue={!tested}
           />
           <OfferPresets
             disabled={!canAct}
@@ -267,7 +275,7 @@ export function LineItemNegotiation({
             onReject={rejectLine}
           />
         </>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -289,12 +297,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.inkMutedOnDark,
   },
-  hint: {
+  testGateHint: {
     fontFamily: fonts.body,
     fontSize: fontSizes.xs,
     color: colors.inkMutedOnDark,
     textAlign: 'center',
-    marginTop: -6,
+    paddingVertical: 6,
   },
   resultWrap: { gap: 10 },
   resultBadge: {

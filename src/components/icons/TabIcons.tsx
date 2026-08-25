@@ -36,17 +36,6 @@ export function SafeTabIcon({ color, size = 22 }: TabIconProps) {
   );
 }
 
-export function OffersTabIcon({ color, size = 22 }: TabIconProps) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M6 4h9l3 3v13H6z" stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
-      <Path d="M15 4v3h3" stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
-      <Line x1={9} y1={12} x2={15} y2={12} stroke={color} strokeWidth={1.4} strokeLinecap="round" />
-      <Line x1={9} y1={15.5} x2={15} y2={15.5} stroke={color} strokeWidth={1.4} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
 export function SkillTabIcon({ color, size = 22 }: TabIconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">

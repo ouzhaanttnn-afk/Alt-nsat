@@ -473,9 +473,9 @@ interface GameState {
   }) => void;
   /**
    * v2: pazarlıklar artık anında sonuçlanıyor (bkz. NegotiationPanel'in
-   * karşı teklif akışı) — bu, sonucu Müşteriler sekmesinde geçmiş olarak
-   * görünsün diye ÇÖZÜLMÜŞ (kabul/red) bir teklif kaydı ekler, bekleme
-   * mekanizmasını (sendPendingOffer/tick) TETİKLEMEZ.
+   * karşı teklif akışı) — bu, sonucu Müşteriler ekranında (header zili)
+   * geçmiş olarak görünsün diye ÇÖZÜLMÜŞ (kabul/red) bir teklif kaydı
+   * ekler, bekleme mekanizmasını (sendPendingOffer/tick) TETİKLEMEZ.
    */
   logCompletedOffer: (offer: {
     customerName: string;

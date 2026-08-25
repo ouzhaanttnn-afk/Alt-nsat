@@ -1,12 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
-import {
-  OffersTabIcon,
-  ProfileTabIcon,
-  SafeTabIcon,
-  ShopTabIcon,
-  SkillTabIcon,
-} from '../components/icons/TabIcons';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { ProfileTabIcon, SafeTabIcon, ShopTabIcon, SkillTabIcon } from '../components/icons/TabIcons';
 import { colors, fonts, shadow } from '../theme';
 import { DukkanScreen } from '../screens/DukkanScreen';
 import { KasamScreen } from '../screens/KasamScreen';
@@ -16,9 +11,12 @@ import { YeteneklerScreen } from '../screens/YeteneklerScreen';
 
 // Mockup birleşimi: Dükkân artık gelen müşteriyle pazarlığı doğrudan
 // kendi içinde gösteriyor (bkz. NegotiationPanel), bu yüzden ayrı bir
-// Pazarlık modalı/Stack.Navigator'a gerek kalmadı — tek seviyeli, 5
-// sekmeli navigasyon: Dükkân / Müşteriler / Stok / Yetenekler / Profil.
+// Pazarlık modalı/Stack.Navigator'a gerek kalmadı.
+// [DÜZELTME] "Müşteriler" artık bir sekme değil — alt navigasyon sadeleşsin
+// diye 4 sekmeye indi (Dükkân / Stok / Yetenekler / Profil), Müşteriler
+// artık header'daki zil ikonundan açılan bir MODAL (bkz. Stack.Navigator).
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 function MainTabs() {
   return (
@@ -45,11 +43,6 @@ function MainTabs() {
         options={{ tabBarIcon: ({ color }) => <ShopTabIcon color={color} /> }}
       />
       <Tab.Screen
-        name="Müşteriler"
-        component={TekliflerScreen}
-        options={{ tabBarIcon: ({ color }) => <OffersTabIcon color={color} /> }}
-      />
-      <Tab.Screen
         name="Stok"
         component={KasamScreen}
         options={{ tabBarIcon: ({ color }) => <SafeTabIcon color={color} /> }}
@@ -71,7 +64,10 @@ function MainTabs() {
 export function RootNavigator() {
   return (
     <NavigationContainer>
-      <MainTabs />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="MainTabs" component={MainTabs} />
+        <Stack.Screen name="Müşteriler" component={TekliflerScreen} options={{ presentation: 'modal' }} />
+      </Stack.Navigator>
     </NavigationContainer>
   );
 }

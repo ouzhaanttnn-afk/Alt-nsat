@@ -421,19 +421,15 @@ export function NegotiationPanel({
   return (
     <View style={styles.stack}>
       <CustomerNoteCard customer={customer} patienceRatio={patienceRatio} />
-      <NegotiationProductCard product={product} uzmanGorusuLevel={uzmanGorusuLevel} />
+      <Text style={styles.productSectionLabel}>{isSale ? 'İSTEDİĞİ ÜRÜN' : 'GETİRDİĞİ ÜRÜN'}</Text>
+      <NegotiationProductCard product={product} uzmanGorusuLevel={uzmanGorusuLevel} tested={!isSale && tested} />
       {showFirsatSkoru && (
         <View style={styles.scoreRow}>
           <Badge tone="positive" label={`Fırsat Skoru: ${firsatSkoru}/100`} />
         </View>
       )}
 
-      {!isSale && (
-        <>
-          <ScalePanel reading={reading} tested={tested} measuring={measuring} onTest={handleTest} />
-          {!tested && <Text style={styles.hint}>Teklif vermeden önce ürünü tart — TEST'e bas.</Text>}
-        </>
-      )}
+      {!isSale && <ScalePanel reading={reading} tested={tested} measuring={measuring} onTest={handleTest} />}
 
       {pendingCounter && (
         <CounterOfferCard
@@ -460,7 +456,14 @@ export function NegotiationPanel({
         />
       )}
 
-      {!pendingCounter && !saleCounter && (
+      {/* [DÜZELTME] Teklif alanı artık test edilmeden AÇILMIYOR — büyük,
+          devre dışı bırakılmış bir panel yerine sadece küçük bir bilgi
+          metni gösteriliyor. Test zorunluluğu kuralı birebir korunuyor. */}
+      {!pendingCounter && !saleCounter && !isSale && !tested && (
+        <Text style={styles.testGateHint}>Ürünü test etmeden teklif veremezsin.</Text>
+      )}
+
+      {!pendingCounter && !saleCounter && (isSale || tested) && (
         <>
           <PriceBlock
             marketValueTl={product.marketValueTl}
@@ -553,6 +556,7 @@ function BulkLineNegotiationView({
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [results, setResults] = useState<Record<number, { accepted: boolean; amountTl: number }>>({});
+  const [testedMap, setTestedMap] = useState<Record<number, boolean>>({});
   const [done, setDone] = useState(false);
 
   useEffect(() => {
@@ -596,7 +600,13 @@ function BulkLineNegotiationView({
     <View style={styles.stack}>
       <CustomerNoteCard customer={customer} />
       {activeIndex === null && (
-        <LineItemPicker lines={lines} results={results} onSelect={setActiveIndex} />
+        <LineItemPicker
+          lines={lines}
+          results={results}
+          testedMap={testedMap}
+          activeIndex={activeIndex}
+          onSelect={setActiveIndex}
+        />
       )}
       {lines.map((line, index) => (
         <View key={index} style={index === activeIndex ? undefined : styles.hiddenLine}>
@@ -606,6 +616,7 @@ function BulkLineNegotiationView({
             customer={customer}
             itemProgressLabel={`Ürün ${index + 1} / ${lines.length}`}
             onBack={() => setActiveIndex(null)}
+            onTestedChange={(t) => setTestedMap((prev) => ({ ...prev, [index]: t }))}
             onSettled={(result) => handleSettled(index, result)}
           />
         </View>
@@ -748,12 +759,21 @@ const styles = StyleSheet.create({
   scoreRow: {
     marginTop: -6,
   },
-  hint: {
+  // [YENİ] "GETİRDİĞİ ÜRÜN" / "İSTEDİĞİ ÜRÜN" mini bölüm etiketi.
+  productSectionLabel: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 10,
+    letterSpacing: 1,
+    color: colors.inkMutedOnDark,
+    marginBottom: -2,
+  },
+  // [YENİ] Test edilmeden teklif alanı yerine gösterilen kompakt bilgi metni.
+  testGateHint: {
     fontFamily: fonts.body,
     fontSize: fontSizes.xs,
     color: colors.inkMutedOnDark,
     textAlign: 'center',
-    marginTop: -6,
+    paddingVertical: 6,
   },
   compactWrap: {
     gap: 8,

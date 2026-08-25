@@ -13,9 +13,12 @@ import { SealIcon } from './icons/SealIcon';
 export function NegotiationProductCard({
   product,
   uzmanGorusuLevel = 0,
+  tested,
 }: {
   product: NegotiationProduct;
   uzmanGorusuLevel?: number;
+  /** [YENİ] Terazi ile tartıldıysa küçük bir "TEST EDİLDİ" rozeti gösterir. */
+  tested?: boolean;
 }) {
   const hasQuantity = (product.quantity ?? 1) > 1;
   const isCraftedGood = product.category === 'iscilikli';
@@ -49,6 +52,11 @@ export function NegotiationProductCard({
           </Text>
           <Text style={styles.source}>{product.source}</Text>
         </View>
+        {tested && (
+          <View style={styles.testedBadge}>
+            <Text style={styles.testedBadgeLabel}>TEST EDİLDİ</Text>
+          </View>
+        )}
       </View>
       <View style={styles.badgeRow}>
         <View style={styles.badge}>
@@ -114,6 +122,18 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: fontSizes.xs,
     color: colors.inkMuted,
+  },
+  testedBadge: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: 999,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  testedBadgeLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 9,
+    letterSpacing: 0.3,
+    color: colors.positive,
   },
   badgeRow: {
     flexDirection: 'row',
