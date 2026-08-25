@@ -27,4 +27,20 @@ export const glass = {
   positive: '#3FCB82',
   negative: '#E8697A',
   warning: '#E0A94A',
+
+  // [YENİ] Referans tasarımın (cepkaynak-referans-ekran3.html) `:root`
+  // değişkenleri — birebir. Şimdilik yalnızca üst profil çubuğunda
+  // (DukkanScreen topBar) kullanılıyor; yukarıdaki mevcut anahtarlar diğer
+  // bileşenlerde kullanılmaya devam ettiği için değiştirilmedi.
+  refGold: '#E8B44A',
+  refGold2: '#F7DE9B',
+  refGold3: '#A9761E',
+  refViolet: '#7B4FD6',
+  refViolet2: '#9B6EF0',
+  refVioletDeep: '#2A1440',
+  refInk: '#150A21',
+  refText: '#EFE4F6',
+  refTextDim: '#B9A5CC',
+  refGlass: 'rgba(58,28,88,.42)',
+  refGlass2: 'rgba(72,36,108,.34)',
 } as const;

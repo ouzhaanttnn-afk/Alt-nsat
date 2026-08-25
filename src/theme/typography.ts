@@ -7,6 +7,13 @@ export const fonts = {
   bodyBold: 'IBMPlexSans_600SemiBold',
   mono: 'IBMPlexMono_500Medium',
   monoBold: 'IBMPlexMono_600SemiBold',
+  // [YENİ] Referans tasarım (cepkaynak-referans-ekran3.html) — başlık
+  // vurgusu Cinzel, sayı/ölçüm alanları JetBrains Mono. Şimdilik yalnızca
+  // Dükkân üst profil çubuğunda kullanılıyor.
+  display: 'Cinzel_600SemiBold',
+  displayBold: 'Cinzel_700Bold',
+  numeric: 'JetBrainsMono_500Medium',
+  numericBold: 'JetBrainsMono_700Bold',
 } as const;
 
 export const fontSizes = {

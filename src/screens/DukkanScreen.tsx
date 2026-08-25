@@ -1,12 +1,15 @@
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BlurView } from 'expo-blur';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActiveOfferSummary, type ActiveOffer } from '../components/ActiveOfferSummary';
-import { AvatarInitial } from '../components/icons/AvatarInitial';
 import { BellIcon } from '../components/icons/BellIcon';
+import { MetalRing, RadialOrb } from '../components/icons/MetalRing';
+import { ShieldBadge } from '../components/icons/ShieldBadge';
+import { glass } from '../theme/glass';
 import { EMERGENCY_MICRO_LOAN_MAX_CASH_TL, EMERGENCY_MICRO_LOAN_TL } from '../config/economyConfig';
 import { BrokerDealBanner } from '../components/BrokerDealBanner';
 import { CapitalSummary } from '../components/CapitalSummary';
@@ -158,29 +161,67 @@ export function DukkanScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* ================= HERO — referans tasarım ================= */}
         <View style={styles.hero}>
-          {/* Üst bar: avatar, seviye rozeti + XP çubuğu, kasa */}
-          <View style={styles.topBar}>
+          {/* Üst bar: avatar halkası + kalkan rozeti + XP çubuğu + bakiye + zil —
+              referans tasarımın (cepkaynak-referans-ekran3.html) `.topbar` bloğu
+              birebir: camsı/bulanık zemin, metalik altın halkalar, Cinzel/
+              JetBrains Mono fontlar. */}
+          <BlurView intensity={40} tint="dark" style={styles.topBar}>
+            <View style={styles.topBarTint} pointerEvents="none" />
             <View style={styles.avatarRing}>
-              <AvatarInitial name={playerName || shopName} size={40} />
+              <MetalRing size={52} strokeWidth={5} />
+              <View style={styles.avatarInner}>
+                <RadialOrb size={44} colorStart="#5A2E86" colorEnd="#2A1140" />
+                <Text style={styles.avatarLetter}>
+                  {(playerName || shopName).trim().charAt(0).toUpperCase()}
+                </Text>
+              </View>
             </View>
             <View style={styles.levelGroup}>
-              <View style={styles.shieldBadge}>
-                <Text style={styles.shieldLabel}>{level}</Text>
-              </View>
-              <View style={styles.xpTrack}>
-                <View style={[styles.xpFill, { width: `${Math.round(xpProgress * 100)}%` }]} />
+              <ShieldBadge level={level} width={24} height={30} />
+              <View style={styles.xp}>
+                <View style={styles.xpTrack}>
+                  <View style={[styles.xpFill, { width: `${Math.round(xpProgress * 100)}%` }]} />
+                </View>
+                <Text style={styles.xpLabel} numberOfLines={1}>
+                  SEVİYE {level} · {totalXp.toLocaleString('tr-TR')} XP
+                </Text>
               </View>
             </View>
-            <View style={styles.balancePill}>
+            <BlurView intensity={25} tint="dark" style={styles.balancePill}>
+              <View style={styles.balancePillTint} pointerEvents="none" />
               <Text style={styles.balanceText} numberOfLines={1}>
                 {formatTl(capital.cashTl)}
               </Text>
-            </View>
-          </View>
+            </BlurView>
+            <Pressable
+              onPress={() => navigation.navigate('Müşteriler')}
+              style={styles.bellBtn}
+              hitSlop={8}
+            >
+              <MetalRing size={42} strokeWidth={4} />
+              <View style={styles.bellInner}>
+                <RadialOrb size={35} colorStart="#4B2472" colorEnd="#25103A" />
+                {/* [DÜZELTME] react-native-svg'nin ham <Svg>'i (View/Text'in
+                    aksine) web'de RN'in position:relative reset'ini almıyor —
+                    bu yüzden mutlak konumlu RadialOrb'un ALTINDA çiziliyordu.
+                    zIndex'li bir View'a sarmak paint sırasını düzeltiyor. */}
+                <View style={styles.bellIconWrap}>
+                  <BellIcon color={glass.refGold2} size={16} />
+                </View>
+              </View>
+              {pendingCustomerCount > 0 && (
+                <View style={styles.hudBellBadge}>
+                  <Text style={styles.hudBellBadgeLabel}>
+                    {pendingCustomerCount > 9 ? '9+' : pendingCustomerCount}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          </BlurView>
 
           {/* [DÜZELTME] Hız kontrolü artık ana içerik gibi büyük bir alan
               kaplamıyor — üst HUD'a ait, tek satırlık, küçük bir kontrol.
-              Aynı satırda, sağda: Müşteriler'i açan zil + bekleyen rozeti. */}
+              Zil artık üst profil çubuğuna taşındı (bkz. topBar). */}
           <View style={styles.hudSpeedRow}>
             <View style={styles.hudSpeedLeftGroup}>
               <Pressable
@@ -216,20 +257,6 @@ export function DukkanScreen() {
                 <Text style={styles.fourXCountdown}>4x: {Math.ceil(fourXMinutesLeft)} dk</Text>
               )}
             </View>
-            <Pressable
-              onPress={() => navigation.navigate('Müşteriler')}
-              style={styles.hudBellBtn}
-              hitSlop={8}
-            >
-              <BellIcon color={lux.purple} size={18} />
-              {pendingCustomerCount > 0 && (
-                <View style={styles.hudBellBadge}>
-                  <Text style={styles.hudBellBadgeLabel}>
-                    {pendingCustomerCount > 9 ? '9+' : pendingCustomerCount}
-                  </Text>
-                </View>
-              )}
-            </Pressable>
           </View>
 
           {/* [DÜZELTME] Karizma + Toptancı Güveni artık ekonomik göstergelerden
@@ -450,68 +477,145 @@ const styles = StyleSheet.create({
     elevation: 8,
     overflow: 'hidden',
   },
+  // [YENİ] Referans tasarımın (cepkaynak-referans-ekran3.html) `.gframe.topbar`
+  // bloğu — camsı/bulanık zemin (BlurView + yarı saydam mor ton), metalik
+  // altın çerçeve ve dışa altın ışıma. `overflow:hidden` BlurView'ın ve tint
+  // katmanının yuvarlak köşeleri taşmasını engelliyor.
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    borderRadius: 26,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(232,180,74,0.55)',
+    overflow: 'hidden',
+    shadowColor: glass.refGold,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    elevation: 6,
   },
+  topBarTint: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: glass.refGlass,
+  },
+  // [DÜZELTME] `shadowColor`/`shadowRadius` (glow) her zaman View'ın DİKDÖRTGEN
+  // kutusunu takip eder — çember hissi için sarmalayan View'a da (SVG halkanın
+  // kendisine değil) borderRadius=çap/2 vermek gerekiyor, yoksa ışıma kare
+  // görünüyor.
   avatarRing: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: lux.glassStrong,
-    borderWidth: 1,
-    borderColor: lux.gold,
+    shadowColor: glass.refGold,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  avatarInner: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarLetter: {
+    fontFamily: fonts.displayBold,
+    fontSize: 18,
+    color: glass.refGold2,
   },
   levelGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     flex: 1,
   },
-  shieldBadge: {
-    width: 24,
-    height: 26,
-    borderRadius: 6,
-    backgroundColor: lux.purple,
-    borderWidth: 1,
-    borderColor: lux.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shieldLabel: {
-    fontFamily: fonts.headingBold,
-    fontSize: 12,
-    color: lux.goldBright,
+  xp: {
+    flex: 1,
+    minWidth: 0,
   },
   xpTrack: {
-    flex: 1,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(90,42,130,0.15)',
+    height: 11,
+    borderRadius: 8,
+    backgroundColor: 'rgba(20,8,34,0.72)',
     borderWidth: 1,
-    borderColor: lux.gold,
+    borderColor: 'rgba(232,180,74,0.5)',
     overflow: 'hidden',
   },
   xpFill: {
     height: '100%',
-    backgroundColor: lux.purpleBright,
+    borderRadius: 8,
+    backgroundColor: glass.refViolet2,
+    shadowColor: glass.refViolet2,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.75,
+    shadowRadius: 10,
+  },
+  xpLabel: {
+    fontFamily: fonts.numeric,
+    fontSize: 8.5,
+    letterSpacing: 0.2,
+    color: glass.refTextDim,
+    marginTop: 4,
   },
   balancePill: {
-    maxWidth: 140,
-    backgroundColor: lux.glassStrong,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: lux.gold,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    borderColor: 'rgba(232,180,74,0.34)',
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    overflow: 'hidden',
+  },
+  balancePillTint: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: glass.refGlass2,
   },
   balanceText: {
-    fontFamily: fonts.monoBold,
-    fontSize: 13,
-    color: lux.ink,
+    fontFamily: fonts.numericBold,
+    fontSize: 11.5,
+    color: glass.refGold2,
+    textShadowColor: 'rgba(232,180,74,0.4)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
+  },
+  // [YENİ] Zil artık üst profil çubuğunun bir parçası — referanstaki `.bell`
+  // ile birebir aynı halka/parlama tekniği (bkz. avatarRing).
+  bellBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: glass.refGold,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.42,
+    shadowRadius: 14,
+    elevation: 7,
+  },
+  bellInner: {
+    width: 35,
+    height: 35,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  bellIconWrap: {
+    zIndex: 1,
   },
   // [DÜZELTME] Hız kontrolü artık üst HUD'un parçası — tek satırlık, küçük.
   // Play/pause ayrı büyük bir buton değil, ufak bir daire; 1x/2x/4x tek bir
@@ -528,16 +632,6 @@ const styles = StyleSheet.create({
   },
   // [YENİ] Müşteriler artık sekme değil — bu zil header'daki tek erişim
   // noktası. Rozet, TekliflerScreen'in "bekleyen" sayısını yansıtır.
-  hudBellBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: lux.glassStrong,
-    borderWidth: 1,
-    borderColor: lux.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   hudBellBadge: {
     position: 'absolute',
     top: -3,

@@ -1,3 +1,4 @@
+import { Cinzel_600SemiBold, Cinzel_700Bold } from '@expo-google-fonts/cinzel';
 import {
   IBMPlexMono_500Medium,
   IBMPlexMono_600SemiBold,
@@ -7,6 +8,10 @@ import {
   IBMPlexSans_500Medium,
   IBMPlexSans_600SemiBold,
 } from '@expo-google-fonts/ibm-plex-sans';
+import {
+  JetBrainsMono_500Medium,
+  JetBrainsMono_700Bold,
+} from '@expo-google-fonts/jetbrains-mono';
 import {
   ZillaSlab_600SemiBold,
   ZillaSlab_700Bold,
@@ -31,6 +36,12 @@ export default function App() {
     IBMPlexSans_600SemiBold,
     IBMPlexMono_500Medium,
     IBMPlexMono_600SemiBold,
+    // [YENİ] Referans tasarımı (cepkaynak-referans-ekran3.html) fontları —
+    // şimdilik yalnızca Dükkân üst profil çubuğunda kullanılıyor.
+    Cinzel_600SemiBold,
+    Cinzel_700Bold,
+    JetBrainsMono_500Medium,
+    JetBrainsMono_700Bold,
   });
 
   // Kalıcı kayıt (AsyncStorage) yüklenmeden önce oyun ekranı gösterilmez —
