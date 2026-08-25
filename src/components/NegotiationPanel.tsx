@@ -521,8 +521,10 @@ export function NegotiationPanel({
             />
           )}
 
-          {showKarAnalizi && <KarAnaliziCard offerTl={offer} estimatedResaleTl={estimatedResaleTl} />}
-
+          {/* [DÜZELTME] Aksiyon butonları (Gönder/Öde/Reddet) artık Kâr
+              Analizi'nden ÖNCE — işlemi bitiren asıl kontrollere ulaşmak için
+              ekstra kaydırma gerekmiyor. Kâr Analizi kaldırılmadı, sadece
+              tamamlayıcı bilgi olarak en alta alındı. */}
           {isSale ? (
             <SaleActions
               disabled={!canAct}
@@ -543,6 +545,8 @@ export function NegotiationPanel({
               }
             />
           )}
+
+          {showKarAnalizi && <KarAnaliziCard offerTl={offer} estimatedResaleTl={estimatedResaleTl} />}
         </CollapsibleOfferCard>
       )}
     </View>
