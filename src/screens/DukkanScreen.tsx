@@ -203,7 +203,11 @@ export function DukkanScreen() {
             ]}
           >
             <Text style={styles.callButtonTitle}>
-              {incomingCustomer ? 'TEZGÂH DOLU' : 'Müşteriyi Karşıla'}
+              {incomingCustomer
+                ? 'TEZGÂH DOLU'
+                : waitingCustomers.length > 0
+                  ? 'Müşteriyi Karşıla'
+                  : 'Boş'}
             </Text>
             <Text style={styles.callButtonSubtitle}>Bekleyen: {waitingCustomers.length}</Text>
           </Pressable>
