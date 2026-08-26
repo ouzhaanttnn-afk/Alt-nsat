@@ -168,6 +168,7 @@ export function NegotiationPanel({
   const [offerHistory, setOfferHistory] = useState<number[]>([]);
   const [reaction, setReaction] = useState<{ text: string; tone: NegotiationReactionTone } | null>(null);
   const terminalActionStartedRef = useRef(false);
+  const customerDismissStartedRef = useRef(false);
   const negotiationActionPendingRef = useRef(false);
   const actionUnlockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [negotiationActionPending, setNegotiationActionPending] = useState(false);
@@ -203,15 +204,33 @@ export function NegotiationPanel({
     }, MEASURE_DURATION_MS);
   };
 
+  const releaseNegotiationActionLock = () => {
+    if (actionUnlockTimeoutRef.current) {
+      clearTimeout(actionUnlockTimeoutRef.current);
+      actionUnlockTimeoutRef.current = null;
+    }
+    negotiationActionPendingRef.current = false;
+    setNegotiationActionPending(false);
+  };
+
+  const scheduleNegotiationActionUnlock = () => {
+    if (actionUnlockTimeoutRef.current) clearTimeout(actionUnlockTimeoutRef.current);
+    actionUnlockTimeoutRef.current = setTimeout(() => {
+      negotiationActionPendingRef.current = false;
+      setNegotiationActionPending(false);
+      actionUnlockTimeoutRef.current = null;
+    }, 180);
+  };
+
   const runNegotiationAction = (action: () => void) => {
     if (negotiationActionPendingRef.current || terminalActionStartedRef.current) return;
     negotiationActionPendingRef.current = true;
     setNegotiationActionPending(true);
-    action();
-    actionUnlockTimeoutRef.current = setTimeout(() => {
-      negotiationActionPendingRef.current = false;
-      setNegotiationActionPending(false);
-    }, 180);
+    try {
+      action();
+    } finally {
+      scheduleNegotiationActionUnlock();
+    }
   };
 
   // Bölüm 8: düşük/cömert teklif karizmayı, Sıkı Pazarlıkçı/Ölücü'nün aşırı
@@ -428,10 +447,14 @@ export function NegotiationPanel({
   };
 
   const dismissActiveCustomer = () => {
-    if (terminalActionStartedRef.current) return;
+    if (customerDismissStartedRef.current) return;
+    customerDismissStartedRef.current = true;
     terminalActionStartedRef.current = true;
+    releaseNegotiationActionLock();
     setPendingCounter(null);
     setSaleCounter(null);
+    setReaction(null);
+    setResult(null);
     onClose();
   };
 
@@ -524,11 +547,9 @@ export function NegotiationPanel({
         </View>
       )}
 
-      {!pendingCounter && !saleCounter && (
-        <Pressable style={styles.dismissCustomerButton} onPress={dismissActiveCustomer} hitSlop={8}>
-          <Text style={styles.dismissCustomerLabel}>Müşteriyi Gönder</Text>
-        </Pressable>
-      )}
+      <Pressable style={styles.dismissCustomerButton} onPress={dismissActiveCustomer} hitSlop={8}>
+        <Text style={styles.dismissCustomerLabel}>Müşteriyi Gönder</Text>
+      </Pressable>
 
       {pendingCounter && (
         <CounterOfferCard

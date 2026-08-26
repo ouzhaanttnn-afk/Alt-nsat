@@ -17,7 +17,7 @@ export function CustomerHypeCard({
         {active ? 'Müşteri Akını aktif' : 'MÜŞTERİ AKINI'}
       </Text>
       <Text style={styles.cta} numberOfLines={1}>
-        {active ? 'Bugün daha fazla müşteri dükkâna uğrar.' : 'Bugün daha fazla müşteri dükkâna uğrasın.'}
+        {active ? 'Bugün dükkân daha hareketli.' : 'Bugün daha fazla müşteri dükkâna uğrar.'}
       </Text>
     </Pressable>
   );

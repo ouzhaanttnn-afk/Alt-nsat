@@ -93,6 +93,13 @@ export const KARIZMA_TRAFFIC_BONUS_POINTS = [
   { score: 100, bonus: 0.25 },
 ];
 export const CUSTOMER_RUSH_REMAINING_BONUS_RATIO = 0.4;
+// İlk oturumda bekleme hissini azaltır: günlük hedefi/kârı değiştirmez,
+// sadece erken günlerde hedef müşterilerin gün içine biraz daha erken
+// yayılmasını sağlar. Day 11+ progression davranışı korunur.
+export const EARLY_CUSTOMER_ARRIVAL_PACE_MULTIPLIERS = [
+  { fromDay: 1, toDay: 3, multiplier: 1.45 },
+  { fromDay: 4, toDay: 10, multiplier: 1.2 },
+];
 // Bölüm 7: Soğukkanlı ve Güler Yüz müşteri sabrını (oyun-dakikası
 // cinsinden) uzatır — Pazarlık ekranındaki gerçek-zamanlı sayaçtan (bkz.
 // NegotiationPanel'in kendi sabitleri) bağımsız, oyun saatine bağlı ayrı bir etki.

@@ -55,8 +55,10 @@ describe('deterministic customer negotiation turns', () => {
     if (outcome.kind === 'counter') expect(outcome.counterAmountTl).toBeLessThan(1050);
   });
 
-  it('offers a finite final price after the configured negotiation rounds', () => {
-    expect(turn({ offerTl: 950, roundsUsed: 1 })).toMatchObject({ kind: 'final', tone: 'final' });
+  it('keeps final-offer state and wording from regressing to open bargaining', () => {
+    const outcome = turn({ offerTl: 950, roundsUsed: 1 });
+    expect(outcome).toMatchObject({ kind: 'final', tone: 'final', reaction: 'Son fiyatım bu.' });
+    expect(outcome.reaction).not.toMatch(/çıkarsanız|inerseniz|anlaşabiliriz/i);
   });
 
   it('lets an urgent customer reach a final price sooner', () => {

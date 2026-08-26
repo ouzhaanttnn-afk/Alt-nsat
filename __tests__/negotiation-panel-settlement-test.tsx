@@ -96,7 +96,7 @@ it('does not render another-offer control after a final price', async () => {
 });
 
 it('allows dismissing an active customer before testing without economy side effects', async () => {
-  const closeActiveCustomer = jest.fn(() => useGameStore.getState().clearIncomingCustomer(customer.id));
+  const closeActiveCustomer = jest.fn(() => useGameStore.getState().dismissActiveCustomer(customer.id));
   const view = await render(<NegotiationPanel incomingCustomer={customer} onClose={closeActiveCustomer} />);
   const before = useGameStore.getState();
   const cashBefore = before.capital.cashTl;
@@ -119,6 +119,36 @@ it('allows dismissing an active customer before testing without economy side eff
   expect(after.offers).toEqual(offersBefore);
 });
 
+it('dismisses the active customer even while a negotiation action is locked', async () => {
+  const duplicateQueuedCustomer = { ...customer, id: customer.id };
+  useGameStore.setState({
+    incomingCustomer: customer,
+    waitingCustomers: [duplicateQueuedCustomer],
+    capital: { ...initialState.capital, cashTl: 100_000 },
+  });
+  const closeActiveCustomer = jest.fn(() => useGameStore.getState().dismissActiveCustomer(customer.id));
+  const view = await render(<NegotiationPanel incomingCustomer={customer} onClose={closeActiveCustomer} />);
+  const before = useGameStore.getState();
+
+  await fireEvent.press(view.getByText('TEST'));
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(900);
+  });
+  await fireEvent.press(view.getByText('Teklifi Gönder'));
+  await fireEvent.press(view.getByText('Müşteriyi Gönder'));
+  await fireEvent.press(view.getByText('Müşteriyi Gönder'));
+
+  const after = useGameStore.getState();
+  expect(closeActiveCustomer).toHaveBeenCalledTimes(1);
+  expect(after.incomingCustomer).toBeNull();
+  expect(after.waitingCustomers.some((queued) => queued.id === customer.id)).toBe(false);
+  expect(after.capital.cashTl).toBe(before.capital.cashTl);
+  expect(after.capital.debtTl).toBe(before.capital.debtTl);
+  expect(after.inventory).toEqual(before.inventory);
+  expect(after.totalXp).toBe(before.totalXp);
+  expect(after.offers).toEqual(before.offers);
+});
+
 it('dismisses a multi-line customer as one active session before any line settlement', async () => {
   const multiLineCustomer: IncomingCustomer = {
     ...customer,
@@ -132,7 +162,7 @@ it('dismisses a multi-line customer as one active session before any line settle
     ],
   };
   useGameStore.setState({ incomingCustomer: multiLineCustomer });
-  const closeActiveCustomer = jest.fn(() => useGameStore.getState().clearIncomingCustomer(multiLineCustomer.id));
+  const closeActiveCustomer = jest.fn(() => useGameStore.getState().dismissActiveCustomer(multiLineCustomer.id));
   const offersBefore = useGameStore.getState().offers;
   const inventoryBefore = useGameStore.getState().inventory;
   const view = await render(<NegotiationPanel incomingCustomer={multiLineCustomer} onClose={closeActiveCustomer} />);

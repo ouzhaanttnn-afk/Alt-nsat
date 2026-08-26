@@ -17,6 +17,7 @@ import {
   CRAFTED_GOOD_MIN_COUNTERFEIT_RISK,
   CUSTOMER_RUSH_REMAINING_BONUS_RATIO,
   DAILY_CUSTOMER_TARGET_CURVE,
+  EARLY_CUSTOMER_ARRIVAL_PACE_MULTIPLIERS,
   MAX_WAITING_QUEUE_LENGTH,
   MULTI_ITEM_CUSTOMER_PROBABILITY,
   FOUR_X_AD_UNLOCK_MINUTES,
@@ -936,8 +937,11 @@ export const useGameStore = create<GameState>()(
     if (waitingCustomers.length < MAX_WAITING_QUEUE_LENGTH && dailyCustomersGenerated < dailyCustomerTarget) {
       const remainingTarget = Math.max(0, dailyCustomerTarget - dailyCustomersGenerated);
       const remainingMinutes = Math.max(1, MINUTES_PER_DAY - minuteOfDay);
+      const arrivalPace =
+        EARLY_CUSTOMER_ARRIVAL_PACE_MULTIPLIERS.find((entry) => day >= entry.fromDay && day <= entry.toDay)
+          ?.multiplier ?? 1;
       const willTrigger =
-        Math.random() < Math.min(0.95, (remainingTarget / remainingMinutes) * gameMinutes);
+        Math.random() < Math.min(0.95, (remainingTarget / remainingMinutes) * gameMinutes * arrivalPace);
 
       if (willTrigger) {
         const direction: 'satis' | 'bozdurma' =
