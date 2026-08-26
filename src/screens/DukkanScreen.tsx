@@ -86,7 +86,7 @@ export function DukkanScreen() {
   const incomingCustomer = useGameStore((s) => s.incomingCustomer);
   const waitingCustomers = useGameStore((s) => s.waitingCustomers);
   const callNextCustomerToCounter = useGameStore((s) => s.callNextCustomerToCounter);
-  const clearIncomingCustomer = useGameStore((s) => s.clearIncomingCustomer);
+  const dismissActiveCustomer = useGameStore((s) => s.dismissActiveCustomer);
   const workshop = useGameStore((s) => s.workshop);
   const jewelryHoldings = useGameStore((s) => s.jewelryHoldings);
   const hasCompletedTutorial = useGameStore((s) => s.hasCompletedTutorial);
@@ -307,7 +307,7 @@ export function DukkanScreen() {
         {incomingCustomer ? (
           <NegotiationPanel
             incomingCustomer={incomingCustomer}
-            onClose={() => clearIncomingCustomer(incomingCustomer.id)}
+            onClose={() => dismissActiveCustomer(incomingCustomer.id)}
           />
         ) : (
           <Text style={styles.emptyHint}>

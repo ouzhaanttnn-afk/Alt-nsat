@@ -86,6 +86,32 @@ describe('customer counter lifecycle', () => {
     expect(useGameStore.getState().incomingCustomer?.lines).toHaveLength(2);
   });
 
+  it('dismisses the active customer session once without economy changes or queue rehydration', () => {
+    const active = makeCustomer({ id: 'dismiss-me' });
+    const duplicate = makeCustomer({ id: 'dismiss-me' });
+    const next = makeCustomer({ id: 'customer-next' });
+    useGameStore.setState({
+      incomingCustomer: active,
+      waitingCustomers: [duplicate, next],
+      capital: { ...initialState.capital, cashTl: 100_000, debtTl: 0 },
+      inventory: [],
+      offers: [],
+      totalXp: 0,
+    });
+
+    expect(useGameStore.getState().dismissActiveCustomer(active.id)).toBe(true);
+    expect(useGameStore.getState().dismissActiveCustomer(active.id)).toBe(false);
+
+    const state = useGameStore.getState();
+    expect(state.incomingCustomer).toBeNull();
+    expect(state.waitingCustomers.map((customer) => customer.id)).toEqual([next.id]);
+    expect(state.capital.cashTl).toBe(100_000);
+    expect(state.capital.debtTl).toBe(0);
+    expect(state.inventory).toEqual([]);
+    expect(state.offers).toEqual([]);
+    expect(state.totalXp).toBe(0);
+  });
+
   it('settles a bozdurma and a sale without clearing the active customer before the result closes', () => {
     const buyCustomer = makeCustomer();
     useGameStore.setState({ incomingCustomer: buyCustomer, capital: { ...initialState.capital, cashTl: 100_000 } });

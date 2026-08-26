@@ -568,6 +568,12 @@ interface GameState {
    * — sadece hâlâ aynı müşteri aktifse (id eşleşirse) etkilidir.
    */
   clearIncomingCustomer: (id: string) => void;
+  /**
+   * Aktif müşteri oturumunu ekonomi settlement'ına girmeden kapatır.
+   * İki kez çağrılırsa ikinci çağrı etkisizdir; aynı id kuyrukta kalmışsa
+   * tekrar hydrate olmaması için kuyruktan da temizlenir.
+   */
+  dismissActiveCustomer: (id?: string) => boolean;
   /** Alım-satım makasından bugüne kadar gerçekleşen toplam kâr/zarar. */
   realizedTradingProfitTl: number;
   /** Profil'deki Kâr Analizi için: satılan sarrafiye kaleminin toplam maliyet tabanı (realizedTradingProfitTl'in payda tarafı). */
@@ -1667,6 +1673,20 @@ export const useGameStore = create<GameState>()(
     if (state.incomingCustomer?.id === id) {
       set({ incomingCustomer: null });
     }
+  },
+
+  dismissActiveCustomer: (id) => {
+    const state = get();
+    const activeId = state.incomingCustomer?.id;
+    const dismissId = id ?? activeId;
+    if (!dismissId || (activeId && activeId !== dismissId)) return false;
+    const waitingCustomers = state.waitingCustomers.filter((customer) => customer.id !== dismissId);
+    if (!activeId && waitingCustomers.length === state.waitingCustomers.length) return false;
+    set({
+      incomingCustomer: activeId === dismissId ? null : state.incomingCustomer,
+      waitingCustomers,
+    });
+    return true;
   },
 
   callNextCustomerToCounter: () => {
