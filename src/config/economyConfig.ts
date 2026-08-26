@@ -190,36 +190,38 @@ export const FOUR_X_AD_UNLOCK_MINUTES = 15;
 export const CUSTOMER_HYPE_AD_DURATION_MINUTES = 15;
 export const CUSTOMER_HYPE_ARRIVAL_MULTIPLIER = 1.33;
 
-// ---- Atölye (Bölüm 17 — v3 dengeleme düzeltmesi) --------------------------
-// Oyun hızından bağımsız, sürekli çalışan pasif has altın üretimi — para
-// yatırımı gerektirir (anlamlı bir fırsat maliyeti kararı), ama bir kere
-// kurulduktan sonra günlük yönetim istemez. XP üretmez (Bölüm 23-24: XP
-// sadece aktif alım-satımdan). Sadece Seviye 7+ oyuncuya açık (ATOLYE_
-// REQUIRED_LEVEL) — erken oyunda pasif gelire kaçışı engeller.
-export const ATOLYE_REQUIRED_LEVEL = 7;
-export const ATOLYE_MAX_LEVEL = 3;
-// v3 KRİTİK DÜZELTME: eski 100g/gün/seviye, aktif ticaretin anlamını
-// yitirmesine yol açacak kadar büyüktü (tek başına toptancı restokundan
-// daha hızlı zenginleştiriyordu). 3g/gün/seviye (2-5 aralığı) ekonomiyi
-// bozmayan, gerçek bir "yavaş ama emin" pasif katkı seviyesine indirir.
-export const ATOLYE_GRAMS_PER_DAY_PER_LEVEL = 3;
-// v3 KRİTİK DÜZELTME: sabit TL maliyeti yerine altın fiyatına PEG'li
-// dinamik maliyet — kuruluş her zaman "200 gram has altın" değerinde
-// kalır, piyasa fiyatı ne olursa olsun anlamlı bir fırsat maliyeti taşır
-// (bkz. useGameStore.upgradeAtolye: cost = ATOLYE_UPGRADE_BASE_COST_GRAMS
-// * goldPrice.buyPricePerGram * multiplier^level).
-export const ATOLYE_UPGRADE_BASE_COST_GRAMS = 200;
-export const ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL = 2.2;
-// v0.2 Aşama 4: işçilikli ürün atölye işlemi has altın üretmez; yalnızca
-// kartın tahmini işçilik/satış primini tek seferlik artırır.
-export const CRAFTED_WORKSHOP_PROCESSING_DAYS_BY_SIZE = {
-  small: 1,
-  medium: 2,
-  large: 3,
-};
-export const CRAFTED_WORKSHOP_MIN_CRAFT_PREMIUM_RATIO = 0.08;
-export const CRAFTED_WORKSHOP_VALUE_BONUS_RATIO = 0.25;
-export const CRAFTED_WORKSHOP_OPERATION_COST_RATIO = 0.02;
+// ---- Atölye (v0.2 ara aşama — gerçek tasarım) -----------------------------
+// Atölye işçilikli ürün işleyen bir sistem DEĞİLDİR. Tek bağımsız pasif
+// HAS üretim rayıdır: Seviye 7'de kurulabilir, Lv1-Lv10 arasında geliştirilir
+// ve yalnızca oyun günü kapanışında Gram Altın (Has) üretir.
+//
+// SIMULATION_TUNING_REQUIRED: Aşağıdaki maliyet/üretim eğrisi nihai balance
+// değildir. Simülasyon raporu bu değerlerin ekonomiye etkisini ölçmek için
+// üretilecek; production değerleri bu görevde simülasyona bakarak
+// değiştirilmemelidir.
+export const WORKSHOP_CONFIG = {
+  simulationTuningRequired: true,
+  requiredLevel: 7,
+  maxLevel: 10,
+  unlockCostEquivalentHasGrams: 200,
+  levels: [
+    { level: 1, upgradeCostEquivalentHasGrams: 200, dailyHasOutput: 0.25 },
+    { level: 2, upgradeCostEquivalentHasGrams: 260, dailyHasOutput: 0.4 },
+    { level: 3, upgradeCostEquivalentHasGrams: 340, dailyHasOutput: 0.6 },
+    { level: 4, upgradeCostEquivalentHasGrams: 450, dailyHasOutput: 0.85 },
+    { level: 5, upgradeCostEquivalentHasGrams: 600, dailyHasOutput: 1.15 },
+    { level: 6, upgradeCostEquivalentHasGrams: 800, dailyHasOutput: 1.55 },
+    { level: 7, upgradeCostEquivalentHasGrams: 1050, dailyHasOutput: 2.05 },
+    { level: 8, upgradeCostEquivalentHasGrams: 1380, dailyHasOutput: 2.65 },
+    { level: 9, upgradeCostEquivalentHasGrams: 1800, dailyHasOutput: 3.35 },
+    { level: 10, upgradeCostEquivalentHasGrams: 2350, dailyHasOutput: 4.2 },
+  ],
+} as const;
+
+// Eski isimler geçiş sürecinde import kırmamak için tutulur; yeni gameplay
+// WORKSHOP_CONFIG üzerinden çalışır.
+export const ATOLYE_REQUIRED_LEVEL = WORKSHOP_CONFIG.requiredLevel;
+export const ATOLYE_MAX_LEVEL = WORKSHOP_CONFIG.maxLevel;
 
 // ---- Takı Yatırımı — Parça & Set (Bölüm 18-20, v3 modeli) -----------------
 // [YENİ] Eski "30 gün kilitli anapara paketi" modeli KALDIRILDI — kullanıcı

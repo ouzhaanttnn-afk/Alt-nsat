@@ -2,11 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
-  ATOLYE_GRAMS_PER_DAY_PER_LEVEL,
-  ATOLYE_MAX_LEVEL,
-  ATOLYE_REQUIRED_LEVEL,
-  ATOLYE_UPGRADE_BASE_COST_GRAMS,
-  ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL,
   BOZDURMA_BULK_LOT_MAX_GRAMS,
   BOZDURMA_BULK_LOT_MIN_GRAMS,
   BOZDURMA_BULK_LOT_PROBABILITY,
@@ -20,7 +15,6 @@ import {
   CRAFTED_GOOD_CUSTOMER_PROBABILITY,
   CRAFTED_GOOD_KARAT_MISMATCH,
   CRAFTED_GOOD_MIN_COUNTERFEIT_RISK,
-  CRAFTED_WORKSHOP_OPERATION_COST_RATIO,
   MAX_WAITING_QUEUE_LENGTH,
   MULTI_ITEM_CUSTOMER_PROBABILITY,
   CUSTOMER_HYPE_AD_DURATION_MINUTES,
@@ -61,6 +55,7 @@ import {
   STARTING_WHOLESALER_TRUST,
   WHOLESALER_MARGIN_MAX_TL_PER_GRAM,
   WHOLESALER_MARGIN_MIN_TL_PER_GRAM,
+  WORKSHOP_CONFIG,
   XP_PER_EQUIVALENT_GRAM_TRADED,
   YENIDEN_DOGUS_TIME_REDUCTION_PER_LEVEL,
 } from '../config/economyConfig';
@@ -74,7 +69,7 @@ import {
   computeJewelryTotalDailyReturnTl,
   type JewelryHoldings,
 } from '../engine/jewelry';
-import { craftedMeltHasGrams, craftedWorkshopDurationDays, craftedWorkshopResult } from '../engine/craftedGoods';
+import { craftedMeltHasGrams } from '../engine/craftedGoods';
 import { CUSTOMER_PERSONAS, INCOMING_CUSTOMER_NAMES } from '../data/incomingCustomerPool';
 import { toptanciStock } from '../data/toptanciStock';
 import type { PirlantaCatalogItem } from '../data/mockPirlanta';
@@ -85,6 +80,7 @@ import type {
   InventoryCategory,
   InventoryItem,
   ReputationState,
+  WorkshopState,
 } from '../types/game';
 import type { IncomingCustomer, NegotiationLine } from '../types/incomingCustomer';
 import type { Offer } from '../types/offer';
@@ -190,6 +186,37 @@ function mergeIntoGramAltin(
 
 function hasUsableLiquidInventory(inventory: InventoryItem[]): boolean {
   return inventory.some((item) => item.category !== 'pirlanta' && item.category !== 'iscilikli' && item.quantity > 0);
+}
+
+function workshopLevelConfig(level: number) {
+  return WORKSHOP_CONFIG.levels.find((entry) => entry.level === level) ?? null;
+}
+
+export function workshopDailyHasOutput(level: number): number {
+  return workshopLevelConfig(level)?.dailyHasOutput ?? 0;
+}
+
+export function workshopUpgradeCostEquivalentHasGrams(currentLevel: number): number | null {
+  if (currentLevel >= WORKSHOP_CONFIG.maxLevel) return null;
+  const nextLevel = currentLevel + 1;
+  if (nextLevel === 1) return WORKSHOP_CONFIG.unlockCostEquivalentHasGrams;
+  return workshopLevelConfig(nextLevel)?.upgradeCostEquivalentHasGrams ?? null;
+}
+
+export function workshopUpgradeCostTl(currentLevel: number, buyPricePerGram: number): number | null {
+  const grams = workshopUpgradeCostEquivalentHasGrams(currentLevel);
+  return grams === null ? null : Math.round(grams * buyPricePerGram);
+}
+
+function normalizeWorkshopState(workshop?: Partial<WorkshopState>, legacyAtolyeLevel = 0): WorkshopState {
+  const rawLevel = workshop?.level ?? legacyAtolyeLevel ?? 0;
+  const level = Math.max(0, Math.min(WORKSHOP_CONFIG.maxLevel, Math.floor(rawLevel)));
+  return {
+    unlocked: workshop?.unlocked ?? level > 0,
+    level,
+    totalHasProduced: workshop?.totalHasProduced ?? 0,
+    lastProductionDay: workshop?.lastProductionDay ?? null,
+  };
 }
 
 interface BozdurmaCandidate {
@@ -364,7 +391,9 @@ interface GameState {
   brokerDeal: BrokerDeal | null;
   /** Bölüm 12: aktif eritme işi — tamamlanınca has altın Gram Altın stoğuna eklenir. */
   meltingJob: MeltingJob | null;
-  /** Bölüm 17: Atölye seviyesi (0 = kurulmamış) — her seviye günde sabit has altın üretir. Seviye 7+ gerektirir (v3). */
+  /** v0.2: bağımsız pasif HAS üretim sistemi; işçilikli ürünlerle bağlantısı yoktur. */
+  workshop: WorkshopState;
+  /** @deprecated Eski kayıtlarla uyumluluk için aynalanır; yeni gameplay `workshop.level` kullanır. */
   atolyeLevel: number;
   /** [YENİ] v3 — Takı Yatırımı (Parça & Set): "tier.piece" anahtarlarıyla sahip olunan kalıcı pasif gelir parçaları. Seviye 7+ gerektirir. */
   jewelryHoldings: JewelryHoldings;
@@ -432,11 +461,11 @@ interface GameState {
    * müşteriye satılmaz — tek çıkış yolu budur.
    */
   meltCraftedGood: (itemId: string) => boolean;
-  /** v0.2 Aşama 4: işçilikli ürünü tek seferlik değer artırımı için atölyeye gönderir. */
+  /** @deprecated Ürün-bazlı Atölye gameplay'den kaldırıldı; her zaman false döner. */
   startCraftedGoodWorkshop: (itemId: string) => boolean;
-  /** v0.2 Aşama 4: süresi bitmiş atölye işini teslim alır; has gramı değiştirmez. */
+  /** @deprecated Ürün-bazlı Atölye gameplay'den kaldırıldı; her zaman false döner. */
   collectCraftedGoodWorkshop: (itemId: string) => boolean;
-  /** Bölüm 17: Atölye'yi bir seviye yükseltir (TL karşılığında) — para yoksa ya da zaten maksimumdaysa false döner. */
+  /** Atölye'yi Lv1-Lv10 arasında yükseltir; maliyet config'teki HAS gram karşılığından TL'ye çevrilir. */
   upgradeAtolye: () => boolean;
   /** [YENİ] v3: bir Takı Yatırımı parçası satın alır — Seviye 7 altında, parça zaten sahipse ya da nakit yetmiyorsa false döner. */
   buyJewelryPiece: (tierId: JewelryTierId, piece: JewelryPieceType) => boolean;
@@ -605,6 +634,12 @@ export const useGameStore = create<GameState>()(
   loanDueDay: null,
   brokerDeal: null,
   meltingJob: null,
+  workshop: {
+    unlocked: false,
+    level: 0,
+    totalHasProduced: 0,
+    lastProductionDay: null,
+  },
   atolyeLevel: 0,
   jewelryHoldings: {},
   fourXUnlockedUntilMs: null,
@@ -783,20 +818,26 @@ export const useGameStore = create<GameState>()(
       meltingJob = null;
     }
 
-    inventory = inventory.map((item) =>
-      item.category === 'iscilikli' &&
-      item.workshopStatus === 'processing' &&
-      item.workshopEndsAtTotalMinutes !== undefined &&
-      currentTotalMinutes >= item.workshopEndsAtTotalMinutes
-        ? { ...item, workshopStatus: 'ready' }
-        : item,
-    );
-
-    // Bölüm 17: Atölye — oyun hızından bağımsız, sürekli ve pasif has altın
-    // üretimi (XP üretmez — GDD'nin "XP sadece aktif alım-satımdan" kuralı).
-    const atolyeGramsProduced =
-      postOfferState.atolyeLevel * ATOLYE_GRAMS_PER_DAY_PER_LEVEL * (gameMinutes / MINUTES_PER_DAY);
-    inventory = mergeIntoGramAltin(inventory, atolyeGramsProduced, 0, day);
+    // v0.2 ara aşama: Atölye artık işçilikli ürün işlemez; yalnızca oyun
+    // günü kapanışında bağımsız Gram Altın (Has) üretir. Üretim idempotent:
+    // aynı tamamlanmış gün, save/load ya da tekrar tick ile ikinci kez yazılmaz.
+    let workshop = normalizeWorkshopState(postOfferState.workshop, postOfferState.atolyeLevel);
+    if (workshop.level > 0 && daysElapsed > 0) {
+      const dailyHasOutput = workshopDailyHasOutput(workshop.level);
+      const completedThroughDay = day - 1;
+      const lastProductionDay = workshop.lastProductionDay ?? 0;
+      const productionDays = Math.max(0, completedThroughDay - lastProductionDay);
+      if (productionDays > 0 && dailyHasOutput > 0) {
+        const workshopHasProduced = Math.round(dailyHasOutput * productionDays * 100) / 100;
+        inventory = mergeIntoGramAltin(inventory, workshopHasProduced, 0, day);
+        workshop = {
+          ...workshop,
+          unlocked: true,
+          totalHasProduced: Math.round((workshop.totalHasProduced + workshopHasProduced) * 100) / 100,
+          lastProductionDay: completedThroughDay,
+        };
+      }
+    }
 
     // [YENİ] v3 — Takı Yatırımı (Parça & Set): anapara kilidi yok, her GÜN
     // (dakika değil) sahip olunan parçalardan (kademe seti tamamsa +%10
@@ -1061,6 +1102,8 @@ export const useGameStore = create<GameState>()(
       loanDueDay,
       brokerDeal,
       meltingJob,
+      workshop,
+      atolyeLevel: workshop.level,
       inventory,
       offers,
       incomingCustomer,
@@ -1144,8 +1187,6 @@ export const useGameStore = create<GameState>()(
               actualKarat: item.actualKarat,
               hasHiddenFlaw: item.hasHiddenFlaw,
               stoneValueTl: item.stoneValueTl,
-              workshopStatus: item.category === 'iscilikli' ? 'none' : undefined,
-              workshopProcessed: item.category === 'iscilikli' ? false : undefined,
             } satisfies InventoryItem,
           ];
 
@@ -1279,84 +1320,32 @@ export const useGameStore = create<GameState>()(
   },
 
   startCraftedGoodWorkshop: (itemId) => {
-    const state = get();
-    if (state.level < ATOLYE_REQUIRED_LEVEL) return false;
-    const item = state.inventory.find((i) => i.id === itemId);
-    if (!item || item.category !== 'iscilikli') return false;
-    if ((item.workshopStatus ?? 'none') !== 'none' || item.workshopProcessed) return false;
-
-    const operationCostTl = Math.round(item.costBasisTl * CRAFTED_WORKSHOP_OPERATION_COST_RATIO);
-    if (operationCostTl > state.capital.cashTl) return false;
-
-    const totalMinutesNow = state.day * MINUTES_PER_DAY + state.minuteOfDay;
-    const processingEndsAt = totalMinutesNow + craftedWorkshopDurationDays(item) * MINUTES_PER_DAY;
-    const inventory = state.inventory.map((inventoryItem) =>
-      inventoryItem.id === itemId
-        ? {
-            ...inventoryItem,
-            workshopStatus: 'processing' as const,
-            workshopStartedAtTotalMinutes: totalMinutesNow,
-            workshopEndsAtTotalMinutes: processingEndsAt,
-            workshopCostTl: operationCostTl,
-          }
-        : inventoryItem,
-    );
-
-    set({
-      inventory,
-      capital: {
-        ...state.capital,
-        cashTl: state.capital.cashTl - operationCostTl,
-        stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
-      },
-    });
-    return true;
+    void itemId;
+    return false;
   },
 
   collectCraftedGoodWorkshop: (itemId) => {
-    const state = get();
-    const item = state.inventory.find((i) => i.id === itemId);
-    if (!item || item.category !== 'iscilikli') return false;
-    if (item.workshopStatus !== 'ready' || item.workshopProcessed) return false;
-
-    const workshopResult = craftedWorkshopResult(item, state.goldPrice.buyPricePerGram);
-    const inventory = state.inventory.map((inventoryItem) =>
-      inventoryItem.id === itemId
-        ? {
-            ...inventoryItem,
-            estimatedValueTl: workshopResult.estimatedValueTl,
-            workshopStatus: 'none' as const,
-            workshopProcessed: true,
-            workshopValueAddedTl: workshopResult.valueAddedTl,
-          }
-        : inventoryItem,
-    );
-
-    set({
-      inventory,
-      capital: {
-        ...state.capital,
-        stockValueTl: computeStockValueTl(inventory, state.goldPrice.buyPricePerGram),
-      },
-    });
-    return true;
+    void itemId;
+    return false;
   },
 
   upgradeAtolye: () => {
     const state = get();
-    // v3: Seviye 7 kilidi — erken oyunda pasif gelire kaçışı engeller.
-    if (state.level < ATOLYE_REQUIRED_LEVEL) return false;
-    if (state.atolyeLevel >= ATOLYE_MAX_LEVEL) return false;
-    // v3 KRİTİK DÜZELTME: maliyet artık altın fiyatına PEG'li (200 gram has
-    // altın değerinde) — sabit TL değil, her zaman anlamlı bir fırsat maliyeti.
-    const cost =
-      ATOLYE_UPGRADE_BASE_COST_GRAMS *
-      state.goldPrice.buyPricePerGram *
-      Math.pow(ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL, state.atolyeLevel);
-    if (cost > state.capital.cashTl) return false;
+    const workshop = normalizeWorkshopState(state.workshop, state.atolyeLevel);
+    if (state.level < WORKSHOP_CONFIG.requiredLevel) return false;
+    if (workshop.level >= WORKSHOP_CONFIG.maxLevel) return false;
+    const cost = workshopUpgradeCostTl(workshop.level, state.goldPrice.buyPricePerGram);
+    if (cost === null || cost > state.capital.cashTl) return false;
+    const nextLevel = workshop.level + 1;
+    const nextWorkshop: WorkshopState = {
+      ...workshop,
+      unlocked: true,
+      level: nextLevel,
+    };
 
     set({
-      atolyeLevel: state.atolyeLevel + 1,
+      workshop: nextWorkshop,
+      atolyeLevel: nextLevel,
       capital: { ...state.capital, cashTl: state.capital.cashTl - cost },
     });
     return true;
@@ -1738,6 +1727,16 @@ export const useGameStore = create<GameState>()(
       // yatırımı modeli) — eski kayıtlarla karışmasın diye sürüm atlandı.
       name: 'cepkaynak-save-v13',
       storage: createJSONStorage(() => AsyncStorage),
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState ?? {}) as Partial<GameState>;
+        const workshop = normalizeWorkshopState(persisted.workshop, persisted.atolyeLevel ?? currentState.atolyeLevel);
+        return {
+          ...currentState,
+          ...persisted,
+          workshop,
+          atolyeLevel: workshop.level,
+        };
+      },
       // Skill tanımları/oyun kodu değişse bile eski kayıtlar yüklenebilsin diye
       // sadece serileştirilebilir oyun verisi tutulur — aksiyon fonksiyonları
       // ve geçici alanlar (hasHydrated) hariç tutulur.
@@ -1762,6 +1761,7 @@ export const useGameStore = create<GameState>()(
         loanDueDay: state.loanDueDay,
         brokerDeal: state.brokerDeal,
         meltingJob: state.meltingJob,
+        workshop: state.workshop,
         atolyeLevel: state.atolyeLevel,
         jewelryHoldings: state.jewelryHoldings,
         fourXUnlockedUntilMs: state.fourXUnlockedUntilMs,

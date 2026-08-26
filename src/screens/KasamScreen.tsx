@@ -14,14 +14,10 @@ import { SectionLabel } from '../components/SectionLabel';
 import { StockCard } from '../components/StockCard';
 import { TradingPositionCard } from '../components/TradingPositionCard';
 import {
-  ATOLYE_GRAMS_PER_DAY_PER_LEVEL,
-  ATOLYE_MAX_LEVEL,
-  ATOLYE_REQUIRED_LEVEL,
-  ATOLYE_UPGRADE_BASE_COST_GRAMS,
-  ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL,
   JEWELRY_REQUIRED_LEVEL,
   LOW_CASH_WARNING_THRESHOLD_TL,
   MINUTES_PER_DAY,
+  WORKSHOP_CONFIG,
   XP_BONUS_DEAL_COMPLETED,
   XP_BONUS_PROFITABLE_SALE,
   XP_PER_EQUIVALENT_GRAM_TRADED,
@@ -32,7 +28,7 @@ import { JEWELRY_PIECES, JEWELRY_TIERS } from '../data/jewelryInvestments';
 import { pirlantaCatalog } from '../data/mockPirlanta';
 import { computeJewelryPieceDailyReturnTl, computeJewelryPiecePriceTl, isJewelrySetComplete } from '../engine/jewelry';
 import { toptanciStock } from '../data/toptanciStock';
-import { currentPositionValueTl, equivalentGrams, useGameStore } from '../store/useGameStore';
+import { currentPositionValueTl, equivalentGrams, useGameStore, workshopDailyHasOutput, workshopUpgradeCostTl } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatTl } from '../utils/format';
 
@@ -51,15 +47,13 @@ export function KasamScreen() {
   const purchasePirlanta = useGameStore((s) => s.purchasePirlanta);
   const meltingJob = useGameStore((s) => s.meltingJob);
   const meltCraftedGood = useGameStore((s) => s.meltCraftedGood);
-  const startCraftedGoodWorkshop = useGameStore((s) => s.startCraftedGoodWorkshop);
-  const collectCraftedGoodWorkshop = useGameStore((s) => s.collectCraftedGoodWorkshop);
   const day = useGameStore((s) => s.day);
   const minuteOfDay = useGameStore((s) => s.minuteOfDay);
   const cashTl = useGameStore((s) => s.capital.cashTl);
   const debtTl = useGameStore((s) => s.capital.debtTl);
   const loanDueDay = useGameStore((s) => s.loanDueDay);
   const repayDebt = useGameStore((s) => s.repayDebt);
-  const atolyeLevel = useGameStore((s) => s.atolyeLevel);
+  const workshop = useGameStore((s) => s.workshop);
   const upgradeAtolye = useGameStore((s) => s.upgradeAtolye);
   const jewelryHoldings = useGameStore((s) => s.jewelryHoldings);
   const buyJewelryPiece = useGameStore((s) => s.buyJewelryPiece);
@@ -94,20 +88,6 @@ export function KasamScreen() {
     if (!item) return;
     if (meltCraftedGood(itemId)) {
       showCraftedFeedback(`${item.name} eritiliyor · işçilik değeri kaybedilecek.`);
-    }
-  };
-  const handleStartWorkshop = (itemId: string) => {
-    const item = inventory.find((inventoryItem) => inventoryItem.id === itemId);
-    if (!item) return;
-    if (startCraftedGoodWorkshop(itemId)) {
-      showCraftedFeedback(`${item.name} atölyeye gönderildi.`);
-    }
-  };
-  const handleCollectWorkshop = (itemId: string) => {
-    const item = inventory.find((inventoryItem) => inventoryItem.id === itemId);
-    if (!item) return;
-    if (collectCraftedGoodWorkshop(itemId)) {
-      showCraftedFeedback(`${item.name} atölyeden teslim alındı · işçilik değeri arttı.`);
     }
   };
 
@@ -153,13 +133,8 @@ export function KasamScreen() {
   const meltingMinutesLeft = meltingJob
     ? meltingJob.completesAtTotalMinutes - (day * MINUTES_PER_DAY + minuteOfDay)
     : 0;
-  const atolyeLocked = level < ATOLYE_REQUIRED_LEVEL;
-  const atolyeUpgradeCostTl =
-    atolyeLevel >= ATOLYE_MAX_LEVEL
-      ? null
-      : ATOLYE_UPGRADE_BASE_COST_GRAMS *
-        goldPrice.buyPricePerGram *
-        Math.pow(ATOLYE_UPGRADE_COST_MULTIPLIER_PER_LEVEL, atolyeLevel);
+  const atolyeLocked = level < WORKSHOP_CONFIG.requiredLevel;
+  const atolyeUpgradeCostTl = workshopUpgradeCostTl(workshop.level, goldPrice.buyPricePerGram);
   const jewelryLocked = level < JEWELRY_REQUIRED_LEVEL;
 
   const handleSell = (itemId: string) => {
@@ -328,8 +303,8 @@ export function KasamScreen() {
         >
           <SectionLabel>İŞÇİLİKLİ ÜRÜNLER</SectionLabel>
           <Text style={styles.emptyHint}>
-            Müşteriden gelen kolye/yüzük/küpe gibi parçalar. Erit hızlı likidite sağlar; Atölye
-            zamanla işçilik değerini artırır.
+            Müşteriden gelen kolye/yüzük/küpe gibi parçalar. Beklet veya milyem hesabıyla erit;
+            işçilik değeri has altına eklenmez.
           </Text>
           {craftedFeedback && <Text style={styles.craftedFeedback}>{craftedFeedback}</Text>}
           {meltingJob && <MeltingJobBanner job={meltingJob} minutesLeft={meltingMinutesLeft} />}
@@ -342,14 +317,9 @@ export function KasamScreen() {
                 item={item}
                 buyPricePerGram={goldPrice.buyPricePerGram}
                 meltDisabled={meltingJob !== null}
-                workshopLocked={atolyeLocked}
-                workshopDisabled={false}
-                requiredLevel={ATOLYE_REQUIRED_LEVEL}
                 holdActive={holdHintItemId === item.id}
                 onHold={() => handleHold(item.id)}
                 onMelt={() => handleMeltCraftedGood(item.id)}
-                onStartWorkshop={() => handleStartWorkshop(item.id)}
-                onCollectWorkshop={() => handleCollectWorkshop(item.id)}
               />
             ))
           )}
@@ -361,13 +331,15 @@ export function KasamScreen() {
         >
           <SectionLabel>ATÖLYE</SectionLabel>
           <AtolyeCard
-            level={atolyeLevel}
-            maxLevel={ATOLYE_MAX_LEVEL}
-            gramsPerDay={atolyeLevel * ATOLYE_GRAMS_PER_DAY_PER_LEVEL}
+            level={workshop.level}
+            maxLevel={WORKSHOP_CONFIG.maxLevel}
+            gramsPerDay={workshopDailyHasOutput(workshop.level)}
+            nextGramsPerDay={workshopDailyHasOutput(workshop.level + 1)}
+            totalHasProduced={workshop.totalHasProduced}
             upgradeCostTl={atolyeUpgradeCostTl}
             canAfford={atolyeUpgradeCostTl !== null && atolyeUpgradeCostTl <= cashTl}
             locked={atolyeLocked}
-            requiredLevel={ATOLYE_REQUIRED_LEVEL}
+            requiredLevel={WORKSHOP_CONFIG.requiredLevel}
             onUpgrade={upgradeAtolye}
           />
         </View>

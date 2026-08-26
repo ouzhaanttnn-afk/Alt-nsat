@@ -10,6 +10,8 @@ export function AtolyeCard({
   level,
   maxLevel,
   gramsPerDay,
+  nextGramsPerDay,
+  totalHasProduced,
   upgradeCostTl,
   canAfford,
   locked,
@@ -19,6 +21,8 @@ export function AtolyeCard({
   level: number;
   maxLevel: number;
   gramsPerDay: number;
+  nextGramsPerDay: number;
+  totalHasProduced: number;
   upgradeCostTl: number | null;
   canAfford: boolean;
   /** v3: Seviye 7'den önce erişilemez — erken oyunda pasif gelire kaçışı engeller. */
@@ -36,11 +40,19 @@ export function AtolyeCard({
         </Text>
       </View>
       {locked ? (
-        <Text style={styles.production}>Kilitli — Seviye {requiredLevel} gerekiyor</Text>
+        <Text style={styles.production}>ATÖLYE 🔒 · Seviye {requiredLevel}'de açılır</Text>
       ) : (
-        <Text style={styles.production}>
-          {gramsPerDay > 0 ? `Günde ${gramsPerDay.toLocaleString('tr-TR')}g has altın üretiyor` : 'Henüz kurulmadı'}
-        </Text>
+        <View style={styles.metrics}>
+          <Row label="Günlük üretim" value={`${gramsPerDay.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}g HAS / gün`} />
+          {!isMax && (
+            <Row
+              label="Sonraki seviye"
+              value={`${nextGramsPerDay.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}g HAS / gün`}
+            />
+          )}
+          <Row label="Toplam üretim" value={`${totalHasProduced.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}g HAS`} />
+          {!isMax && <Row label="Yükseltme maliyeti" value={formatTl(upgradeCostTl!)} />}
+        </View>
       )}
       <Pressable
         disabled={locked || isMax || !canAfford}
@@ -52,10 +64,21 @@ export function AtolyeCard({
             ? `Kilitli — Sv.${requiredLevel}`
             : isMax
               ? 'Maksimum Seviye'
-              : `${level === 0 ? 'Kur' : 'Yükselt'} · ${formatTl(upgradeCostTl!)}`}
+              : level === 0
+                ? `KUR · ${formatTl(upgradeCostTl!)}`
+                : `YÜKSELT · ${formatTl(upgradeCostTl!)}`}
         </Text>
       </Pressable>
     </Card>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.metricRow}>
+      <Text style={styles.metricLabel}>{label}</Text>
+      <Text style={styles.metricValue}>{value}</Text>
+    </View>
   );
 }
 
@@ -81,6 +104,27 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.ink,
     marginTop: 6,
+  },
+  metrics: {
+    marginTop: 8,
+    gap: 5,
+  },
+  metricRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  metricLabel: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.inkMuted,
+  },
+  metricValue: {
+    fontFamily: fonts.monoBold,
+    fontSize: fontSizes.sm,
+    color: colors.ink,
+    textAlign: 'right',
+    flexShrink: 1,
   },
   button: {
     marginTop: 10,

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { InventoryItem } from '../types/game';
-import { craftedGoodEstimatedValueTl, craftedGoodHasGrams, craftedGoodMetalValueTl } from '../engine/craftedGoods';
+import { craftedGoodEstimatedValueTl, craftedGoodMetalValueTl, craftedMeltHasGrams } from '../engine/craftedGoods';
 import { colors, fonts, fontSizes, radius } from '../theme';
 import { Card } from './Card';
 import { ProductIcon } from './icons/ProductIcon';
@@ -14,41 +14,20 @@ export function CraftedGoodCard({
   buyPricePerGram,
   onMelt,
   onHold,
-  onStartWorkshop,
-  onCollectWorkshop,
   meltDisabled,
-  workshopLocked,
-  workshopDisabled,
-  requiredLevel,
   holdActive,
 }: {
   item: InventoryItem;
   buyPricePerGram: number;
   onMelt: () => void;
   onHold: () => void;
-  onStartWorkshop: () => void;
-  onCollectWorkshop: () => void;
   meltDisabled?: boolean;
-  workshopLocked?: boolean;
-  workshopDisabled?: boolean;
-  requiredLevel: number;
   holdActive?: boolean;
 }) {
-  const workshopStatus = item.workshopStatus ?? 'none';
-  const isProcessing = workshopStatus === 'processing';
-  const isReady = workshopStatus === 'ready';
-  const hasGrams = craftedGoodHasGrams(item);
+  const actualKarat = item.actualKarat ?? item.karat;
+  const meltHasGrams = craftedMeltHasGrams(item.grams, actualKarat) * (item.hasHiddenFlaw ? 0.85 : 1);
   const metalValueTl = craftedGoodMetalValueTl(item, buyPricePerGram);
   const estimatedValueTl = craftedGoodEstimatedValueTl(item, buyPricePerGram);
-  const workshopButtonLabel = workshopLocked
-    ? `ATÖLYE 🔒 Sv.${requiredLevel}`
-    : isReady
-      ? 'TESLİM AL'
-      : isProcessing
-        ? 'İŞLENİYOR'
-        : item.workshopProcessed
-          ? 'İŞLENDİ'
-          : 'ATÖLYE';
 
   return (
     <Card style={styles.card}>
@@ -61,9 +40,7 @@ export function CraftedGoodCard({
           </Text>
           <Text style={styles.source}>{item.source ?? 'Müşteri getirdi'}</Text>
         </View>
-        <Text style={[styles.status, isReady && styles.readyStatus]}>
-          {isReady ? 'ATÖLYE HAZIR' : isProcessing ? 'İŞLENİYOR' : holdActive ? 'BEKLETİLİYOR' : 'STOKTA'}
-        </Text>
+        <Text style={styles.status}>{holdActive ? 'BEKLETİLİYOR' : 'STOKTA'}</Text>
       </View>
       <View style={styles.valueGrid}>
         <View style={styles.valueCell}>
@@ -71,8 +48,10 @@ export function CraftedGoodCard({
           <Text style={styles.valueText}>{formatTl(item.costBasisTl)}</Text>
         </View>
         <View style={styles.valueCell}>
-          <Text style={styles.valueLabel}>Has</Text>
-          <Text style={styles.valueText}>{hasGrams.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}g</Text>
+          <Text style={styles.valueLabel}>Eritme</Text>
+          <Text style={styles.valueText}>
+            → {meltHasGrams.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}g HAS
+          </Text>
         </View>
         <View style={styles.valueCell}>
           <Text style={styles.valueLabel}>Metal</Text>
@@ -84,30 +63,23 @@ export function CraftedGoodCard({
         </View>
       </View>
       <View style={styles.actions}>
-        <Pressable disabled={isProcessing} onPress={onHold} style={[styles.secondaryButton, isProcessing && styles.disabled]}>
+        <Pressable onPress={onHold} style={styles.secondaryButton}>
           <Text style={styles.secondaryButtonLabel}>BEKLET</Text>
         </Pressable>
         <Pressable
-          disabled={meltDisabled || isProcessing || isReady}
+          disabled={meltDisabled}
           onPress={onMelt}
-          style={[styles.meltButton, (meltDisabled || isProcessing || isReady) && styles.disabled]}
+          style={[styles.meltButton, meltDisabled && styles.disabled]}
         >
           <Text style={styles.meltButtonLabel}>ERİT</Text>
         </Pressable>
-        <Pressable
-          disabled={workshopLocked || workshopDisabled || isProcessing || item.workshopProcessed}
-          onPress={isReady ? onCollectWorkshop : onStartWorkshop}
-          style={[
-            styles.workshopButton,
-            (workshopLocked || workshopDisabled || isProcessing || (item.workshopProcessed && !isReady)) && styles.disabled,
-          ]}
-        >
-          <Text style={styles.workshopButtonLabel}>{workshopButtonLabel}</Text>
-        </Pressable>
       </View>
       <View style={styles.notesRow}>
-        <Text style={styles.note}>Erit: hızlı likidite, işçilik kaybolur.</Text>
-        <Text style={styles.note}>Atölye: zaman, tek seferlik işçilik primi.</Text>
+        <Text style={styles.note}>
+          {actualKarat} Ayar · {item.grams.toLocaleString('tr-TR')}g →{' '}
+          {meltHasGrams.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}g HAS
+        </Text>
+        <Text style={styles.note}>Eritme işçilik değerini has altına eklemez.</Text>
       </View>
     </Card>
   );
@@ -144,9 +116,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.monoBold,
     fontSize: 10,
     color: colors.inkMuted,
-  },
-  readyStatus: {
-    color: colors.positive,
   },
   valueGrid: {
     flexDirection: 'row',
@@ -193,22 +162,10 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     alignItems: 'center',
   },
-  workshopButton: {
-    flex: 1.25,
-    backgroundColor: colors.accent,
-    borderRadius: radius.sm,
-    paddingVertical: 7,
-    alignItems: 'center',
-  },
   disabled: {
     opacity: 0.4,
   },
   meltButtonLabel: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 10,
-    color: colors.white,
-  },
-  workshopButtonLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: 10,
     color: colors.white,

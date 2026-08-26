@@ -1,6 +1,6 @@
 import {
-  ATOLYE_REQUIRED_LEVEL,
   MINUTES_PER_DAY,
+  WORKSHOP_CONFIG,
 } from '../src/config/economyConfig';
 import {
   craftedGoodEstimatedValueTl,
@@ -8,8 +8,12 @@ import {
   craftedMeltHasGrams,
   isCraftedGoodItem,
 } from '../src/engine/craftedGoods';
-import { useGameStore } from '../src/store/useGameStore';
-import type { InventoryItem } from '../src/types/game';
+import {
+  useGameStore,
+  workshopDailyHasOutput,
+  workshopUpgradeCostTl,
+} from '../src/store/useGameStore';
+import type { InventoryItem, WorkshopState } from '../src/types/game';
 
 const initialState = useGameStore.getState();
 
@@ -27,16 +31,26 @@ function craftedItem(overrides: Partial<InventoryItem> = {}): InventoryItem {
     source: 'Müşteri getirdi',
     acquiredDay: 1,
     acquiredMinuteOfDay: 20,
-    workshopStatus: 'none',
-    workshopProcessed: false,
     ...overrides,
   };
+}
+
+function legacyCraftedItem(overrides: Partial<InventoryItem> = {}): InventoryItem {
+  return craftedItem({
+    workshopStatus: 'processing',
+    workshopStartedAtTotalMinutes: 100,
+    workshopEndsAtTotalMinutes: 200,
+    workshopProcessed: false,
+    workshopValueAddedTl: 5000,
+    workshopCostTl: 1000,
+    ...overrides,
+  });
 }
 
 function sarrafiyeItem(overrides: Partial<InventoryItem> = {}): InventoryItem {
   return {
     id: 'gram-1',
-    name: 'Gram Altın',
+    name: 'Gram Altın (Has)',
     category: 'yatirim',
     karat: 24,
     grams: 1,
@@ -47,11 +61,14 @@ function sarrafiyeItem(overrides: Partial<InventoryItem> = {}): InventoryItem {
   };
 }
 
-function moveClockToTotalMinutes(totalMinutes: number) {
-  useGameStore.setState({
-    day: Math.floor(totalMinutes / MINUTES_PER_DAY),
-    minuteOfDay: totalMinutes % MINUTES_PER_DAY,
-  });
+function workshopState(overrides: Partial<WorkshopState> = {}): WorkshopState {
+  return {
+    unlocked: false,
+    level: 0,
+    totalHasProduced: 0,
+    lastProductionDay: null,
+    ...overrides,
+  };
 }
 
 beforeEach(() => {
@@ -63,10 +80,12 @@ beforeEach(() => {
     speed: 1,
     level: 1,
     totalXp: 0,
-    capital: { cashTl: 100_000, debtTl: 0, stockValueTl: 0 },
+    capital: { cashTl: 2_000_000, debtTl: 0, stockValueTl: 0 },
     goldPrice: { buyPricePerGram: 5000, sellPricePerGram: 5300, dailyChangePercent: 0 },
     inventory: [],
     meltingJob: null,
+    workshop: workshopState(),
+    atolyeLevel: 0,
     waitingCustomers: [],
     incomingCustomer: null,
   }, true);
@@ -82,11 +101,19 @@ it('classifies crafted goods separately from sarrafiye', () => {
   expect(isCraftedGoodItem(sarrafiyeItem())).toBe(false);
 });
 
-it('keeps sarrafiye out of melt and workshop flows', () => {
-  useGameStore.setState({ inventory: [sarrafiyeItem()] });
+it('does not allow crafted goods to be sent to workshop anymore', () => {
+  const item = craftedItem();
+  useGameStore.setState({ inventory: [item], level: WORKSHOP_CONFIG.requiredLevel });
+
+  expect(useGameStore.getState().startCraftedGoodWorkshop(item.id)).toBe(false);
+  expect(useGameStore.getState().collectCraftedGoodWorkshop(item.id)).toBe(false);
+  expect(useGameStore.getState().inventory[0]).toEqual(item);
+});
+
+it('keeps sarrafiye out of melt and legacy workshop flows', () => {
+  useGameStore.setState({ inventory: [sarrafiyeItem()], level: WORKSHOP_CONFIG.requiredLevel });
 
   expect(useGameStore.getState().meltCraftedGood('gram-1')).toBe(false);
-  useGameStore.setState({ level: ATOLYE_REQUIRED_LEVEL });
   expect(useGameStore.getState().startCraftedGoodWorkshop('gram-1')).toBe(false);
 });
 
@@ -103,7 +130,10 @@ it('melting removes the crafted item and converts it into recovered has gold', (
   expect(job.recoveredGrams).toBe(expectedRecovered);
   expect(job.costBasisTl).toBe(item.costBasisTl);
 
-  moveClockToTotalMinutes(job.completesAtTotalMinutes - 5);
+  useGameStore.setState({
+    day: Math.floor((job.completesAtTotalMinutes - 5) / MINUTES_PER_DAY),
+    minuteOfDay: (job.completesAtTotalMinutes - 5) % MINUTES_PER_DAY,
+  });
   useGameStore.getState().tick(5);
 
   const gramAltin = useGameStore.getState().inventory.find((stockItem) => stockItem.name === 'Gram Altın (Has)');
@@ -112,65 +142,191 @@ it('melting removes the crafted item and converts it into recovered has gold', (
   expect(useGameStore.getState().inventory.find((stockItem) => stockItem.category === 'iscilikli')).toBeUndefined();
 });
 
-it('keeps workshop locked below level 7 and accessible at level 7+', () => {
-  const item = craftedItem();
-  useGameStore.setState({ inventory: [item], level: ATOLYE_REQUIRED_LEVEL - 1 });
-
-  expect(useGameStore.getState().startCraftedGoodWorkshop(item.id)).toBe(false);
-
-  useGameStore.setState({ level: ATOLYE_REQUIRED_LEVEL });
-  expect(useGameStore.getState().startCraftedGoodWorkshop(item.id)).toBe(true);
-  expect(useGameStore.getState().inventory[0].workshopStatus).toBe('processing');
+it('keeps crafted melt purity coefficients unchanged', () => {
+  expect(craftedMeltHasGrams(10, 8)).toBe(3.33);
+  expect(craftedMeltHasGrams(10, 14)).toBe(5.85);
+  expect(craftedMeltHasGrams(10, 18)).toBe(7.5);
+  expect(craftedMeltHasGrams(10, 22)).toBe(9.16);
 });
 
-it('does not allow collection before the workshop time ends', () => {
-  const item = craftedItem();
-  useGameStore.setState({ inventory: [item], level: ATOLYE_REQUIRED_LEVEL });
+it('keeps legacy workshop item fields backward-compatible but inactive', () => {
+  const item = legacyCraftedItem();
+  const beforeEstimate = craftedGoodEstimatedValueTl(item, 5000);
+  const beforeHas = craftedGoodHasGrams(item);
+  useGameStore.setState({ inventory: [item], level: WORKSHOP_CONFIG.requiredLevel });
 
-  expect(useGameStore.getState().startCraftedGoodWorkshop(item.id)).toBe(true);
-  expect(useGameStore.getState().collectCraftedGoodWorkshop(item.id)).toBe(false);
+  useGameStore.setState({ day: 2, minuteOfDay: 0 });
+  useGameStore.getState().tick(1);
+
+  const after = useGameStore.getState().inventory[0];
+  expect(after.workshopStatus).toBe('processing');
+  expect(craftedGoodEstimatedValueTl(after, 5000)).toBe(beforeEstimate);
+  expect(craftedGoodHasGrams(after)).toBe(beforeHas);
 });
 
-it('marks the item ready after time and collects a one-time craft value increase', () => {
-  const item = craftedItem({ id: 'crafted-workshop', grams: 20, karat: 18, costBasisTl: 50_000, estimatedValueTl: 54_000 });
-  useGameStore.setState({ inventory: [item], level: ATOLYE_REQUIRED_LEVEL });
-  const hasGramsBefore = craftedGoodHasGrams(item);
-  const gramsBefore = item.grams;
-  const karatBefore = item.karat;
-
-  expect(useGameStore.getState().startCraftedGoodWorkshop(item.id)).toBe(true);
-  const stockValueAfterStart = useGameStore.getState().capital.stockValueTl;
-  const processingItem = useGameStore.getState().inventory[0];
-  const endsAt = processingItem.workshopEndsAtTotalMinutes!;
-  moveClockToTotalMinutes(endsAt - 5);
-  useGameStore.getState().tick(5);
-
-  expect(useGameStore.getState().inventory[0].workshopStatus).toBe('ready');
-  expect(useGameStore.getState().collectCraftedGoodWorkshop(item.id)).toBe(true);
-  const finishedItem = useGameStore.getState().inventory[0];
-  expect(finishedItem.workshopStatus).toBe('none');
-  expect(finishedItem.workshopProcessed).toBe(true);
-  expect(craftedGoodHasGrams(finishedItem)).toBe(hasGramsBefore);
-  expect(finishedItem.grams).toBe(gramsBefore);
-  expect(finishedItem.karat).toBe(karatBefore);
-  expect(craftedGoodEstimatedValueTl(finishedItem, 5000)).toBeGreaterThan(craftedGoodEstimatedValueTl(item, 5000));
-  expect(useGameStore.getState().capital.stockValueTl).toBeGreaterThanOrEqual(stockValueAfterStart);
-  expect(useGameStore.getState().collectCraftedGoodWorkshop(item.id)).toBe(false);
-  expect(useGameStore.getState().startCraftedGoodWorkshop(item.id)).toBe(false);
+it('locks workshop below level 7', () => {
+  useGameStore.setState({ level: WORKSHOP_CONFIG.requiredLevel - 1 });
+  expect(useGameStore.getState().upgradeAtolye()).toBe(false);
+  expect(useGameStore.getState().workshop.level).toBe(0);
 });
 
-it('keeps workshop item state in the persisted save payload', () => {
-  const item = craftedItem({ id: 'persisted-crafted' });
-  useGameStore.setState({ inventory: [item], level: ATOLYE_REQUIRED_LEVEL });
-  expect(useGameStore.getState().startCraftedGoodWorkshop(item.id)).toBe(true);
+it('allows workshop installation at level 7 and charges current TL cost', () => {
+  useGameStore.setState({ level: WORKSHOP_CONFIG.requiredLevel });
+  const expectedCost = WORKSHOP_CONFIG.unlockCostEquivalentHasGrams * 5000;
+
+  expect(useGameStore.getState().upgradeAtolye()).toBe(true);
+  expect(useGameStore.getState().workshop).toMatchObject({ unlocked: true, level: 1 });
+  expect(useGameStore.getState().atolyeLevel).toBe(1);
+  expect(useGameStore.getState().capital.cashTl).toBe(2_000_000 - expectedCost);
+});
+
+it('supports workshop Lv1-Lv10 progression', () => {
+  useGameStore.setState({ level: WORKSHOP_CONFIG.requiredLevel, capital: { cashTl: 100_000_000, debtTl: 0, stockValueTl: 0 } });
+
+  for (let level = 1; level <= WORKSHOP_CONFIG.maxLevel; level += 1) {
+    expect(useGameStore.getState().upgradeAtolye()).toBe(true);
+    expect(useGameStore.getState().workshop.level).toBe(level);
+  }
+});
+
+it('does not upgrade beyond Lv10', () => {
+  useGameStore.setState({
+    level: WORKSHOP_CONFIG.requiredLevel,
+    capital: { cashTl: 100_000_000, debtTl: 0, stockValueTl: 0 },
+    workshop: workshopState({ unlocked: true, level: WORKSHOP_CONFIG.maxLevel }),
+    atolyeLevel: WORKSHOP_CONFIG.maxLevel,
+  });
+
+  expect(useGameStore.getState().upgradeAtolye()).toBe(false);
+  expect(useGameStore.getState().workshop.level).toBe(WORKSHOP_CONFIG.maxLevel);
+});
+
+it('does not upgrade without enough cash', () => {
+  useGameStore.setState({ level: WORKSHOP_CONFIG.requiredLevel, capital: { cashTl: 1, debtTl: 0, stockValueTl: 0 } });
+
+  expect(useGameStore.getState().upgradeAtolye()).toBe(false);
+  expect(useGameStore.getState().workshop.level).toBe(0);
+});
+
+it('converts upgrade cost from equivalent has grams to current TL', () => {
+  useGameStore.setState({
+    level: WORKSHOP_CONFIG.requiredLevel,
+    goldPrice: { buyPricePerGram: 6123, sellPricePerGram: 6300, dailyChangePercent: 0 },
+  });
+
+  expect(workshopUpgradeCostTl(0, 6123)).toBe(WORKSHOP_CONFIG.unlockCostEquivalentHasGrams * 6123);
+  expect(useGameStore.getState().upgradeAtolye()).toBe(true);
+  expect(useGameStore.getState().capital.cashTl).toBe(2_000_000 - WORKSHOP_CONFIG.unlockCostEquivalentHasGrams * 6123);
+});
+
+it('adds the correct dailyHasOutput once when a game day ends', () => {
+  useGameStore.setState({
+    level: WORKSHOP_CONFIG.requiredLevel,
+    workshop: workshopState({ unlocked: true, level: 3 }),
+    atolyeLevel: 3,
+    day: 1,
+    minuteOfDay: MINUTES_PER_DAY - 1,
+  });
+
+  useGameStore.getState().tick(1);
+
+  const expectedOutput = workshopDailyHasOutput(3);
+  const gramAltin = useGameStore.getState().inventory.find((item) => item.name === 'Gram Altın (Has)');
+  expect(gramAltin?.quantity).toBe(expectedOutput);
+  expect(gramAltin?.costBasisTl).toBe(0);
+  expect(useGameStore.getState().workshop.totalHasProduced).toBe(expectedOutput);
+  expect(useGameStore.getState().workshop.lastProductionDay).toBe(1);
+});
+
+it('does not produce twice for the same completed game day', () => {
+  useGameStore.setState({
+    level: WORKSHOP_CONFIG.requiredLevel,
+    workshop: workshopState({ unlocked: true, level: 2 }),
+    atolyeLevel: 2,
+    day: 1,
+    minuteOfDay: MINUTES_PER_DAY - 1,
+  });
+
+  useGameStore.getState().tick(1);
+  const firstQuantity = useGameStore.getState().inventory.find((item) => item.name === 'Gram Altın (Has)')?.quantity;
+  useGameStore.getState().tick(10);
+  const secondQuantity = useGameStore.getState().inventory.find((item) => item.name === 'Gram Altın (Has)')?.quantity;
+
+  expect(secondQuantity).toBe(firstQuantity);
+});
+
+it('produces again on the next completed game day', () => {
+  useGameStore.setState({
+    level: WORKSHOP_CONFIG.requiredLevel,
+    workshop: workshopState({ unlocked: true, level: 1 }),
+    atolyeLevel: 1,
+    day: 1,
+    minuteOfDay: MINUTES_PER_DAY - 1,
+  });
+
+  useGameStore.getState().tick(1);
+  useGameStore.setState({ day: 2, minuteOfDay: MINUTES_PER_DAY - 1 });
+  useGameStore.getState().tick(1);
+
+  const expectedOutput = workshopDailyHasOutput(1) * 2;
+  const gramAltin = useGameStore.getState().inventory.find((item) => item.name === 'Gram Altın (Has)');
+  expect(gramAltin?.quantity).toBe(expectedOutput);
+  expect(useGameStore.getState().workshop.lastProductionDay).toBe(2);
+});
+
+it('preserves workshop state in the persisted save payload', () => {
+  useGameStore.setState({
+    workshop: workshopState({ unlocked: true, level: 4, totalHasProduced: 3.2, lastProductionDay: 9 }),
+    atolyeLevel: 4,
+  });
 
   const partialize = (useGameStore as unknown as { persist: { getOptions: () => { partialize: (state: unknown) => unknown } } }).persist.getOptions().partialize;
-  const saved = partialize(useGameStore.getState()) as { inventory: InventoryItem[] };
+  const saved = partialize(useGameStore.getState()) as { workshop: WorkshopState; atolyeLevel: number };
 
-  expect(saved.inventory[0]).toMatchObject({
-    id: item.id,
-    workshopStatus: 'processing',
-    workshopProcessed: false,
+  expect(saved.workshop).toEqual({ unlocked: true, level: 4, totalHasProduced: 3.2, lastProductionDay: 9 });
+  expect(saved.atolyeLevel).toBe(4);
+});
+
+it('migrates legacy atolyeLevel saves into workshop state', () => {
+  const merge = (useGameStore as unknown as {
+    persist: { getOptions: () => { merge: (persisted: unknown, current: unknown) => unknown } };
+  }).persist.getOptions().merge;
+  const merged = merge({ atolyeLevel: 3 }, initialState) as { workshop: WorkshopState; atolyeLevel: number };
+
+  expect(merged.workshop).toMatchObject({ unlocked: true, level: 3 });
+  expect(merged.atolyeLevel).toBe(3);
+});
+
+it('workshop production does not change crafted inventory', () => {
+  const crafted = craftedItem();
+  useGameStore.setState({
+    inventory: [crafted],
+    workshop: workshopState({ unlocked: true, level: 2 }),
+    atolyeLevel: 2,
+    day: 1,
+    minuteOfDay: MINUTES_PER_DAY - 1,
   });
-  expect(saved.inventory[0].workshopEndsAtTotalMinutes).toEqual(expect.any(Number));
+
+  useGameStore.getState().tick(1);
+
+  const craftedAfter = useGameStore.getState().inventory.find((item) => item.id === crafted.id);
+  expect(craftedAfter).toEqual(crafted);
+  expect(useGameStore.getState().inventory.find((item) => item.name === 'Gram Altın (Has)')).toBeDefined();
+});
+
+it('workshop production adds Gram Altın (Has), not cash', () => {
+  useGameStore.setState({
+    workshop: workshopState({ unlocked: true, level: 1 }),
+    atolyeLevel: 1,
+    day: 1,
+    minuteOfDay: MINUTES_PER_DAY - 1,
+    capital: { cashTl: 123_456, debtTl: 0, stockValueTl: 0 },
+  });
+
+  useGameStore.getState().tick(1);
+
+  expect(useGameStore.getState().capital.cashTl).toBe(123_456);
+  expect(useGameStore.getState().inventory.find((item) => item.name === 'Gram Altın (Has)')?.quantity).toBe(
+    workshopDailyHasOutput(1),
+  );
 });

@@ -18,6 +18,17 @@ export interface ReputationState {
   score: number; // 0-100
 }
 
+export interface WorkshopState {
+  /** Atölye kurulmuş mu; level > 0 ise true kabul edilir. */
+  unlocked: boolean;
+  /** 0 = kurulmamış, 1-10 = üretim seviyesi. */
+  level: number;
+  /** Atölye'nin ömür boyu ürettiği toplam HAS gramı. */
+  totalHasProduced: number;
+  /** Gün sonu üretiminin idempotent olması için son üretim yapılan oyun günü. */
+  lastProductionDay: number | null;
+}
+
 // "taki"/"yatirim": sarrafiye stoğu (gram/çeyrek altın, 22 ayar bilezik) —
 // fungible, güncel kurdan mark-to-market, doğrudan satılabilir.
 // "pirlanta": gerçek para (mağaza içi satın alma) ile edinilen kalıcı,
@@ -69,7 +80,11 @@ export interface InventoryItem {
   hasHiddenFlaw?: boolean;
   /** Sadece işçilikli/taşlı ürün: taşın altından bağımsız ayrı değeri — Taş Ustası olmadan eritmede kaybolur. */
   stoneValueTl?: number;
-  /** Sadece işçilikli ürün: atölye karar döngüsünün ürün üstündeki durumu. */
+  /**
+   * @deprecated Eski v0.2 Aşama 4 ürün-bazlı Atölye denemesinden kalma
+   * alanlar. Yeni gameplay bunları yazmaz, göstermez ve hesapta kullanmaz;
+   * eski save'leri güvenle okuyabilmek için opsiyonel bırakıldı.
+   */
   workshopStatus?: 'none' | 'processing' | 'ready';
   workshopStartedAtTotalMinutes?: number;
   workshopEndsAtTotalMinutes?: number;
