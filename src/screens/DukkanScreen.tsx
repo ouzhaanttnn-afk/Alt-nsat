@@ -21,10 +21,9 @@ import { NegotiationPanel } from '../components/NegotiationPanel';
 import { OFFER_STATUS_LABEL } from '../components/OfferCard';
 import { SectionLabel } from '../components/SectionLabel';
 import { StokOzetiCard } from '../components/StokOzetiCard';
-import { WholesalerAccessBanner } from '../components/WholesalerAccessBanner';
 import type { MainTabsParamList, RootStackParamList } from '../navigation/types';
 import type { ClockSpeed } from '../store/useGameStore';
-import { MINUTES_PER_DAY, useGameStore, xpRequiredForLevel } from '../store/useGameStore';
+import { MINUTES_PER_DAY, useGameStore, workshopDailyHasOutput, xpRequiredForLevel } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
 import { formatGameTime, formatTl } from '../utils/format';
 
@@ -88,6 +87,8 @@ export function DukkanScreen() {
   const waitingCustomers = useGameStore((s) => s.waitingCustomers);
   const callNextCustomerToCounter = useGameStore((s) => s.callNextCustomerToCounter);
   const clearIncomingCustomer = useGameStore((s) => s.clearIncomingCustomer);
+  const workshop = useGameStore((s) => s.workshop);
+  const jewelryHoldings = useGameStore((s) => s.jewelryHoldings);
   const hasCompletedTutorial = useGameStore((s) => s.hasCompletedTutorial);
   const completeTutorial = useGameStore((s) => s.completeTutorial);
   const takeEmergencyMicroLoan = useGameStore((s) => s.takeEmergencyMicroLoan);
@@ -149,12 +150,14 @@ export function DukkanScreen() {
     () => offers.filter((offer) => offer.status === 'bekleyen').length,
     [offers],
   );
+  const activeJewelryCount = Object.values(jewelryHoldings).filter((position) => !position.principalRefunded).length;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         {/* ================= HERO — referans tasarım ================= */}
         <View style={styles.hero}>
+          <Text style={styles.playtestBadge}>v0.2 PLAYTEST</Text>
           {/* Üst bar: avatar halkası + kalkan rozeti + XP çubuğu + bakiye + zil —
               referans tasarımın (cepkaynak-referans-ekran3.html) `.topbar` bloğu
               birebir: camsı/bulanık zemin, metalik altın halkalar, Cinzel/
@@ -294,6 +297,8 @@ export function DukkanScreen() {
           )}
         </View>
 
+        <GoldTicker goldPrice={goldPrice} />
+
         {/* [DÜZELTME] Müşteri ve isteği artık hero'nun HEMEN altında, ekranın
             en üst kısmında — oyuncu kaydırmadan önce müşteriyi görmeli. Tüm
             ikincil banner/kartlar (kısayollar, tutorial, acil kredi, 4x,
@@ -318,10 +323,11 @@ export function DukkanScreen() {
         <View style={styles.statsRow3}>
           <Pressable
             style={styles.bottomGlassCard}
-            onPress={() => navigation.navigate('Stok', { scrollTo: 'iscilikli' })}
+            onPress={() => navigation.navigate('Stok')}
           >
             <GemShortcutIcon color={lux.goldBright} />
-            <Text style={styles.bottomCardLabel}>İşçilikli</Text>
+            <Text style={styles.bottomCardLabel}>Toptancı</Text>
+            <Text style={styles.bottomCardMeta}>Güven {wholesalerTrust}/100</Text>
           </Pressable>
           <Pressable
             style={styles.bottomGlassCard}
@@ -329,6 +335,9 @@ export function DukkanScreen() {
           >
             <HammerShortcutIcon color={lux.goldBright} />
             <Text style={styles.bottomCardLabel}>Atölye</Text>
+            <Text style={styles.bottomCardMeta}>
+              Lv.{workshop.level}/10 · {workshopDailyHasOutput(workshop.level).toFixed(2)}g/gün
+            </Text>
           </Pressable>
           <Pressable
             style={styles.bottomGlassCard}
@@ -336,6 +345,7 @@ export function DukkanScreen() {
           >
             <BankShortcutIcon color={lux.goldBright} />
             <Text style={styles.bottomCardLabel}>Yatırımlar</Text>
+            <Text style={styles.bottomCardMeta}>{activeJewelryCount} aktif parça</Text>
           </Pressable>
         </View>
         {!hasCompletedTutorial && (
@@ -380,25 +390,19 @@ export function DukkanScreen() {
           <BrokerDealBanner minutesLeft={brokerMinutesLeft} onResolve={() => resolveBrokerDeal()} />
         )}
 
-        <WholesalerAccessBanner
-          onBuy={() => navigation.navigate('Stok')}
-          onSell={() => navigation.navigate('Stok')}
-        />
-
         <CustomerHypeCard
           active={customerHypeActive}
           onWatchAd={watchAdForCustomerHype}
         />
 
-        <CapitalSummary
+        {!incomingCustomer && <CapitalSummary
           capital={capital}
           goldPrice={goldPrice}
           wholesalerTrust={wholesalerTrust}
           loanDueDay={loanDueDay}
           currentDay={day}
           onRepayDebt={() => repayDebt(capital.cashTl)}
-        />
-        <GoldTicker goldPrice={goldPrice} />
+        />}
 
         <StokOzetiCard items={inventory} onSeeAll={() => navigation.navigate('Stok')} />
 
@@ -449,9 +453,9 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 10,
-    paddingTop: 8,
+    paddingTop: 6,
     paddingBottom: 12,
-    gap: 5,
+    gap: 4,
   },
 
   // ---------- HERO ----------
@@ -463,14 +467,23 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: lux.gold,
-    padding: 6,
-    gap: 4,
+    padding: 5,
+    gap: 3,
     shadowColor: lux.purple,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.18,
     shadowRadius: 8,
     elevation: 4,
     overflow: 'hidden',
+  },
+  playtestBadge: {
+    alignSelf: 'flex-end',
+    marginBottom: -1,
+    fontFamily: fonts.monoBold,
+    fontSize: 8,
+    letterSpacing: 0.7,
+    color: lux.goldBright,
+    opacity: 0.82,
   },
   // [YENİ] Referans tasarımın (cepkaynak-referans-ekran3.html) `.gframe.topbar`
   // bloğu — camsı/bulanık zemin (BlurView + yarı saydam mor ton), metalik
@@ -479,10 +492,10 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     borderRadius: 22,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 5,
     borderWidth: 1,
     borderColor: 'rgba(232,180,74,0.55)',
     overflow: 'hidden',
@@ -505,9 +518,9 @@ const styles = StyleSheet.create({
   // kendisine değil) borderRadius=çap/2 vermek gerekiyor, yoksa ışıma kare
   // görünüyor.
   avatarRing: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: glass.refGold,
@@ -517,9 +530,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   avatarInner: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -590,9 +603,9 @@ const styles = StyleSheet.create({
   // [YENİ] Zil artık üst profil çubuğunun bir parçası — referanstaki `.bell`
   // ile birebir aynı halka/parlama tekniği (bkz. avatarRing).
   bellBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: glass.refGold,
@@ -602,9 +615,9 @@ const styles = StyleSheet.create({
     elevation: 7,
   },
   bellInner: {
-    width: 35,
-    height: 35,
-    borderRadius: 18,
+    width: 31,
+    height: 31,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -808,22 +821,29 @@ const styles = StyleSheet.create({
   },
   statsRow3: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 5,
   },
   bottomGlassCard: {
     flex: 1,
     backgroundColor: lux.glass,
     borderWidth: 1,
     borderColor: lux.gold,
-    borderRadius: 12,
-    paddingVertical: 8,
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
     alignItems: 'center',
-    gap: 2,
+    gap: 1,
   },
   bottomCardLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: 11,
     color: lux.ink,
+  },
+  bottomCardMeta: {
+    fontFamily: fonts.mono,
+    fontSize: 8,
+    color: lux.inkMuted,
+    textAlign: 'center',
   },
   fourXCountdown: {
     fontFamily: fonts.mono,

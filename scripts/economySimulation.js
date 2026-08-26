@@ -4,7 +4,7 @@ const path = require('node:path');
 const RUNS_PER_SCENARIO = 1000;
 const REAL_SESSION_MINUTES = 30;
 const OUTPUT_DIR = path.join(__dirname, '..', 'simulation');
-const CHECKPOINT_DAYS = [10, 30, 50, 75, 100, 125, 150];
+const CHECKPOINT_DAYS = [10, 30, 50, 75, 100, 125, 150, 220, 300];
 const CAPITAL_THRESHOLDS = [120_000, 500_000, 1_000_000, 2_000_000];
 
 const BASE = {
@@ -13,37 +13,14 @@ const BASE = {
   marketClamp: 0.035,
 };
 
-const OLD_BASELINE = {
-  id: 'OLD_BASELINE',
-  dayLengthMinutes: 6,
+const OLD_FAZ6 = {
+  id: 'OLD_FAZ6_MODEL',
+  dayLengthMinutes: 8,
   customersPerDay: 20,
-  charismaTrafficBonus: 0,
+  charismaTrafficBonus: 0.1,
   customerRushRatio: 0,
-  marketClamp: 0.12,
-  passiveInvestments: false,
-  workshop: {
-    unlockCostEquivalentHasGrams: 200,
-    levels: [
-      { level: 1, cost: 200, daily: 0.25 },
-      { level: 5, cost: 600, daily: 1.15 },
-      { level: 10, cost: 2350, daily: 4.2 },
-    ],
-  },
-};
-
-const FAZ6 = {
-  id: 'NEW_FAZ6_MODEL',
-  customerRushRatio: 0.4,
   marketClamp: 0.035,
   passiveInvestments: true,
-  customerCurve: [
-    { from: 1, to: 10, min: 16, max: 24 },
-    { from: 11, to: 30, min: 18, max: 28 },
-    { from: 31, to: 60, min: 22, max: 32 },
-    { from: 61, to: 100, min: 25, max: 37 },
-    { from: 101, to: 150, min: 29, max: 43 },
-    { from: 151, to: Infinity, min: 32, max: 48 },
-  ],
   workshop: {
     unlockCostEquivalentHasGrams: 50,
     levels: [
@@ -57,6 +34,36 @@ const FAZ6 = {
       { level: 8, cost: 900, daily: 13.4 },
       { level: 9, cost: 1350, daily: 18 },
       { level: 10, cost: 2000, daily: 24 },
+    ],
+  },
+};
+
+const FAZ78 = {
+  id: 'NEW_FAZ78_MODEL',
+  customerRushRatio: 0.4,
+  marketClamp: 0.035,
+  passiveInvestments: true,
+  customerCurve: [
+    { from: 1, to: 10, min: 16, max: 24 },
+    { from: 11, to: 30, min: 18, max: 28 },
+    { from: 31, to: 60, min: 22, max: 32 },
+    { from: 61, to: 100, min: 25, max: 37 },
+    { from: 101, to: 150, min: 29, max: 43 },
+    { from: 151, to: Infinity, min: 32, max: 48 },
+  ],
+  workshop: {
+    unlockCostEquivalentHasGrams: 15,
+    levels: [
+      { level: 1, cost: 15, daily: 0.35 },
+      { level: 2, cost: 25, daily: 0.7 },
+      { level: 3, cost: 30, daily: 1.2 },
+      { level: 4, cost: 45, daily: 1.9 },
+      { level: 5, cost: 50, daily: 2.4 },
+      { level: 6, cost: 65, daily: 3 },
+      { level: 7, cost: 75, daily: 3.5 },
+      { level: 8, cost: 100, daily: 4.5 },
+      { level: 9, cost: 140, daily: 5.8 },
+      { level: 10, cost: 320, daily: 7.5 },
     ],
   },
 };
@@ -140,9 +147,9 @@ function charismaTrafficBonus(score) {
   return Math.min(0.25, 0.17 + (score - 75) * 0.08 / 25);
 }
 
-function faz6CustomersForDay(day, profile, rng, densityOverride) {
+function faz78CustomersForDay(day, profile, rng, densityOverride) {
   if (densityOverride) return densityOverride.customersPerDay;
-  const curve = FAZ6.customerCurve.find((c) => day >= c.from && day <= c.to);
+  const curve = FAZ78.customerCurve.find((c) => day >= c.from && day <= c.to);
   const base = curve.min + Math.round(rng() * (curve.max - curve.min));
   return Math.round(base * (1 + charismaTrafficBonus(profile.charisma)));
 }
@@ -161,7 +168,7 @@ function levelForTrades(trades) {
 
 function simulateRun({ model, density, dayLengthMinutes, profile, sensitivity, seed, mode }) {
   const rng = mulberry32(seed);
-  const maxDay = mode === 'session' ? Math.ceil(REAL_SESSION_MINUTES / dayLengthMinutes) : 150;
+  const maxDay = mode === 'session' ? Math.ceil(REAL_SESSION_MINUTES / dayLengthMinutes) : 300;
   const sessionDayFraction = mode === 'session' ? REAL_SESSION_MINUTES / dayLengthMinutes : maxDay;
   const state = {
     cash: BASE.startingCashTl,
@@ -188,10 +195,10 @@ function simulateRun({ model, density, dayLengthMinutes, profile, sensitivity, s
     if (fraction <= 0) break;
     state.goldTl = moveMarket(state.goldTl, model.marketClamp, rng);
 
-    let customersToday = model.id === 'NEW_FAZ6_MODEL'
-      ? faz6CustomersForDay(day, profile, rng, density) * fraction
+    let customersToday = model.id === 'NEW_FAZ78_MODEL'
+      ? faz78CustomersForDay(day, profile, rng, density) * fraction
       : model.customersPerDay * fraction;
-    if (model.id === 'NEW_FAZ6_MODEL' && rng() < 0.35) customersToday *= 1 + model.customerRushRatio;
+    if (model.id === 'NEW_FAZ78_MODEL' && rng() < 0.35) customersToday *= 1 + model.customerRushRatio;
     customersToday = Math.max(0, Math.round(customersToday + normal(rng) * Math.sqrt(Math.max(1, customersToday))));
     state.customers += customersToday;
 
@@ -342,7 +349,7 @@ function summarizeRuns(runs) {
     const reached = runs.map((run) => run.investmentAccess[key]).filter(Boolean);
     access[key] = { reachedRate: reached.length / runs.length, day: summary(reached.length ? reached : [0]) };
   }
-  for (const key of ['Lv1', 'Lv5', 'Lv10']) {
+  for (const key of ['Lv1', 'Lv3', 'Lv5', 'Lv7', 'Lv10']) {
     const reached = runs.map((run) => run.workshopAccess[key]).filter(Boolean);
     access[`Workshop ${key}`] = { reachedRate: reached.length / runs.length, day: summary(reached.length ? reached : [0]) };
   }
@@ -393,9 +400,9 @@ function runAll() {
   const rows = [];
   let index = 0;
 
-  for (const model of [OLD_BASELINE, FAZ6]) {
-    const densities = model.id === 'OLD_BASELINE' ? [{ id: 'OLD', customersPerDay: model.customersPerDay }] : DENSITIES;
-    const dayLengths = model.id === 'OLD_BASELINE' ? [model.dayLengthMinutes] : DAY_LENGTHS;
+  for (const model of [OLD_FAZ6, FAZ78]) {
+    const densities = model.id === 'OLD_FAZ6_MODEL' ? [{ id: 'OLD', customersPerDay: model.customersPerDay }] : DENSITIES;
+    const dayLengths = model.id === 'OLD_FAZ6_MODEL' ? [model.dayLengthMinutes] : DAY_LENGTHS;
     for (const density of densities) {
       for (const dayLengthMinutes of dayLengths) {
         for (const profile of PROFILES) {
@@ -429,8 +436,8 @@ function runAll() {
     }
   }
 
-  const baseline = scenarios.find((s) => s.scenarioId === 'NEW_FAZ6_MODEL_MEDIUM_8M_AVERAGE_BASE_OUTPUT');
-  const old = scenarios.find((s) => s.scenarioId === 'OLD_BASELINE_OLD_6M_AVERAGE_BASE_OUTPUT');
+  const baseline = scenarios.find((s) => s.scenarioId === 'NEW_FAZ78_MODEL_MEDIUM_8M_AVERAGE_BASE_OUTPUT');
+  const old = scenarios.find((s) => s.scenarioId === 'OLD_FAZ6_MODEL_OLD_8M_AVERAGE_BASE_OUTPUT');
   const json = {
     generatedAt: new Date().toISOString(),
     runsPerScenario: RUNS_PER_SCENARIO,
@@ -459,8 +466,8 @@ function accessLine(label, entry) {
 function buildReport(json, rows, baseline, old) {
   const baseSession = baseline.session30m;
   const baseProgression = baseline.progression;
-  const densityLines = DENSITIES.map((density) => `| ${density.id} | ${density.customersPerDay} | ${fmt(medianRow(rows, '30m Customers', (row) => row.Model === 'NEW_FAZ6_MODEL' && row.Scenario.includes(`${density.id}_`)))} | ${fmtTl(medianRow(rows, '30m Net Worth', (row) => row.Model === 'NEW_FAZ6_MODEL' && row.Scenario.includes(`${density.id}_`)))} |`).join('\n');
-  const dayLengthLines = DAY_LENGTHS.map((minutes) => `| ${minutes} dk | ${fmtTl(medianRow(rows, '30m Profit', (row) => row.Model === 'NEW_FAZ6_MODEL' && row['Game Day Length'] === minutes))} | ${fmtTl(medianRow(rows, '30m Net Worth', (row) => row.Model === 'NEW_FAZ6_MODEL' && row['Game Day Length'] === minutes))} |`).join('\n');
+  const densityLines = DENSITIES.map((density) => `| ${density.id} | ${density.customersPerDay} | ${fmt(medianRow(rows, '30m Customers', (row) => row.Model === 'NEW_FAZ78_MODEL' && row.Scenario.includes(`${density.id}_`)))} | ${fmtTl(medianRow(rows, '30m Net Worth', (row) => row.Model === 'NEW_FAZ78_MODEL' && row.Scenario.includes(`${density.id}_`)))} |`).join('\n');
+  const dayLengthLines = DAY_LENGTHS.map((minutes) => `| ${minutes} dk | ${fmtTl(medianRow(rows, '30m Profit', (row) => row.Model === 'NEW_FAZ78_MODEL' && row['Game Day Length'] === minutes))} | ${fmtTl(medianRow(rows, '30m Net Worth', (row) => row.Model === 'NEW_FAZ78_MODEL' && row['Game Day Length'] === minutes))} |`).join('\n');
   const splitRows = [30, 75, 100, 150].map((day) => {
     const cp = baseProgression.checkpoints[day];
     return `| ${day} | ${fmt(cp.activeIncomePct.p50 * 100)}% | ${fmt(cp.passiveIncomePct.p50 * 100)}% | ${fmt(cp.workshopIncomePct.p50 * 100)}% |`;
@@ -472,16 +479,18 @@ function buildReport(json, rows, baseline, old) {
     accessLine('18 Ayar ilk/set', baseProgression.access['18 Ayar.Yüzük']),
     accessLine('22 Ayar ilk/set', baseProgression.access['22 Ayar.Yüzük']),
     accessLine('Atölye Lv1', baseProgression.access['Workshop Lv1']),
+    accessLine('Atölye Lv3', baseProgression.access['Workshop Lv3']),
     accessLine('Atölye Lv5', baseProgression.access['Workshop Lv5']),
+    accessLine('Atölye Lv7', baseProgression.access['Workshop Lv7']),
     accessLine('Atölye Lv10', baseProgression.access['Workshop Lv10']),
   ].join('\n');
   const thresholdRows = CAPITAL_THRESHOLDS.map((threshold) => accessLine(fmtTl(threshold), baseProgression.thresholds[threshold])).join('\n');
   const mainRows = rows
-    .filter((row) => row.Model === 'NEW_FAZ6_MODEL' && row.Scenario.includes('BASE_OUTPUT'))
+    .filter((row) => row.Model === 'NEW_FAZ78_MODEL' && row.Scenario.includes('BASE_OUTPUT'))
     .map((row) => `| ${row.Scenario} | ${row['Customers/Day']} | ${row['Game Day Length']} | ${row['Player Type']} | ${fmt(row['30m Customers'])} | ${fmt(row['30m Trades'])} | ${fmtTl(row['30m Profit'])} | ${fmtTl(row['30m Net Worth'])} | ${fmtTl(row['Profit/Real Minute'])} | ${fmtTl(row['Day 30 Net Worth'])} | ${fmtTl(row['Day 100 Net Worth'])} | ${fmtTl(row['Day 150 Net Worth'])} |`)
     .join('\n');
 
-  return `# Economy Simulation Report — v0.2 Faz 6
+  return `# Economy Simulation Report — v0.2 Faz 7+8
 
 Analiz amaçlıdır; production economy değerleri bu rapora göre değiştirilmedi.
 
@@ -491,14 +500,14 @@ Analiz amaçlıdır; production economy değerleri bu rapora göre değiştirilm
 - NEW baseline: ${baseline.scenarioId}
 - OLD baseline: ${old.scenarioId}
 
-## OLD BASELINE vs NEW FAZ6 — 30m P50
+## OLD FAZ6 vs NEW FAZ7+8 — 30m P50
 
 | Model | Customers | Trades | Trade Profit | Passive Income | Workshop HAS | Net Worth |
 |---|---:|---:|---:|---:|---:|---:|
-| OLD | ${fmt(old.session30m.customers.p50)} | ${fmt(old.session30m.trades.p50)} | ${fmtTl(old.session30m.tradeProfit.p50)} | ${fmtTl(old.session30m.passiveIncome.p50)} | ${fmt(old.session30m.workshopProducedHas.p50, 2)}g | ${fmtTl(old.session30m.netWorth.p50)} |
-| NEW FAZ6 | ${fmt(baseSession.customers.p50)} | ${fmt(baseSession.trades.p50)} | ${fmtTl(baseSession.tradeProfit.p50)} | ${fmtTl(baseSession.passiveIncome.p50)} | ${fmt(baseSession.workshopProducedHas.p50, 2)}g | ${fmtTl(baseSession.netWorth.p50)} |
+| OLD FAZ6 | ${fmt(old.session30m.customers.p50)} | ${fmt(old.session30m.trades.p50)} | ${fmtTl(old.session30m.tradeProfit.p50)} | ${fmtTl(old.session30m.passiveIncome.p50)} | ${fmt(old.session30m.workshopProducedHas.p50, 2)}g | ${fmtTl(old.session30m.netWorth.p50)} |
+| NEW FAZ7+8 | ${fmt(baseSession.customers.p50)} | ${fmt(baseSession.trades.p50)} | ${fmtTl(baseSession.tradeProfit.p50)} | ${fmtTl(baseSession.passiveIncome.p50)} | ${fmt(baseSession.workshopProducedHas.p50, 2)}g | ${fmtTl(baseSession.netWorth.p50)} |
 
-## Ana tablo — NEW FAZ6 BASE_OUTPUT
+## Ana tablo — NEW FAZ7+8 BASE_OUTPUT
 
 | Scenario | Customers/Day | Game Day Length | Player Type | 30m Customers | 30m Trades | 30m Profit | 30m Net Worth | Profit/Real Minute | Day 30 Net Worth | Day 100 Net Worth | Day 150 Net Worth |
 |---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|

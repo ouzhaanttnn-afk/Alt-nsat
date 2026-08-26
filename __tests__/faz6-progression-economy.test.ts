@@ -148,7 +148,8 @@ test('store day settlement pays jewelry once and resets daily customer counters'
   expect(useGameStore.getState().capital.cashTl).toBe(afterDay.capital.cashTl);
 });
 
-test('workshop production remains HAS stock, not cash, after Faz 6 day settlement', () => {
+test('workshop production remains HAS stock, not cash, after day settlement', () => {
+  const levelOneOutput = WORKSHOP_CONFIG.levels[0].dailyHasOutput;
   useGameStore.setState({
     workshop: { unlocked: true, level: 1, totalHasProduced: 0, lastProductionDay: null },
     atolyeLevel: 1,
@@ -156,7 +157,7 @@ test('workshop production remains HAS stock, not cash, after Faz 6 day settlemen
   });
   advanceOneGameDay();
   const state = useGameStore.getState();
-  expect(state.workshop.totalHasProduced).toBe(0.6);
+  expect(state.workshop.totalHasProduced).toBe(levelOneOutput);
   expect(state.capital.cashTl).toBe(5_000_000);
-  expect(state.inventory.find((item) => item.name === 'Gram Altın (Has)')?.quantity).toBe(0.6);
+  expect(state.inventory.find((item) => item.name === 'Gram Altın (Has)')?.quantity).toBe(levelOneOutput);
 });
