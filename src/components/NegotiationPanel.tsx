@@ -95,6 +95,9 @@ export function NegotiationPanel({
   const skillLevels = useGameStore((s) => s.skillLevels);
   const brokerDeal = useGameStore((s) => s.brokerDeal);
   const resolveBrokerDeal = useGameStore((s) => s.resolveBrokerDeal);
+  const hasCompletedTutorial = useGameStore((s) => s.hasCompletedTutorial);
+  const firstSessionHintsDismissed = useGameStore((s) => s.firstSessionHintsDismissed);
+  const dismissFirstSessionHint = useGameStore((s) => s.dismissFirstSessionHint);
 
   const sikiPazarlikciLevel = skillLevels['siki-pazarlikci'] ?? 0;
   const oluluLevel = skillLevels['olucu'] ?? 0;
@@ -115,6 +118,7 @@ export function NegotiationPanel({
   useEffect(() => {
     setSpeed(0);
     return () => {
+      if (actionUnlockTimeoutRef.current) clearTimeout(actionUnlockTimeoutRef.current);
       const restoreSpeed = useGameStore.getState().preNegotiationSpeed ?? 1;
       setSpeed(restoreSpeed);
       useGameStore.setState({ preNegotiationSpeed: null });
@@ -164,6 +168,9 @@ export function NegotiationPanel({
   const [offerHistory, setOfferHistory] = useState<number[]>([]);
   const [reaction, setReaction] = useState<{ text: string; tone: NegotiationReactionTone } | null>(null);
   const terminalActionStartedRef = useRef(false);
+  const negotiationActionPendingRef = useRef(false);
+  const actionUnlockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [negotiationActionPending, setNegotiationActionPending] = useState(false);
 
   useEffect(() => {
     if (result !== null || pendingCounter !== null || minutesLeft > 0) return;
@@ -194,6 +201,17 @@ export function NegotiationPanel({
       setMeasuring(false);
       setTested(true);
     }, MEASURE_DURATION_MS);
+  };
+
+  const runNegotiationAction = (action: () => void) => {
+    if (negotiationActionPendingRef.current || terminalActionStartedRef.current) return;
+    negotiationActionPendingRef.current = true;
+    setNegotiationActionPending(true);
+    action();
+    actionUnlockTimeoutRef.current = setTimeout(() => {
+      negotiationActionPendingRef.current = false;
+      setNegotiationActionPending(false);
+    }, 180);
   };
 
   // Bölüm 8: düşük/cömert teklif karizmayı, Sıkı Pazarlıkçı/Ölücü'nün aşırı
@@ -417,7 +435,9 @@ export function NegotiationPanel({
     onClose();
   };
 
-  const canAct = isSale ? result === null && saleCounter === null : tested && !measuring && result === null && pendingCounter === null;
+  const canAct = isSale
+    ? result === null && saleCounter === null && !negotiationActionPending
+    : tested && !measuring && result === null && pendingCounter === null && !negotiationActionPending;
   const fullPriceShortfall = Math.max(0, product.marketValueTl - cashTl);
 
   // Alım/bozdurma modunda: mevcut teklifin has gram başına karşılığı —
@@ -439,6 +459,15 @@ export function NegotiationPanel({
     equivalentGrams(product.grams, product.karat) *
     (product.quantity ?? 1) *
     (goldPrice.buyPricePerGram + wholesalerSellMarginTlPerGram);
+  const firstSessionHint = !hasCompletedTutorial && !isSale
+    ? !tested && !firstSessionHintsDismissed.testProduct
+      ? { id: 'testProduct', text: 'Önce ürünü test et.' }
+      : tested && !reaction && !firstSessionHintsDismissed.setOffer
+        ? { id: 'setOffer', text: 'Şimdi teklifini belirle.' }
+        : reaction && !firstSessionHintsDismissed.afterOffer
+          ? { id: 'afterOffer', text: 'Müşterinin tepkisine göre teklifini değiştirebilirsin.' }
+          : null
+    : null;
 
   // [YENİ] v3 — Toplu Alım: birden fazla FARKLI ürünle gelen müşteri, kalem
   // kalem (ayrı state ağacı, ayrı tart/teklif/karşı-teklif) işlenir — tüm
@@ -485,6 +514,15 @@ export function NegotiationPanel({
       )}
 
       {!isSale && <ScalePanel reading={reading} tested={tested} measuring={measuring} onTest={handleTest} />}
+
+      {firstSessionHint && (
+        <View style={styles.firstSessionHint}>
+          <Text style={styles.firstSessionHintText}>{firstSessionHint.text}</Text>
+          <Pressable onPress={() => dismissFirstSessionHint(firstSessionHint.id)} hitSlop={8}>
+            <Text style={styles.firstSessionHintDismiss}>Kapat</Text>
+          </Pressable>
+        </View>
+      )}
 
       {!pendingCounter && !saleCounter && (
         <Pressable style={styles.dismissCustomerButton} onPress={dismissActiveCustomer} hitSlop={8}>
@@ -579,13 +617,13 @@ export function NegotiationPanel({
           {isSale ? (
             <SaleActions
               disabled={!canAct}
-              onOfferPrice={() => sendSaleAsk(offer, roundsUsed)}
+              onOfferPrice={() => runNegotiationAction(() => sendSaleAsk(offer, roundsUsed))}
               onReject={rejectSale}
             />
           ) : (
             <NegotiationActions
               disabled={!canAct}
-              onSendOffer={() => sendBuyOffer(offer, roundsUsed)}
+              onSendOffer={() => runNegotiationAction(() => sendBuyOffer(offer, roundsUsed))}
               onPayFull={() => completeDeal(product.marketValueTl, product.marketValueTl * customer.acceptanceThreshold, 0)}
               onReject={rejectBuy}
               payFullHint={
@@ -915,6 +953,29 @@ const styles = StyleSheet.create({
     color: colors.inkMutedOnDark,
     textAlign: 'center',
     paddingVertical: 6,
+  },
+  firstSessionHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: glass.borderSoft,
+    backgroundColor: 'rgba(129, 46, 208, 0.16)',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  firstSessionHintText: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.inkOnDark,
+  },
+  firstSessionHintDismiss: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10,
+    color: colors.brass,
   },
   dismissCustomerButton: {
     alignSelf: 'flex-end',

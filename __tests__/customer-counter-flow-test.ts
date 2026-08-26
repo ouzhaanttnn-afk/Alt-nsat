@@ -34,6 +34,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  jest.restoreAllMocks();
   useGameStore.setState(initialState, true);
 });
 
@@ -110,6 +111,49 @@ describe('customer counter lifecycle', () => {
     expect(state.inventory).toEqual([]);
     expect(state.offers).toEqual([]);
     expect(state.totalXp).toBe(0);
+  });
+
+  it('keeps the active customer stable while new arrivals are queued', () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.1);
+    const active = makeCustomer({ id: 'active-customer' });
+    useGameStore.setState({
+      incomingCustomer: active,
+      waitingCustomers: [],
+      dailyCustomerTarget: 20,
+      dailyCustomersGenerated: 0,
+      day: 1,
+      minuteOfDay: 10,
+      speed: 4,
+    });
+
+    useGameStore.getState().tick(60);
+
+    const state = useGameStore.getState();
+    expect(state.incomingCustomer?.id).toBe(active.id);
+    expect(state.waitingCustomers.some((customer) => customer.id === active.id)).toBe(false);
+  });
+
+  it('keeps Customer Rush on the queue path without replacing the active customer', () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.1);
+    const active = makeCustomer({ id: 'active-rush-customer' });
+    useGameStore.setState({
+      incomingCustomer: active,
+      waitingCustomers: [],
+      dailyCustomerTarget: 4,
+      dailyCustomersGenerated: 0,
+      customerRushUsedDay: null,
+      day: 1,
+      minuteOfDay: 10,
+      speed: 4,
+    });
+
+    useGameStore.getState().watchAdForCustomerHype();
+    useGameStore.getState().tick(60);
+
+    const state = useGameStore.getState();
+    expect(state.customerRushUsedDay).toBe(1);
+    expect(state.incomingCustomer?.id).toBe(active.id);
+    expect(state.waitingCustomers.some((customer) => customer.id === active.id)).toBe(false);
   });
 
   it('settles a bozdurma and a sale without clearing the active customer before the result closes', () => {

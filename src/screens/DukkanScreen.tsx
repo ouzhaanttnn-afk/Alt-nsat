@@ -90,7 +90,9 @@ export function DukkanScreen() {
   const workshop = useGameStore((s) => s.workshop);
   const jewelryHoldings = useGameStore((s) => s.jewelryHoldings);
   const hasCompletedTutorial = useGameStore((s) => s.hasCompletedTutorial);
+  const firstSessionHintsDismissed = useGameStore((s) => s.firstSessionHintsDismissed);
   const completeTutorial = useGameStore((s) => s.completeTutorial);
+  const dismissFirstSessionHint = useGameStore((s) => s.dismissFirstSessionHint);
   const takeEmergencyMicroLoan = useGameStore((s) => s.takeEmergencyMicroLoan);
 
   const currentTotalMinutes = day * MINUTES_PER_DAY + minuteOfDay;
@@ -151,6 +153,17 @@ export function DukkanScreen() {
     [offers],
   );
   const activeJewelryCount = Object.values(jewelryHoldings).filter((position) => !position.principalRefunded).length;
+  const firstSessionHint = useMemo(() => {
+    if (hasCompletedTutorial) return null;
+    if (incomingCustomer) return null;
+    if (waitingCustomers.length > 0 && !firstSessionHintsDismissed.firstCustomer) {
+      return { id: 'firstCustomer', text: 'Müşteriyi ağırlayarak ürünü incele.' };
+    }
+    if (speed === 1 && waitingCustomers.length === 0 && !firstSessionHintsDismissed.noCustomer) {
+      return { id: 'noCustomer', text: 'Yeni müşteri bekleniyor. Zamanı hızlandırabilirsin.' };
+    }
+    return null;
+  }, [firstSessionHintsDismissed, hasCompletedTutorial, incomingCustomer, speed, waitingCustomers.length]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -348,14 +361,19 @@ export function DukkanScreen() {
             <Text style={styles.bottomCardMeta}>{activeJewelryCount} aktif parça</Text>
           </Pressable>
         </View>
-        {!hasCompletedTutorial && (
+        {firstSessionHint && (
           <View style={styles.tutorialCard}>
             <Text style={styles.tutorialText}>
-              Kuyruktaki müşteriyi "Müşteriyi Karşıla"ya basarak çağır, sonra Hassas Terazi ile
-              tart ve bir fiyat teklif et. Kabul/karşı teklif/red — pazarlık burada gerçekleşir.
+              {firstSessionHint.text}
             </Text>
-            <Pressable onPress={completeTutorial} hitSlop={8}>
-              <Text style={styles.tutorialDismiss}>Anladım</Text>
+            <Pressable
+              onPress={() => {
+                dismissFirstSessionHint(firstSessionHint.id);
+                if (firstSessionHint.id === 'firstCustomer') completeTutorial();
+              }}
+              hitSlop={8}
+            >
+              <Text style={styles.tutorialDismiss}>Kapat</Text>
             </Pressable>
           </View>
         )}

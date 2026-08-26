@@ -609,7 +609,9 @@ interface GameState {
 
   /** [YENİ] v3 — Onboarding: ilk oyun deneyimi için minimal eğitim altyapısı. */
   hasCompletedTutorial: boolean;
+  firstSessionHintsDismissed: Record<string, boolean>;
   completeTutorial: () => void;
+  dismissFirstSessionHint: (hintId: string) => void;
 
   /**
    * [YENİ] v3 — Soft-Lock Koruması: kasa neredeyse boşken (EMERGENCY_MICRO_
@@ -1128,6 +1130,13 @@ export const useGameStore = create<GameState>()(
     }
     // Üretilen müşteri (varsa) tezgahı değil, kuyruğun sonunu doldurur.
     if (newCustomer) {
+      const usedCustomerIds = new Set([
+        incomingCustomer?.id,
+        ...waitingCustomers.map((customer) => customer.id),
+      ].filter(Boolean));
+      while (usedCustomerIds.has(newCustomer.id)) {
+        newCustomer = { ...newCustomer, id: String(nextIncomingCustomerId++) };
+      }
       waitingCustomers = [...waitingCustomers, newCustomer];
       dailyCustomersGenerated += 1;
     }
@@ -1778,7 +1787,15 @@ export const useGameStore = create<GameState>()(
   },
 
   hasCompletedTutorial: false,
+  firstSessionHintsDismissed: {},
   completeTutorial: () => set({ hasCompletedTutorial: true }),
+  dismissFirstSessionHint: (hintId) =>
+    set((state) => ({
+      firstSessionHintsDismissed: {
+        ...state.firstSessionHintsDismissed,
+        [hintId]: true,
+      },
+    })),
 
   takeEmergencyMicroLoan: () => {
     const state = get();
@@ -1820,6 +1837,7 @@ export const useGameStore = create<GameState>()(
           dailyCustomersGenerated: persisted.dailyCustomersGenerated ?? 0,
           customerRushUsedDay: persisted.customerRushUsedDay ?? null,
           customerRushFeedback: persisted.customerRushFeedback ?? null,
+          firstSessionHintsDismissed: persisted.firstSessionHintsDismissed ?? {},
         };
       },
       // Skill tanımları/oyun kodu değişse bile eski kayıtlar yüklenebilsin diye
@@ -1864,6 +1882,7 @@ export const useGameStore = create<GameState>()(
         skillPoints: state.skillPoints,
         skillLevels: state.skillLevels,
         hasCompletedTutorial: state.hasCompletedTutorial,
+        firstSessionHintsDismissed: state.firstSessionHintsDismissed,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
