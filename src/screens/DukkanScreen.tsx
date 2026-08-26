@@ -82,7 +82,7 @@ export function DukkanScreen() {
   const fourXUnlimited = useGameStore((s) => s.fourXUnlimited);
   const unlockFourXViaAd = useGameStore((s) => s.unlockFourXViaAd);
   const purchaseFourXUnlimited = useGameStore((s) => s.purchaseFourXUnlimited);
-  const customerHypeUntilMs = useGameStore((s) => s.customerHypeUntilMs);
+  const customerRushUsedDay = useGameStore((s) => s.customerRushUsedDay);
   const watchAdForCustomerHype = useGameStore((s) => s.watchAdForCustomerHype);
   const incomingCustomer = useGameStore((s) => s.incomingCustomer);
   const waitingCustomers = useGameStore((s) => s.waitingCustomers);
@@ -114,8 +114,7 @@ export function DukkanScreen() {
   const fourXMinutesLeft =
     !fourXUnlimited && fourXUnlockedUntilMs !== null ? Math.max(0, (fourXUnlockedUntilMs - nowMs) / 60000) : 0;
 
-  const customerHypeActive = customerHypeUntilMs !== null && customerHypeUntilMs > nowMs;
-  const customerHypeMinutesLeft = customerHypeActive ? Math.max(0, (customerHypeUntilMs! - nowMs) / 60000) : 0;
+  const customerHypeActive = customerRushUsedDay === day;
 
   const [showFourXOffer, setShowFourXOffer] = useState(false);
   const handleSpeedChange = (nextSpeed: ClockSpeed) => {
@@ -388,7 +387,6 @@ export function DukkanScreen() {
 
         <CustomerHypeCard
           active={customerHypeActive}
-          minutesLeft={customerHypeMinutesLeft}
           onWatchAd={watchAdForCustomerHype}
         />
 

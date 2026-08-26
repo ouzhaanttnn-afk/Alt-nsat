@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { JewelryPieceSpec, JewelryTierSpec } from '../data/jewelryInvestments';
+import type { JewelryInvestmentPosition } from '../engine/jewelry';
 import { colors, fonts, fontSizes, radius } from '../theme';
 import { formatTl } from '../utils/format';
 import { Badge } from './Badge';
@@ -11,22 +12,24 @@ import { Card } from './Card';
 export function JewelryTierCard({
   tier,
   pieces,
-  ownedPieces,
-  piecePriceTl,
-  pieceDailyReturnTl,
+  positions,
+  piecePricesTl,
+  pieceDailyReturnsTl,
   hasSetBonus,
-  canAfford,
+  cashTl,
+  currentDay,
   locked,
   requiredLevel,
   onBuyPiece,
 }: {
   tier: JewelryTierSpec;
   pieces: JewelryPieceSpec[];
-  ownedPieces: Record<string, boolean>;
-  piecePriceTl: number;
-  pieceDailyReturnTl: number;
+  positions: Record<string, JewelryInvestmentPosition | null>;
+  piecePricesTl: Record<string, number>;
+  pieceDailyReturnsTl: Record<string, number>;
   hasSetBonus: boolean;
-  canAfford: boolean;
+  cashTl: number;
+  currentDay: number;
   locked?: boolean;
   requiredLevel?: number;
   onBuyPiece: (pieceId: string) => void;
@@ -41,12 +44,17 @@ export function JewelryTierCard({
         <Text style={styles.meta}>Kilitli — Seviye {requiredLevel} gerekiyor</Text>
       ) : (
         <Text style={styles.meta}>
-          Parça {formatTl(piecePriceTl)} · Günlük {formatTl(pieceDailyReturnTl)}/parça
+          30 gün vade · Set tamamlanırsa günlük gelire +%10
         </Text>
       )}
       <View style={styles.piecesRow}>
         {pieces.map((piece) => {
-          const owned = !!ownedPieces[piece.id];
+          const position = positions[piece.id];
+          const owned = !!position && !position.principalRefunded;
+          const priceTl = piecePricesTl[piece.id] ?? 0;
+          const dailyReturnTl = pieceDailyReturnsTl[piece.id] ?? 0;
+          const canAfford = priceTl <= cashTl;
+          const daysLeft = position ? Math.max(0, position.maturityDay - currentDay) : 0;
           return (
             <Pressable
               key={piece.id}
@@ -60,7 +68,10 @@ export function JewelryTierCard({
             >
               <Text style={[styles.pieceLabel, owned && styles.pieceLabelOwned]}>{piece.label}</Text>
               <Text style={[styles.pieceStatus, owned && styles.pieceLabelOwned]}>
-                {owned ? 'Sahip' : locked ? '—' : 'Satın Al'}
+                {owned ? `${daysLeft} gün · ${formatTl(position!.dailyIncomeTl)}/gün` : locked ? '—' : formatTl(priceTl)}
+              </Text>
+              <Text style={[styles.pieceStatus, owned && styles.pieceLabelOwned]}>
+                {owned ? `Ana para ${formatTl(position!.principalTl)}` : locked ? 'Kilitli' : `${formatTl(dailyReturnTl)}/gün`}
               </Text>
             </Pressable>
           );

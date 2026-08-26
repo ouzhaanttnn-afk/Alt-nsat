@@ -26,11 +26,17 @@ export const STARTING_REFERENCE_PRICE = 6845; // TL, gram altın referans (orta)
 // Bölüm 2: Sermaye Kademeleri — her yeni kademe bir Yetenek Ağacı puanı kazandırır.
 export const CAPITAL_TIERS = [100000, 500000, 2000000, 10000000, 50000000, 250000000];
 
-// ---- Piyasa / Dinamik Fiyat + Makas (Bölüm 4.4) -------------------------
-// Referans (orta) fiyat her 30 oyun-dakikasında bir kez küçük bir rastgele
-// hareket eder. Aynı anda birden fazla 30-dakikalık eşik geçilirse
-// (yüksek hız / uzun tick), o kadar bağımsız adım art arda uygulanır.
-export const MARKET_STEP_MINUTES = 30;
+// ---- Piyasa / Günlük Fiyat Kapanışı (v0.2 Faz 6) -------------------------
+// Normal piyasa günlerinde günlük getiri kesin olarak ±%3.5 ile sınırlıdır.
+// Çoğu gün küçük hareket üretmesi için trend + volatilite + küçük noise modeli
+// kullanılır; sonuç clamp edilir. Simülasyon sonrası tune edilecek.
+export const MARKET_DAILY_RETURN_CLAMP = 0.035;
+export const MARKET_DAILY_TREND_COMPONENT_MAX = 0.004;
+export const MARKET_DAILY_VOLATILITY_COMPONENT_MAX = 0.018;
+export const MARKET_DAILY_NOISE_COMPONENT_MAX = 0.013;
+// Eski yarım-saatlik piyasa adım API'sini kırmamak için sabit tutulur; store
+// artık fiyatı gün kapanışında ilerletir.
+export const MARKET_STEP_MINUTES = MINUTES_PER_DAY;
 export const MARKET_STEP_MIN_PERCENT = 0.3;
 export const MARKET_STEP_MAX_PERCENT = 1.2;
 // Uygulama kapatılıp yeniden açıldığında (rehydration) referans fiyata
@@ -42,6 +48,8 @@ export const RESTART_FLUCTUATION_MAX_PERCENT = 5;
 // piyasada ~150 TL, oynak piyasada ~400 TL'ye kadar açılabilir.
 export const MARKET_SPREAD_MIN_TL_PER_GRAM = 150;
 export const MARKET_SPREAD_MAX_TL_PER_GRAM = 400;
+export const STARTING_USD_TRY = 33.5;
+export const STARTING_EUR_TRY = 36.2;
 
 // ---- Toptancı (Bölüm 5) --------------------------------------------------
 // Toptancı, genel piyasa SATIŞ fiyatının şu kadar TL/gram ALTINDAN
@@ -69,6 +77,22 @@ export const MAX_WAITING_QUEUE_LENGTH = 5;
 export const INCOMING_CUSTOMER_CHECKS_PER_DAY = 20;
 export const INCOMING_CUSTOMER_TRIGGER_PROBABILITY = 1;
 export const INCOMING_CUSTOMER_EXPIRY_MINUTES = 90;
+export const DAILY_CUSTOMER_TARGET_CURVE = [
+  { fromDay: 1, toDay: 10, average: 20, min: 16, max: 24 },
+  { fromDay: 11, toDay: 30, average: 23, min: 18, max: 28 },
+  { fromDay: 31, toDay: 60, average: 27, min: 22, max: 32 },
+  { fromDay: 61, toDay: 100, average: 31, min: 25, max: 37 },
+  { fromDay: 101, toDay: 150, average: 36, min: 29, max: 43 },
+  { fromDay: 151, toDay: Number.POSITIVE_INFINITY, average: 40, min: 32, max: 48 },
+];
+export const KARIZMA_TRAFFIC_BONUS_POINTS = [
+  { score: 0, bonus: 0 },
+  { score: 25, bonus: 0.05 },
+  { score: 50, bonus: 0.1 },
+  { score: 75, bonus: 0.17 },
+  { score: 100, bonus: 0.25 },
+];
+export const CUSTOMER_RUSH_REMAINING_BONUS_RATIO = 0.4;
 // Bölüm 7: Soğukkanlı ve Güler Yüz müşteri sabrını (oyun-dakikası
 // cinsinden) uzatır — Pazarlık ekranındaki gerçek-zamanlı sayaçtan (bkz.
 // NegotiationPanel'in kendi sabitleri) bağımsız, oyun saatine bağlı ayrı bir etki.
@@ -183,12 +207,11 @@ export const CRAFTED_MELT_PURITY_BY_KARAT: Record<number, number> = {
 // Bağlantısı'ndaki 10 OYUN-dakikalık pencereyle karıştırılmamalı.
 export const FOUR_X_AD_UNLOCK_MINUTES = 15;
 
-// ---- Müşteri Hype (reklam bazlı monetizasyon) ------------------------------
-// 4x hız kilidiyle aynı yer tutucu mantık: reklam izleyince GERÇEK DÜNYA
-// süresiyle ölçülen bir pencere için gelen müşteri tetiklenme olasılığı
-// katlanır. Üst üste izlemek pencereyi uzatır (bkz. watchAdForCustomerHype).
+// ---- Müşteri Akını (reklam bazlı monetizasyon) -----------------------------
+// Günde en fazla bir kez, o günün kalan organik müşteri potansiyeline doğal
+// bir hareketlilik bonusu verir. UI teknik multiplier göstermemelidir.
 export const CUSTOMER_HYPE_AD_DURATION_MINUTES = 15;
-export const CUSTOMER_HYPE_ARRIVAL_MULTIPLIER = 1.33;
+export const CUSTOMER_HYPE_ARRIVAL_MULTIPLIER = 1.4;
 
 // ---- Atölye (v0.2 ara aşama — gerçek tasarım) -----------------------------
 // Atölye işçilikli ürün işleyen bir sistem DEĞİLDİR. Tek bağımsız pasif
@@ -203,18 +226,18 @@ export const WORKSHOP_CONFIG = {
   simulationTuningRequired: true,
   requiredLevel: 7,
   maxLevel: 10,
-  unlockCostEquivalentHasGrams: 200,
+  unlockCostEquivalentHasGrams: 50,
   levels: [
-    { level: 1, upgradeCostEquivalentHasGrams: 200, dailyHasOutput: 0.25 },
-    { level: 2, upgradeCostEquivalentHasGrams: 260, dailyHasOutput: 0.4 },
-    { level: 3, upgradeCostEquivalentHasGrams: 340, dailyHasOutput: 0.6 },
-    { level: 4, upgradeCostEquivalentHasGrams: 450, dailyHasOutput: 0.85 },
-    { level: 5, upgradeCostEquivalentHasGrams: 600, dailyHasOutput: 1.15 },
-    { level: 6, upgradeCostEquivalentHasGrams: 800, dailyHasOutput: 1.55 },
-    { level: 7, upgradeCostEquivalentHasGrams: 1050, dailyHasOutput: 2.05 },
-    { level: 8, upgradeCostEquivalentHasGrams: 1380, dailyHasOutput: 2.65 },
-    { level: 9, upgradeCostEquivalentHasGrams: 1800, dailyHasOutput: 3.35 },
-    { level: 10, upgradeCostEquivalentHasGrams: 2350, dailyHasOutput: 4.2 },
+    { level: 1, upgradeCostEquivalentHasGrams: 50, dailyHasOutput: 0.6 },
+    { level: 2, upgradeCostEquivalentHasGrams: 80, dailyHasOutput: 1.2 },
+    { level: 3, upgradeCostEquivalentHasGrams: 120, dailyHasOutput: 2.1 },
+    { level: 4, upgradeCostEquivalentHasGrams: 180, dailyHasOutput: 3.3 },
+    { level: 5, upgradeCostEquivalentHasGrams: 270, dailyHasOutput: 4.9 },
+    { level: 6, upgradeCostEquivalentHasGrams: 400, dailyHasOutput: 7 },
+    { level: 7, upgradeCostEquivalentHasGrams: 600, dailyHasOutput: 9.8 },
+    { level: 8, upgradeCostEquivalentHasGrams: 900, dailyHasOutput: 13.4 },
+    { level: 9, upgradeCostEquivalentHasGrams: 1350, dailyHasOutput: 18 },
+    { level: 10, upgradeCostEquivalentHasGrams: 2000, dailyHasOutput: 24 },
   ],
 } as const;
 
@@ -223,20 +246,65 @@ export const WORKSHOP_CONFIG = {
 export const ATOLYE_REQUIRED_LEVEL = WORKSHOP_CONFIG.requiredLevel;
 export const ATOLYE_MAX_LEVEL = WORKSHOP_CONFIG.maxLevel;
 
-// ---- Takı Yatırımı — Parça & Set (Bölüm 18-20, v3 modeli) -----------------
-// [YENİ] Eski "30 gün kilitli anapara paketi" modeli KALDIRILDI — kullanıcı
-// isteğiyle Oyun B'nin parça-bazlı modeli benimsendi: anapara kilidi/vade
-// yok, oyuncu her ayar kademesindeki 4 parçayı (Kolye/Yüzük/Küpe/Bileklik)
-// TEK TEK satın alır, kalıcı günlük TL getiri sağlar. Sadece Seviye 7+
-// (JEWELRY_REQUIRED_LEVEL) — Atölye ile aynı erken-oyun koruması.
+// ---- Takı Yatırımı — 30 Günlük Sermaye Bağlama (v0.2 Faz 6) ---------------
 export const JEWELRY_REQUIRED_LEVEL = 7;
-// Bir parçanın taban ağırlığı (gram) — fiyat = buyPricePerGram × kademe
-// çarpanı × bu ağırlık (bkz. engine/jewelry.ts computeJewelryPiecePriceTl).
-export const JEWELRY_PIECE_BASE_WEIGHT_GRAMS = 20;
-// Her parça, fiyatının bu oranı kadar günlük pasif TL getirisi sağlar.
-export const JEWELRY_DAILY_RETURN_RATE_OF_PRICE = 0.012;
-// Bir kademedeki 4 parçanın TÜMÜ tamamlanınca o kademenin getirisine eklenir.
+export const PASSIVE_INVESTMENT_TERM_DAYS = 30;
 export const JEWELRY_SET_BONUS_PCT = 0.1;
+export const PASSIVE_INVESTMENT_CONFIG = {
+  simulationTuningRequired: true,
+  termDays: PASSIVE_INVESTMENT_TERM_DAYS,
+  setBonusPct: JEWELRY_SET_BONUS_PCT,
+  tiers: [
+    {
+      id: 'ayar8',
+      label: '8 Ayar',
+      karat: 8,
+      roi30Days: 0.24,
+      pieces: [
+        { id: 'yuzuk', label: 'Yüzük', principalTl: 120000 },
+        { id: 'kupe', label: 'Küpe', principalTl: 150000 },
+        { id: 'kolye', label: 'Kolye', principalTl: 180000 },
+        { id: 'bileklik', label: 'Bileklik', principalTl: 220000 },
+      ],
+    },
+    {
+      id: 'ayar14',
+      label: '14 Ayar',
+      karat: 14,
+      roi30Days: 0.27,
+      pieces: [
+        { id: 'yuzuk', label: 'Yüzük', principalTl: 300000 },
+        { id: 'kupe', label: 'Küpe', principalTl: 380000 },
+        { id: 'kolye', label: 'Kolye', principalTl: 470000 },
+        { id: 'bileklik', label: 'Bileklik', principalTl: 580000 },
+      ],
+    },
+    {
+      id: 'ayar18',
+      label: '18 Ayar',
+      karat: 18,
+      roi30Days: 0.3,
+      pieces: [
+        { id: 'yuzuk', label: 'Yüzük', principalTl: 700000 },
+        { id: 'kupe', label: 'Küpe', principalTl: 850000 },
+        { id: 'kolye', label: 'Kolye', principalTl: 1050000 },
+        { id: 'bileklik', label: 'Bileklik', principalTl: 1250000 },
+      ],
+    },
+    {
+      id: 'ayar22',
+      label: '22 Ayar',
+      karat: 22,
+      roi30Days: 0.34,
+      pieces: [
+        { id: 'yuzuk', label: 'Yüzük', principalTl: 2000000 },
+        { id: 'kupe', label: 'Küpe', principalTl: 2400000 },
+        { id: 'kolye', label: 'Kolye', principalTl: 2900000 },
+        { id: 'bileklik', label: 'Bileklik', principalTl: 3500000 },
+      ],
+    },
+  ],
+} as const;
 
 // ---- Pazarlık: Karşı Teklif (v2 iterasyonu — gerçek pazarlık hissi) ------
 // Kaydırma çubuğuyla gönderilen bir teklif artık anında sonuçlanır (30 dk'lık

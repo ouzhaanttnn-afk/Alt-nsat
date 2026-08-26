@@ -12,6 +12,7 @@ export interface GoldPriceState {
   buyPricePerGram: number; // TL / gram (alış)
   sellPricePerGram: number; // TL / gram (satış)
   dailyChangePercent: number; // bugünkü değişim yüzdesi
+  marketAssets?: import('../engine/market').MarketAssetState;
 }
 
 export interface ReputationState {

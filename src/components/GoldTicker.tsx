@@ -8,25 +8,37 @@ import { formatPercent, formatTl } from '../utils/format';
 // Bölüm 5: bugünkü değişim küçük ama görünür — "şimdi mi satsam, biraz
 // daha bekleseydim mi" kararını besleyen basit bir piyasa hareketi sinyali.
 export function GoldTicker({ goldPrice }: { goldPrice: GoldPriceState }) {
-  const trendPositive = goldPrice.dailyChangePercent >= 0;
+  const assets = goldPrice.marketAssets
+    ? [
+        goldPrice.marketAssets.gramAltin,
+        goldPrice.marketAssets.ceyrekAltin,
+        goldPrice.marketAssets.bilezik22,
+        goldPrice.marketAssets.usdTry,
+        goldPrice.marketAssets.eurTry,
+      ]
+    : [
+        {
+          id: 'gramAltin' as const,
+          label: 'GRAM ALTIN',
+          priceTl: goldPrice.buyPricePerGram,
+          dailyChangePercent: goldPrice.dailyChangePercent,
+        },
+      ];
   return (
     <View style={styles.panel}>
-      <View style={styles.captionRow}>
-        <Text style={styles.caption}>GRAM ALTIN</Text>
-        <Text style={[styles.trend, { color: trendPositive ? colors.positive : colors.negative }]}>
-          {formatPercent(goldPrice.dailyChangePercent)} bugün
-        </Text>
-      </View>
-      <View style={styles.row}>
-        <View style={styles.cell}>
-          <Text style={styles.cellLabel}>ALIŞ</Text>
-          <Text style={styles.cellValue}>{formatTl(goldPrice.buyPricePerGram)}</Text>
-        </View>
-        <View style={styles.separator} />
-        <View style={styles.cell}>
-          <Text style={styles.cellLabel}>SATIŞ</Text>
-          <Text style={styles.cellValue}>{formatTl(goldPrice.sellPricePerGram)}</Text>
-        </View>
+      <View style={styles.assetRow}>
+        {assets.map((asset) => {
+          const trendPositive = asset.dailyChangePercent >= 0;
+          return (
+            <View key={asset.id} style={styles.assetCell}>
+              <Text style={styles.caption} numberOfLines={1}>{asset.label}</Text>
+              <Text style={styles.cellValue} numberOfLines={1}>{formatTl(asset.priceTl)}</Text>
+              <Text style={[styles.trend, { color: trendPositive ? colors.positive : colors.negative }]} numberOfLines={1}>
+                {trendPositive ? '▲' : '▼'} {formatPercent(asset.dailyChangePercent)}
+              </Text>
+            </View>
+          );
+        })}
       </View>
     </View>
   );
@@ -60,6 +72,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  assetRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  assetCell: {
+    flex: 1,
+    minWidth: 0,
+  },
   cell: {
     flex: 1,
   },
@@ -71,7 +91,7 @@ const styles = StyleSheet.create({
   },
   cellValue: {
     fontFamily: fonts.monoBold,
-    fontSize: fontSizes.lg,
+    fontSize: fontSizes.xs,
     color: colors.lcdText,
   },
   separator: {

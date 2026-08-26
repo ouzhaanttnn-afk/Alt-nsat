@@ -26,7 +26,7 @@ import { XpToast } from '../components/XpToast';
 import { BRAND_STAGES } from '../data/brandStages';
 import { JEWELRY_PIECES, JEWELRY_TIERS } from '../data/jewelryInvestments';
 import { pirlantaCatalog } from '../data/mockPirlanta';
-import { computeJewelryPieceDailyReturnTl, computeJewelryPiecePriceTl, isJewelrySetComplete } from '../engine/jewelry';
+import { computeJewelryPieceDailyReturnTl, computeJewelryPiecePriceTl, holdingKey, isJewelrySetComplete } from '../engine/jewelry';
 import { toptanciStock } from '../data/toptanciStock';
 import { currentPositionValueTl, equivalentGrams, useGameStore, workshopDailyHasOutput, workshopUpgradeCostTl } from '../store/useGameStore';
 import { colors, fonts, fontSizes } from '../theme';
@@ -350,24 +350,27 @@ export function KasamScreen() {
         >
         <SectionLabel>TAKI YATIRIMI</SectionLabel>
         <Text style={styles.emptyHint}>
-          Anapara kilidi/vade yok — her ayar kademesindeki 4 parçayı (Kolye/Yüzük/Küpe/Bileklik)
-          tek tek satın al, kalıcı günlük TL getiri kazan. Bir kademedeki 4 parçanın tamamı
-          tamamlanınca o kademenin getirisine +%10 Set Bonusu eklenir.
+          30 oyun günü sermaye bağla, günlük TL getirisi al. Vade sonunda ana para tam olarak geri döner.
+          Aynı ayardaki 4 parça birlikte aktifse yalnızca o setin günlük getirisine +%10 eklenir.
         </Text>
         {JEWELRY_TIERS.map((tier) => {
-          const piecePriceTl = computeJewelryPiecePriceTl(tier.id, goldPrice.buyPricePerGram);
           return (
             <JewelryTierCard
               key={tier.id}
               tier={tier}
               pieces={JEWELRY_PIECES}
-              ownedPieces={Object.fromEntries(
-                JEWELRY_PIECES.map((p) => [p.id, !!jewelryHoldings[`${tier.id}.${p.id}`]]),
+              positions={Object.fromEntries(
+                JEWELRY_PIECES.map((p) => [p.id, jewelryHoldings[holdingKey(tier.id, p.id)] ?? null]),
               )}
-              piecePriceTl={piecePriceTl}
-              pieceDailyReturnTl={computeJewelryPieceDailyReturnTl(tier.id, goldPrice.buyPricePerGram)}
+              piecePricesTl={Object.fromEntries(
+                JEWELRY_PIECES.map((p) => [p.id, computeJewelryPiecePriceTl(tier.id, goldPrice.buyPricePerGram, p.id)]),
+              )}
+              pieceDailyReturnsTl={Object.fromEntries(
+                JEWELRY_PIECES.map((p) => [p.id, computeJewelryPieceDailyReturnTl(tier.id, goldPrice.buyPricePerGram, p.id)]),
+              )}
               hasSetBonus={isJewelrySetComplete(jewelryHoldings, tier.id)}
-              canAfford={piecePriceTl <= cashTl}
+              cashTl={cashTl}
+              currentDay={day}
               locked={jewelryLocked}
               requiredLevel={JEWELRY_REQUIRED_LEVEL}
               onBuyPiece={(pieceId) => buyJewelryPiece(tier.id, pieceId as (typeof JEWELRY_PIECES)[number]['id'])}

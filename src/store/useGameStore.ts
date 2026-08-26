@@ -15,15 +15,14 @@ import {
   CRAFTED_GOOD_CUSTOMER_PROBABILITY,
   CRAFTED_GOOD_KARAT_MISMATCH,
   CRAFTED_GOOD_MIN_COUNTERFEIT_RISK,
+  CUSTOMER_RUSH_REMAINING_BONUS_RATIO,
+  DAILY_CUSTOMER_TARGET_CURVE,
   MAX_WAITING_QUEUE_LENGTH,
   MULTI_ITEM_CUSTOMER_PROBABILITY,
-  CUSTOMER_HYPE_AD_DURATION_MINUTES,
-  CUSTOMER_HYPE_ARRIVAL_MULTIPLIER,
   FOUR_X_AD_UNLOCK_MINUTES,
   GAME_MINUTES_PER_REAL_SECOND_AT_1X,
   GULER_YUZ_PATIENCE_MINUTES_PER_LEVEL,
-  INCOMING_CUSTOMER_CHECKS_PER_DAY,
-  INCOMING_CUSTOMER_TRIGGER_PROBABILITY,
+  KARIZMA_TRAFFIC_BONUS_POINTS,
   LATE_PAYMENT_TRUST_PENALTY,
   LEVEL_MAX,
   LEVEL_MILESTONES,
@@ -32,8 +31,6 @@ import {
   LOAN_TERM_DAYS,
   MARKET_SPREAD_MAX_TL_PER_GRAM,
   MARKET_SPREAD_MIN_TL_PER_GRAM,
-  MARKET_STEP_MAX_PERCENT,
-  MARKET_STEP_MIN_PERCENT,
   MARKET_STEP_MINUTES,
   MAX_REAL_SECONDS_PER_TICK,
   MELTING_SMALL_LARGE_THRESHOLD_GRAMS,
@@ -51,7 +48,9 @@ import {
   SOGUKKANLI_PATIENCE_MINUTES_PER_LEVEL,
   JEWELRY_REQUIRED_LEVEL,
   STARTING_CASH_TL,
+  STARTING_EUR_TRY,
   STARTING_REFERENCE_PRICE,
+  STARTING_USD_TRY,
   STARTING_WHOLESALER_TRUST,
   WHOLESALER_MARGIN_MAX_TL_PER_GRAM,
   WHOLESALER_MARGIN_MIN_TL_PER_GRAM,
@@ -66,9 +65,11 @@ import type { JewelryPieceType, JewelryTierId } from '../data/jewelryInvestments
 import {
   buyJewelryPieceHolding,
   computeJewelryPiecePriceTl,
-  computeJewelryTotalDailyReturnTl,
+  normalizeJewelryHoldings,
+  settleJewelryInvestments,
   type JewelryHoldings,
 } from '../engine/jewelry';
+import { buildMarketAssets, stepMarketReferenceDaily } from '../engine/market';
 import { craftedMeltHasGrams } from '../engine/craftedGoods';
 import { CUSTOMER_PERSONAS, INCOMING_CUSTOMER_NAMES } from '../data/incomingCustomerPool';
 import { toptanciStock } from '../data/toptanciStock';
@@ -141,7 +142,6 @@ import {
   priceFromReferenceAndSpread,
   randomInRange,
   randomSignedPercent,
-  stepMarketReference,
 } from '../engine/pricing';
 
 let nextInventoryId = 1;
@@ -217,6 +217,26 @@ function normalizeWorkshopState(workshop?: Partial<WorkshopState>, legacyAtolyeL
     totalHasProduced: workshop?.totalHasProduced ?? 0,
     lastProductionDay: workshop?.lastProductionDay ?? null,
   };
+}
+
+export function charismaTrafficBonus(score: number): number {
+  const points = KARIZMA_TRAFFIC_BONUS_POINTS;
+  const clamped = Math.max(0, Math.min(100, score));
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const left = points[i];
+    const right = points[i + 1];
+    if (clamped >= left.score && clamped <= right.score) {
+      const t = (clamped - left.score) / Math.max(1, right.score - left.score);
+      return left.bonus + (right.bonus - left.bonus) * t;
+    }
+  }
+  return points[points.length - 1]?.bonus ?? 0;
+}
+
+export function dailyCustomerTargetForDay(day: number, charismaScore: number, rng: () => number = Math.random): number {
+  const curve = DAILY_CUSTOMER_TARGET_CURVE.find((entry) => day >= entry.fromDay && day <= entry.toDay) ?? DAILY_CUSTOMER_TARGET_CURVE[0];
+  const organic = curve.min + Math.round(rng() * (curve.max - curve.min));
+  return Math.max(0, Math.round(organic * (1 + charismaTrafficBonus(charismaScore))));
 }
 
 interface BozdurmaCandidate {
@@ -361,6 +381,10 @@ interface GameState {
   incomingCustomer: IncomingCustomer | null;
   /** [YENİ] Müşteri Bekleme Kuyruğu — üretilen müşteriler önce buraya girer, tezgaha çağrılmayı bekler. */
   waitingCustomers: IncomingCustomer[];
+  dailyCustomerTarget: number;
+  dailyCustomersGenerated: number;
+  customerRushUsedDay: number | null;
+  customerRushFeedback: string | null;
   /**
    * [YENİ] Kuyruktaki ilk (index 0) müşteriyi tezgaha (incomingCustomer)
    * çağırır. Tezgah doluysa (incomingCustomer !== null) ya da kuyruk
@@ -415,9 +439,9 @@ interface GameState {
   unlockFourXViaAd: () => void;
   /** Bölüm 22 YER TUTUCU: "satın alındı" onayından sonra çağrılır — 4x'i kalıcı ve sınırsız açar. */
   purchaseFourXUnlimited: () => void;
-  /** Müşteri Hype'ın açık olduğu GERÇEK DÜNYA epoch ms'i (Date.now() ile karşılaştırılır) — reklamla kazanılır, yoksa null. */
+  /** @deprecated Eski real-time müşteri hype kaydı; Faz 6’da gün-bazlı customerRushUsedDay kullanılır. */
   customerHypeUntilMs: number | null;
-  /** YER TUTUCU: "reklam izlendi" onayından sonra çağrılır — gelen müşteri tetiklenme olasılığını CUSTOMER_HYPE_AD_DURATION_MINUTES kadar (üst üste eklenerek) CUSTOMER_HYPE_ARRIVAL_MULTIPLIER katına çıkarır. */
+  /** Müşteri Akını: günde bir kez kalan günlük müşteri potansiyeline doğal hareketlilik bonusu verir. */
   watchAdForCustomerHype: () => void;
   /** Gerçek zamanda geçen saniyeyi oyun saatine, altın fiyatına ve müşteri akışına işler. */
   tick: (realSecondsElapsed: number) => void;
@@ -598,6 +622,7 @@ const STARTING_MARKET_SPREAD_TL_PER_GRAM = randomInRange(
   MARKET_SPREAD_MIN_TL_PER_GRAM,
   MARKET_SPREAD_MAX_TL_PER_GRAM,
 );
+const STARTING_DAILY_CUSTOMER_TARGET = dailyCustomerTargetForDay(1, 50);
 
 export const useGameStore = create<GameState>()(
   persist(
@@ -614,6 +639,7 @@ export const useGameStore = create<GameState>()(
   goldPrice: {
     ...priceFromReferenceAndSpread(STARTING_REFERENCE_PRICE, STARTING_MARKET_SPREAD_TL_PER_GRAM),
     dailyChangePercent: 0,
+    marketAssets: buildMarketAssets(STARTING_REFERENCE_PRICE, STARTING_REFERENCE_PRICE, STARTING_USD_TRY, STARTING_EUR_TRY),
   },
   reputation: {
     score: 50,
@@ -622,6 +648,10 @@ export const useGameStore = create<GameState>()(
   offers: [],
   incomingCustomer: null,
   waitingCustomers: [],
+  dailyCustomerTarget: STARTING_DAILY_CUSTOMER_TARGET,
+  dailyCustomersGenerated: 0,
+  customerRushUsedDay: null,
+  customerRushFeedback: null,
   day: 1,
   minuteOfDay: 0,
   speed: 1,
@@ -677,9 +707,15 @@ export const useGameStore = create<GameState>()(
 
   watchAdForCustomerHype: () => {
     const state = get();
-    const now = Date.now();
-    const currentDeadline = state.customerHypeUntilMs !== null ? Math.max(state.customerHypeUntilMs, now) : now;
-    set({ customerHypeUntilMs: currentDeadline + CUSTOMER_HYPE_AD_DURATION_MINUTES * 60 * 1000 });
+    if (state.customerRushUsedDay === state.day) return;
+    const remainingPotential = Math.max(0, state.dailyCustomerTarget - state.dailyCustomersGenerated);
+    const bonusCustomers = Math.ceil(remainingPotential * CUSTOMER_RUSH_REMAINING_BONUS_RATIO);
+    set({
+      dailyCustomerTarget: state.dailyCustomerTarget + bonusCustomers,
+      customerRushUsedDay: state.day,
+      customerRushFeedback: 'Bugün dükkân daha hareketli.',
+      customerHypeUntilMs: null,
+    });
   },
 
   tick: (realSecondsElapsedRaw) => {
@@ -702,9 +738,8 @@ export const useGameStore = create<GameState>()(
     const gameMinutes = realSecondsElapsed * speed * GAME_MINUTES_PER_REAL_SECOND_AT_1X;
     if (gameMinutes <= 0) return;
 
-    // Bölüm 4.4: referans fiyat her 30 oyun-dakikasında bir ±%3-5 hareket
-    // eder. Bir tick birden fazla 30 dakikalık eşiği aşabileceğinden
-    // (yüksek hız), kaç bağımsız adımın uygulanması gerektiği hesaplanır.
+    // Faz 6: piyasa kapanışı günlük çalışır. Eski adım sabiti import uyumu
+    // için kalsa da MARKET_STEP_MINUTES artık 1 oyun günüdür.
     const totalMinutesBefore = state.day * MINUTES_PER_DAY + state.minuteOfDay;
     const totalMinutesAfterRaw = totalMinutesBefore + gameMinutes;
     const stepsToApply = Math.max(
@@ -712,10 +747,11 @@ export const useGameStore = create<GameState>()(
       Math.floor(totalMinutesAfterRaw / MARKET_STEP_MINUTES) - Math.floor(totalMinutesBefore / MARKET_STEP_MINUTES),
     );
 
-    // Bölüm 4.4 hesabı artık src/engine/pricing.ts'teki saf
-    // stepMarketReference'a taşındı (motor/store ayrımı, v3).
     const currentReference = (state.goldPrice.buyPricePerGram + state.goldPrice.sellPricePerGram) / 2;
-    const nextReference = stepMarketReference(currentReference, stepsToApply, MARKET_STEP_MIN_PERCENT, MARKET_STEP_MAX_PERCENT);
+    let nextReference = currentReference;
+    for (let i = 0; i < stepsToApply; i += 1) {
+      nextReference = stepMarketReferenceDaily(nextReference).reference;
+    }
 
     // Makas ve toptancı marjları da piyasa adımıyla birlikte yeniden belirlenir.
     const marketSpreadTlPerGram =
@@ -752,8 +788,10 @@ export const useGameStore = create<GameState>()(
       referencePriceAtDayStart = nextReference;
     }
 
+    const previousCloseForDisplay = stepsToApply > 0 ? currentReference : referencePriceAtDayStart;
     const dailyChangePercent =
-      ((nextReference - referencePriceAtDayStart) / referencePriceAtDayStart) * 100;
+      ((nextReference - previousCloseForDisplay) / previousCloseForDisplay) * 100;
+    const marketAssets = buildMarketAssets(nextReference, previousCloseForDisplay, STARTING_USD_TRY, STARTING_EUR_TRY);
 
     // Bekleyen tekliflerin vadesi (OFFER_RESOLUTION_DELAY_MINUTES) dolduysa
     // açığa çıkar: kabul ise settleDeal ile aynı şekilde kapanır (kredi
@@ -839,11 +877,18 @@ export const useGameStore = create<GameState>()(
       }
     }
 
-    // [YENİ] v3 — Takı Yatırımı (Parça & Set): anapara kilidi yok, her GÜN
-    // (dakika değil) sahip olunan parçalardan (kademe seti tamamsa +%10
-    // bonusla) kalıcı pasif TL getirisi öder.
-    const jewelryCashDelta =
-      daysElapsed > 0 ? computeJewelryTotalDailyReturnTl(postOfferState.jewelryHoldings, nextBuyPrice) * daysElapsed : 0;
+    // Faz 6 — Takı Yatırımı: 30 oyun günü sermaye bağlama kontratları.
+    // Her tamamlanan gün için gelir ayrı settle edilir; vade dolunca anapara
+    // yalnızca principalRefunded=false iken geri döner.
+    let jewelryHoldings = normalizeJewelryHoldings(postOfferState.jewelryHoldings, postOfferState.day);
+    let jewelryCashDelta = 0;
+    if (daysElapsed > 0) {
+      for (let settledDay = postOfferState.day; settledDay < day; settledDay += 1) {
+        const result = settleJewelryInvestments(jewelryHoldings, settledDay);
+        jewelryHoldings = result.holdings;
+        jewelryCashDelta += result.dailyIncomeTl + result.principalRefundTl;
+      }
+    }
 
     // Bölüm 28-29: Kurumsal Marka — sahip olunan her kademe kalıcı,
     // kümülatif bir günlük nakit geliri katar (Kurumsallaşma'ya sahip olmak
@@ -870,21 +915,21 @@ export const useGameStore = create<GameState>()(
     let waitingCustomers = postOfferState.waitingCustomers.filter(
       (c) => currentTotalMinutes < c.expiresAtTotalMinutes,
     );
+    let dailyCustomerTarget =
+      daysElapsed > 0 ? dailyCustomerTargetForDay(day, postOfferState.reputation.score) : postOfferState.dailyCustomerTarget;
+    let dailyCustomersGenerated = daysElapsed > 0 ? 0 : postOfferState.dailyCustomersGenerated;
+    const customerRushUsedDay = daysElapsed > 0 ? null : postOfferState.customerRushUsedDay;
+    const customerRushFeedback = daysElapsed > 0 ? null : postOfferState.customerRushFeedback;
 
     // Yeni müşteri üretimi artık DOĞRUDAN tezgahı değil, kuyruğu besler —
     // tezgah meşgulken bile (oyuncu pazarlık ederken) kuyruk dolmaya devam
     // eder, ta ki MAX_WAITING_QUEUE_LENGTH'e ("mekan dolu") ulaşana kadar.
     let newCustomer: IncomingCustomer | undefined;
-    if (waitingCustomers.length < MAX_WAITING_QUEUE_LENGTH) {
-      // Müşteri Hype (reklamla açılan GERÇEK DÜNYA penceresi) aktifken gelen
-      // müşteri tetiklenme olasılığı katlanır.
-      const hypeActive = state.customerHypeUntilMs !== null && state.customerHypeUntilMs > Date.now();
-      const hypeMultiplier = hypeActive ? CUSTOMER_HYPE_ARRIVAL_MULTIPLIER : 1;
+    if (waitingCustomers.length < MAX_WAITING_QUEUE_LENGTH && dailyCustomersGenerated < dailyCustomerTarget) {
+      const remainingTarget = Math.max(0, dailyCustomerTarget - dailyCustomersGenerated);
+      const remainingMinutes = Math.max(1, MINUTES_PER_DAY - minuteOfDay);
       const willTrigger =
-        Math.random() <
-        ((INCOMING_CUSTOMER_CHECKS_PER_DAY * INCOMING_CUSTOMER_TRIGGER_PROBABILITY) / MINUTES_PER_DAY) *
-          gameMinutes *
-          hypeMultiplier;
+        Math.random() < Math.min(0.95, (remainingTarget / remainingMinutes) * gameMinutes);
 
       if (willTrigger) {
         const direction: 'satis' | 'bozdurma' =
@@ -1078,6 +1123,7 @@ export const useGameStore = create<GameState>()(
     // Üretilen müşteri (varsa) tezgahı değil, kuyruğun sonunu doldurur.
     if (newCustomer) {
       waitingCustomers = [...waitingCustomers, newCustomer];
+      dailyCustomersGenerated += 1;
     }
 
     const capital: CapitalState = {
@@ -1108,11 +1154,17 @@ export const useGameStore = create<GameState>()(
       offers,
       incomingCustomer,
       waitingCustomers,
+      dailyCustomerTarget,
+      dailyCustomersGenerated,
+      customerRushUsedDay,
+      customerRushFeedback,
+      jewelryHoldings,
       capital,
       goldPrice: {
         buyPricePerGram: nextBuyPrice,
         sellPricePerGram: nextSellPrice,
         dailyChangePercent,
+        marketAssets,
       },
     });
   },
@@ -1130,7 +1182,12 @@ export const useGameStore = create<GameState>()(
       ((nextReference - state.referencePriceAtDayStart) / state.referencePriceAtDayStart) * 100;
 
     set({
-      goldPrice: { buyPricePerGram, sellPricePerGram, dailyChangePercent },
+      goldPrice: {
+        buyPricePerGram,
+        sellPricePerGram,
+        dailyChangePercent,
+        marketAssets: buildMarketAssets(nextReference, state.referencePriceAtDayStart, STARTING_USD_TRY, STARTING_EUR_TRY),
+      },
       capital: {
         ...state.capital,
         stockValueTl: computeStockValueTl(state.inventory, buyPricePerGram),
@@ -1356,11 +1413,11 @@ export const useGameStore = create<GameState>()(
     // v3: Seviye 7 kilidi (Atölye ile aynı erken-oyun koruması).
     if (state.level < JEWELRY_REQUIRED_LEVEL) return false;
     if (state.jewelryHoldings[`${tierId}.${piece}`]) return false;
-    const priceTl = computeJewelryPiecePriceTl(tierId, state.goldPrice.buyPricePerGram);
+    const priceTl = computeJewelryPiecePriceTl(tierId, state.goldPrice.buyPricePerGram, piece);
     if (priceTl > state.capital.cashTl) return false;
 
     set({
-      jewelryHoldings: buyJewelryPieceHolding(state.jewelryHoldings, tierId, piece),
+      jewelryHoldings: buyJewelryPieceHolding(state.jewelryHoldings, tierId, piece, state.day),
       capital: { ...state.capital, cashTl: state.capital.cashTl - priceTl },
     });
     return true;
@@ -1730,11 +1787,19 @@ export const useGameStore = create<GameState>()(
       merge: (persistedState, currentState) => {
         const persisted = (persistedState ?? {}) as Partial<GameState>;
         const workshop = normalizeWorkshopState(persisted.workshop, persisted.atolyeLevel ?? currentState.atolyeLevel);
+        const day = persisted.day ?? currentState.day;
+        const jewelryHoldings = normalizeJewelryHoldings(persisted.jewelryHoldings, day);
         return {
           ...currentState,
           ...persisted,
           workshop,
           atolyeLevel: workshop.level,
+          jewelryHoldings,
+          dailyCustomerTarget:
+            persisted.dailyCustomerTarget ?? dailyCustomerTargetForDay(day, persisted.reputation?.score ?? currentState.reputation.score),
+          dailyCustomersGenerated: persisted.dailyCustomersGenerated ?? 0,
+          customerRushUsedDay: persisted.customerRushUsedDay ?? null,
+          customerRushFeedback: persisted.customerRushFeedback ?? null,
         };
       },
       // Skill tanımları/oyun kodu değişse bile eski kayıtlar yüklenebilsin diye
@@ -1750,6 +1815,10 @@ export const useGameStore = create<GameState>()(
         offers: state.offers,
         incomingCustomer: state.incomingCustomer,
         waitingCustomers: state.waitingCustomers,
+        dailyCustomerTarget: state.dailyCustomerTarget,
+        dailyCustomersGenerated: state.dailyCustomersGenerated,
+        customerRushUsedDay: state.customerRushUsedDay,
+        customerRushFeedback: state.customerRushFeedback,
         day: state.day,
         minuteOfDay: state.minuteOfDay,
         speed: state.speed,

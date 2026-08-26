@@ -1,114 +1,116 @@
-# Economy Simulation Report
+# Economy Simulation Report — v0.2 Faz 6
 
-Bu rapor analiz amaçlıdır. Simülasyon sonuçlarına göre production ekonomi değerleri değiştirilmedi.
+Analiz amaçlıdır; production economy değerleri bu rapora göre değiştirilmedi.
 
-- Senaryo sayısı: 108
+- Senaryo: 117
 - Run / senaryo: 1000
-- Toplam run: 108000
-- Baseline: MEDIUM_8M_AVERAGE_BASE_OUTPUT
+- Toplam run: 117000
+- NEW baseline: NEW_FAZ6_MODEL_MEDIUM_8M_AVERAGE_BASE_OUTPUT
+- OLD baseline: OLD_BASELINE_OLD_6M_AVERAGE_BASE_OUTPUT
 
-## Baseline 30 gerçek dakika P50
+## OLD BASELINE vs NEW FAZ6 — 30m P50
 
-- Müşteri: 102
-- Başarılı işlem: 48
-- Net kâr: 27.836 TL
-- Dakika başı kâr: 928 TL
-- 30 dakika sonu net servet: 127.974 TL
-- HAS altın: 0 g
+| Model | Customers | Trades | Trade Profit | Passive Income | Workshop HAS | Net Worth |
+|---|---:|---:|---:|---:|---:|---:|
+| OLD | 100 | 49 | 28.799 TL | 0 TL | 0g | 131.501 TL |
+| NEW FAZ6 | 85 | 42 | 23.927 TL | 0 TL | 0g | 126.261 TL |
 
-## Ana tablo — BASE_OUTPUT
+## Ana tablo — NEW FAZ6 BASE_OUTPUT
 
 | Scenario | Customers/Day | Game Day Length | Player Type | 30m Customers | 30m Trades | 30m Profit | 30m Net Worth | Profit/Real Minute | Day 30 Net Worth | Day 100 Net Worth | Day 150 Net Worth |
 |---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| LOW_4M_CONSERVATIVE_BASE_OUTPUT | 12 | 4 | CONSERVATIVE | 104 | 44 | 11.901 TL | 111.949 TL | 397 TL | 146.523 TL | 193.810 TL | 230.548 TL |
-| LOW_4M_AVERAGE_BASE_OUTPUT | 12 | 4 | AVERAGE | 122 | 58 | 33.924 TL | 134.096 TL | 1.131 TL | 226.037 TL | 1.045.152 TL | 2.777.429 TL |
-| LOW_4M_AGGRESSIVE_BASE_OUTPUT | 12 | 4 | AGGRESSIVE | 144 | 72 | 102.179 TL | 202.653 TL | 3.406 TL | 513.446 TL | 12.873.963 TL | 104.014.361 TL |
-| LOW_6M_CONSERVATIVE_BASE_OUTPUT | 12 | 6 | CONSERVATIVE | 69 | 29 | 7.763 TL | 107.780 TL | 259 TL | 146.590 TL | 194.074 TL | 231.079 TL |
-| LOW_6M_AVERAGE_BASE_OUTPUT | 12 | 6 | AVERAGE | 81 | 38 | 21.751 TL | 121.824 TL | 725 TL | 225.784 TL | 1.042.568 TL | 2.806.155 TL |
-| LOW_6M_AGGRESSIVE_BASE_OUTPUT | 12 | 6 | AGGRESSIVE | 96 | 48 | 62.055 TL | 162.218 TL | 2.068 TL | 518.043 TL | 12.779.978 TL | 103.095.319 TL |
-| LOW_8M_CONSERVATIVE_BASE_OUTPUT | 12 | 8 | CONSERVATIVE | 51 | 22 | 5.760 TL | 105.777 TL | 192 TL | 146.229 TL | 194.244 TL | 230.590 TL |
-| LOW_8M_AVERAGE_BASE_OUTPUT | 12 | 8 | AVERAGE | 61 | 29 | 15.972 TL | 116.043 TL | 532 TL | 225.526 TL | 1.046.966 TL | 2.807.661 TL |
-| LOW_8M_AGGRESSIVE_BASE_OUTPUT | 12 | 8 | AGGRESSIVE | 72 | 36 | 43.500 TL | 143.599 TL | 1.450 TL | 513.146 TL | 12.842.849 TL | 101.815.773 TL |
-| MEDIUM_4M_CONSERVATIVE_BASE_OUTPUT | 20 | 4 | CONSERVATIVE | 172 | 73 | 20.537 TL | 120.627 TL | 685 TL | 184.563 TL | 293.605 TL | 380.190 TL |
-| MEDIUM_4M_AVERAGE_BASE_OUTPUT | 20 | 4 | AVERAGE | 204 | 97 | 61.616 TL | 161.909 TL | 2.054 TL | 362.038 TL | 3.865.191 TL | 18.859.840 TL |
-| MEDIUM_4M_AGGRESSIVE_BASE_OUTPUT | 20 | 4 | AGGRESSIVE | 240 | 122 | 211.159 TL | 311.821 TL | 7.039 TL | 1.338.725 TL | 177.872.791 TL | 6.536.862.706 TL |
-| MEDIUM_6M_CONSERVATIVE_BASE_OUTPUT | 20 | 6 | CONSERVATIVE | 115 | 49 | 13.250 TL | 113.286 TL | 442 TL | 184.301 TL | 293.337 TL | 380.140 TL |
-| MEDIUM_6M_AVERAGE_BASE_OUTPUT | 20 | 6 | AVERAGE | 134 | 64 | 38.249 TL | 138.364 TL | 1.275 TL | 362.258 TL | 3.832.209 TL | 18.874.985 TL |
-| MEDIUM_6M_AGGRESSIVE_BASE_OUTPUT | 20 | 6 | AGGRESSIVE | 160 | 81 | 119.687 TL | 219.843 TL | 3.990 TL | 1.328.821 TL | 175.301.287 TL | 6.412.477.521 TL |
-| MEDIUM_8M_CONSERVATIVE_BASE_OUTPUT | 20 | 8 | CONSERVATIVE | 87 | 37 | 9.788 TL | 109.822 TL | 326 TL | 184.798 TL | 296.109 TL | 383.315 TL |
-| MEDIUM_8M_AVERAGE_BASE_OUTPUT | 20 | 8 | AVERAGE | 102 | 48 | 27.836 TL | 127.974 TL | 928 TL | 363.851 TL | 3.849.081 TL | 18.799.297 TL |
-| MEDIUM_8M_AGGRESSIVE_BASE_OUTPUT | 20 | 8 | AGGRESSIVE | 120 | 61 | 81.304 TL | 181.538 TL | 2.710 TL | 1.325.726 TL | 177.347.723 TL | 6.409.144.809 TL |
-| HIGH_4M_CONSERVATIVE_BASE_OUTPUT | 30 | 4 | CONSERVATIVE | 259 | 110 | 31.859 TL | 131.956 TL | 1.062 TL | 242.023 TL | 1.156.608 TL | 3.073.784 TL |
-| HIGH_4M_AVERAGE_BASE_OUTPUT | 30 | 4 | AVERAGE | 304 | 145 | 101.051 TL | 201.425 TL | 3.368 TL | 624.264 TL | 18.553.003 TL | 169.977.745 TL |
-| HIGH_4M_AGGRESSIVE_BASE_OUTPUT | 30 | 4 | AGGRESSIVE | 360 | 183 | 414.333 TL | 515.341 TL | 13.811 TL | 4.211.000 TL | 5.955.379.235 TL | 1.602.504.252.803 TL |
-| HIGH_6M_CONSERVATIVE_BASE_OUTPUT | 30 | 6 | CONSERVATIVE | 173 | 73 | 20.363 TL | 120.400 TL | 679 TL | 241.448 TL | 1.157.199 TL | 3.071.215 TL |
-| HIGH_6M_AVERAGE_BASE_OUTPUT | 30 | 6 | AVERAGE | 203 | 97 | 61.549 TL | 161.720 TL | 2.052 TL | 625.360 TL | 19.041.207 TL | 173.278.128 TL |
-| HIGH_6M_AGGRESSIVE_BASE_OUTPUT | 30 | 6 | AGGRESSIVE | 241 | 122 | 212.554 TL | 312.780 TL | 7.085 TL | 4.178.745 TL | 6.020.836.063 TL | 1.630.338.476.174 TL |
-| HIGH_8M_CONSERVATIVE_BASE_OUTPUT | 30 | 8 | CONSERVATIVE | 129 | 55 | 15.205 TL | 115.256 TL | 507 TL | 241.192 TL | 1.156.258 TL | 3.071.231 TL |
-| HIGH_8M_AVERAGE_BASE_OUTPUT | 30 | 8 | AVERAGE | 152 | 72 | 43.809 TL | 143.952 TL | 1.460 TL | 623.135 TL | 18.706.143 TL | 169.446.493 TL |
-| HIGH_8M_AGGRESSIVE_BASE_OUTPUT | 30 | 8 | AGGRESSIVE | 180 | 91 | 137.229 TL | 237.497 TL | 4.574 TL | 4.222.230 TL | 5.717.832.570 TL | 1.533.630.254.558 TL |
-| VERY_HIGH_4M_CONSERVATIVE_BASE_OUTPUT | 45 | 4 | CONSERVATIVE | 389 | 165 | 49.935 TL | 150.141 TL | 1.665 TL | 351.599 TL | 3.062.379 TL | 12.521.792 TL |
-| VERY_HIGH_4M_AVERAGE_BASE_OUTPUT | 45 | 4 | AVERAGE | 457 | 217 | 173.017 TL | 273.742 TL | 5.767 TL | 1.334.395 TL | 159.431.495 TL | 4.718.175.945 TL |
-| VERY_HIGH_4M_AGGRESSIVE_BASE_OUTPUT | 45 | 4 | AGGRESSIVE | 540 | 274 | 949.198 TL | 1.050.142 TL | 31.640 TL | 20.525.357 TL | 1.452.125.505.392 TL | 6.520.275.228.595.986 TL |
-| VERY_HIGH_6M_CONSERVATIVE_BASE_OUTPUT | 45 | 6 | CONSERVATIVE | 259 | 110 | 31.750 TL | 131.794 TL | 1.058 TL | 350.735 TL | 3.062.731 TL | 12.520.490 TL |
-| VERY_HIGH_6M_AVERAGE_BASE_OUTPUT | 45 | 6 | AVERAGE | 304 | 144 | 99.604 TL | 199.923 TL | 3.320 TL | 1.341.241 TL | 161.468.369 TL | 4.783.788.600 TL |
-| VERY_HIGH_6M_AGGRESSIVE_BASE_OUTPUT | 45 | 6 | AGGRESSIVE | 361 | 183 | 411.893 TL | 512.780 TL | 13.730 TL | 20.718.929 TL | 1.441.756.175.074 TL | 6.435.439.065.905.793 TL |
-| VERY_HIGH_8M_CONSERVATIVE_BASE_OUTPUT | 45 | 8 | CONSERVATIVE | 194 | 82 | 23.111 TL | 123.197 TL | 770 TL | 349.606 TL | 3.055.347 TL | 12.540.382 TL |
-| VERY_HIGH_8M_AVERAGE_BASE_OUTPUT | 45 | 8 | AVERAGE | 227 | 108 | 69.639 TL | 169.767 TL | 2.321 TL | 1.330.540 TL | 159.045.831 TL | 4.640.595.720 TL |
-| VERY_HIGH_8M_AGGRESSIVE_BASE_OUTPUT | 45 | 8 | AGGRESSIVE | 269 | 136 | 248.486 TL | 349.048 TL | 8.283 TL | 20.349.756 TL | 1.431.091.020.672 TL | 6.128.278.710.499.206 TL |
+| NEW_FAZ6_MODEL_LOW_4M_CONSERVATIVE_BASE_OUTPUT | 12 | 4 | CONSERVATIVE | 102 | 45 | 12.992 TL | 117.403 TL | 433 TL | 178.185 TL | 316.711 TL | 473.665 TL |
+| NEW_FAZ6_MODEL_LOW_4M_AVERAGE_BASE_OUTPUT | 12 | 4 | AVERAGE | 102 | 50 | 29.295 TL | 134.053 TL | 976 TL | 136.648 TL | 590.671 TL | 1.441.392 TL |
+| NEW_FAZ6_MODEL_LOW_4M_AGGRESSIVE_BASE_OUTPUT | 12 | 4 | AGGRESSIVE | 103 | 51 | 64.224 TL | 169.041 TL | 2.141 TL | 221.822 TL | 1.366.535 TL | 4.953.204 TL |
+| NEW_FAZ6_MODEL_LOW_6M_CONSERVATIVE_BASE_OUTPUT | 12 | 6 | CONSERVATIVE | 68 | 30 | 8.456 TL | 111.128 TL | 282 TL | 177.589 TL | 319.344 TL | 476.872 TL |
+| NEW_FAZ6_MODEL_LOW_6M_AVERAGE_BASE_OUTPUT | 12 | 6 | AVERAGE | 68 | 33 | 18.715 TL | 121.368 TL | 624 TL | 136.686 TL | 588.281 TL | 1.451.097 TL |
+| NEW_FAZ6_MODEL_LOW_6M_AGGRESSIVE_BASE_OUTPUT | 12 | 6 | AGGRESSIVE | 68 | 34 | 40.132 TL | 142.979 TL | 1.338 TL | 218.869 TL | 1.359.991 TL | 4.921.446 TL |
+| NEW_FAZ6_MODEL_LOW_8M_CONSERVATIVE_BASE_OUTPUT | 12 | 8 | CONSERVATIVE | 51 | 22 | 6.286 TL | 108.514 TL | 210 TL | 178.566 TL | 321.692 TL | 476.129 TL |
+| NEW_FAZ6_MODEL_LOW_8M_AVERAGE_BASE_OUTPUT | 12 | 8 | AVERAGE | 51 | 25 | 13.761 TL | 115.914 TL | 459 TL | 136.304 TL | 592.023 TL | 1.469.466 TL |
+| NEW_FAZ6_MODEL_LOW_8M_AGGRESSIVE_BASE_OUTPUT | 12 | 8 | AGGRESSIVE | 51 | 25 | 29.298 TL | 131.299 TL | 977 TL | 219.871 TL | 1.354.805 TL | 4.982.036 TL |
+| NEW_FAZ6_MODEL_MEDIUM_4M_CONSERVATIVE_BASE_OUTPUT | 20 | 4 | CONSERVATIVE | 172 | 75 | 22.394 TL | 126.711 TL | 746 TL | 121.187 TL | 424.640 TL | 830.975 TL |
+| NEW_FAZ6_MODEL_MEDIUM_4M_AVERAGE_BASE_OUTPUT | 20 | 4 | AVERAGE | 172 | 84 | 52.598 TL | 157.217 TL | 1.753 TL | 221.223 TL | 994.155 TL | 2.698.860 TL |
+| NEW_FAZ6_MODEL_MEDIUM_4M_AGGRESSIVE_BASE_OUTPUT | 20 | 4 | AGGRESSIVE | 171 | 85 | 123.445 TL | 229.272 TL | 4.115 TL | 281.029 TL | 2.892.216 TL | 18.489.471 TL |
+| NEW_FAZ6_MODEL_MEDIUM_6M_CONSERVATIVE_BASE_OUTPUT | 20 | 6 | CONSERVATIVE | 114 | 50 | 14.475 TL | 117.200 TL | 482 TL | 120.393 TL | 423.388 TL | 839.910 TL |
+| NEW_FAZ6_MODEL_MEDIUM_6M_AVERAGE_BASE_OUTPUT | 20 | 6 | AVERAGE | 115 | 56 | 33.483 TL | 136.196 TL | 1.116 TL | 219.925 TL | 994.025 TL | 2.726.602 TL |
+| NEW_FAZ6_MODEL_MEDIUM_6M_AGGRESSIVE_BASE_OUTPUT | 20 | 6 | AGGRESSIVE | 114 | 57 | 73.509 TL | 176.970 TL | 2.450 TL | 278.620 TL | 2.838.223 TL | 18.358.174 TL |
+| NEW_FAZ6_MODEL_MEDIUM_8M_CONSERVATIVE_BASE_OUTPUT | 20 | 8 | CONSERVATIVE | 86 | 38 | 10.815 TL | 113.078 TL | 361 TL | 120.983 TL | 428.082 TL | 832.156 TL |
+| NEW_FAZ6_MODEL_MEDIUM_8M_AVERAGE_BASE_OUTPUT | 20 | 8 | AVERAGE | 85 | 42 | 23.927 TL | 126.261 TL | 798 TL | 223.594 TL | 987.742 TL | 2.706.831 TL |
+| NEW_FAZ6_MODEL_MEDIUM_8M_AGGRESSIVE_BASE_OUTPUT | 20 | 8 | AGGRESSIVE | 86 | 43 | 51.852 TL | 154.513 TL | 1.728 TL | 285.422 TL | 2.872.268 TL | 18.227.178 TL |
+| NEW_FAZ6_MODEL_HIGH_4M_CONSERVATIVE_BASE_OUTPUT | 30 | 4 | CONSERVATIVE | 256 | 112 | 34.636 TL | 139.417 TL | 1.155 TL | 155.234 TL | 709.818 TL | 1.400.565 TL |
+| NEW_FAZ6_MODEL_HIGH_4M_AVERAGE_BASE_OUTPUT | 30 | 4 | AVERAGE | 258 | 126 | 80.765 TL | 70.228 TL | 2.692 TL | 227.122 TL | 1.593.478 TL | 5.889.155 TL |
+| NEW_FAZ6_MODEL_HIGH_4M_AGGRESSIVE_BASE_OUTPUT | 30 | 4 | AGGRESSIVE | 257 | 128 | 208.468 TL | 176.369 TL | 6.949 TL | 332.564 TL | 6.506.029 TL | 854.591.026 TL |
+| NEW_FAZ6_MODEL_HIGH_6M_CONSERVATIVE_BASE_OUTPUT | 30 | 6 | CONSERVATIVE | 171 | 75 | 22.489 TL | 125.194 TL | 750 TL | 155.237 TL | 709.035 TL | 1.390.741 TL |
+| NEW_FAZ6_MODEL_HIGH_6M_AVERAGE_BASE_OUTPUT | 30 | 6 | AVERAGE | 171 | 84 | 52.117 TL | 154.844 TL | 1.737 TL | 226.084 TL | 1.590.396 TL | 5.949.034 TL |
+| NEW_FAZ6_MODEL_HIGH_6M_AGGRESSIVE_BASE_OUTPUT | 30 | 6 | AGGRESSIVE | 172 | 85 | 123.164 TL | 225.408 TL | 4.105 TL | 319.497 TL | 6.610.674 TL | 842.950.660 TL |
+| NEW_FAZ6_MODEL_HIGH_8M_CONSERVATIVE_BASE_OUTPUT | 30 | 8 | CONSERVATIVE | 127 | 56 | 16.321 TL | 118.461 TL | 544 TL | 154.856 TL | 703.994 TL | 1.400.146 TL |
+| NEW_FAZ6_MODEL_HIGH_8M_AVERAGE_BASE_OUTPUT | 30 | 8 | AVERAGE | 129 | 63 | 36.908 TL | 139.553 TL | 1.230 TL | 225.784 TL | 1.603.632 TL | 5.926.930 TL |
+| NEW_FAZ6_MODEL_HIGH_8M_AGGRESSIVE_BASE_OUTPUT | 30 | 8 | AGGRESSIVE | 128 | 64 | 84.351 TL | 187.318 TL | 2.812 TL | 341.305 TL | 6.518.289 TL | 865.296.052 TL |
+| NEW_FAZ6_MODEL_VERY_HIGH_4M_CONSERVATIVE_BASE_OUTPUT | 45 | 4 | CONSERVATIVE | 386 | 169 | 55.493 TL | 157.407 TL | 1.850 TL | 227.899 TL | 930.689 TL | 2.365.796 TL |
+| NEW_FAZ6_MODEL_VERY_HIGH_4M_AVERAGE_BASE_OUTPUT | 45 | 4 | AVERAGE | 385 | 188 | 111.441 TL | 100.087 TL | 3.715 TL | 280.666 TL | 2.900.527 TL | 19.299.524 TL |
+| NEW_FAZ6_MODEL_VERY_HIGH_4M_AGGRESSIVE_BASE_OUTPUT | 45 | 4 | AGGRESSIVE | 382 | 191 | 296.032 TL | 140.562 TL | 9.868 TL | 460.526 TL | 82.210.567 TL | 1.006.789.354.962 TL |
+| NEW_FAZ6_MODEL_VERY_HIGH_6M_CONSERVATIVE_BASE_OUTPUT | 45 | 6 | CONSERVATIVE | 256 | 113 | 34.778 TL | 137.726 TL | 1.159 TL | 228.720 TL | 910.958 TL | 2.366.316 TL |
+| NEW_FAZ6_MODEL_VERY_HIGH_6M_AVERAGE_BASE_OUTPUT | 45 | 6 | AVERAGE | 257 | 125 | 81.775 TL | 69.585 TL | 2.726 TL | 274.462 TL | 2.875.935 TL | 19.052.682 TL |
+| NEW_FAZ6_MODEL_VERY_HIGH_6M_AGGRESSIVE_BASE_OUTPUT | 45 | 6 | AGGRESSIVE | 258 | 129 | 217.267 TL | 146.939 TL | 7.242 TL | 472.887 TL | 82.039.302 TL | 1.000.668.776.330 TL |
+| NEW_FAZ6_MODEL_VERY_HIGH_8M_CONSERVATIVE_BASE_OUTPUT | 45 | 8 | CONSERVATIVE | 191 | 84 | 25.284 TL | 127.240 TL | 843 TL | 228.273 TL | 914.045 TL | 2.355.807 TL |
+| NEW_FAZ6_MODEL_VERY_HIGH_8M_AVERAGE_BASE_OUTPUT | 45 | 8 | AVERAGE | 192 | 94 | 59.769 TL | 158.346 TL | 1.992 TL | 279.640 TL | 2.919.969 TL | 19.284.097 TL |
+| NEW_FAZ6_MODEL_VERY_HIGH_8M_AGGRESSIVE_BASE_OUTPUT | 45 | 8 | AGGRESSIVE | 192 | 95 | 141.756 TL | 234.481 TL | 4.725 TL | 460.839 TL | 79.639.959 TL | 1.002.455.118.428 TL |
 
-## Sermaye eşikleri — baseline
+## Progression P50 — baseline
 
-| Eşik | P50 erişim | Ulaşma oranı |
-|---:|---:|---:|
-| 120.000 TL | Gün 4 | 100% |
-| 500.000 TL | Gün 39 | 100% |
-| 1.000.000 TL | Gün 59 | 100% |
-| 2.000.000 TL | Gün 80 | 100% |
+| Gün | Net Worth | Cash | Stok | HAS | Customers | Trades |
+|---:|---:|---:|---:|---:|---:|---:|
+| 30 | 223.594 TL | 167.289 TL | 60.057 TL | 0g | 683 | 335,5 |
+| 75 | 571.567 TL | 352.928 TL | 222.858 TL | 0g | 1.710,5 | 837 |
+| 100 | 987.742 TL | 491.463 TL | 394.682 TL | 15,6g | 2.281 | 1.116 |
+| 150 | 2.706.831 TL | 1.067.139 TL | 1.074.462 TL | 86,4g | 3.416 | 1.637 |
+
+## Active / Passive / Workshop gelir payı — baseline P50
+
+| Gün | Active Trading | Passive Investment | Workshop |
+|---:|---:|---:|---:|
+| 30 | 91,6% | 8,4% | 0% |
+| 75 | 84,1% | 15,5% | 0% |
+| 100 | 80,2% | 14,5% | 5% |
+| 150 | 75,9% | 14,5% | 9,5% |
+
+## Erişim günleri — baseline P50
+
+| Eşik/Sistem | P50 erişim | Ulaşma oranı |
+|---|---:|---:|
+| 120.000 TL | Gün 3 | 100% |
+| 500.000 TL | Gün 64 | 100% |
+| 1.000.000 TL | Gün 96 | 100% |
+| 2.000.000 TL | Gün 129 | 100% |
+| İlk 8 Ayar yatırım (Yüzük) | Gün 10 | 100% |
+| 8 Ayar set tamamı (Bileklik) | Gün 29 | 100% |
+| 14 Ayar ilk/set | Gün 50 | 100% |
+| 18 Ayar ilk/set | Gün 78 | 100% |
+| 22 Ayar ilk/set | Gün 130 | 100% |
+| Atölye Lv1 | Gün 77 | 100% |
+| Atölye Lv5 | Ulaşılamadı | 0% |
+| Atölye Lv10 | Ulaşılamadı | 0% |
 
 ## Müşteri yoğunluğu karşılaştırması
 
-| Yoğunluk | Müşteri/gün | P50 30m trade | P50 30m net servet |
+| Yoğunluk | Aday müşteri/gün | P50 30m Customers | P50 30m Net Worth |
 |---|---:|---:|---:|
-| LOW | 12 | 38 | 121.824 TL |
-| MEDIUM | 20 | 64 | 138.364 TL |
-| HIGH | 30 | 97 | 161.542 TL |
-| VERY_HIGH | 45 | 144 | 200.132 TL |
+| LOW | 12 | 102,5 | 131.356 TL |
+| MEDIUM | 20 | 114 | 135.665 TL |
+| HIGH | 30 | 181,5 | 139.517 TL |
+| VERY_HIGH | 45 | 256 | 141.887 TL |
 
 ## Oyun günü süresi karşılaştırması
 
-| Gün süresi | P50 30m kâr | P50 30m net servet |
+| Gün süresi | P50 30m trade kârı | P50 30m net servet |
 |---|---:|---:|
-| 4 dk | 81.152 TL | 181.463 TL |
-| 6 dk | 49.565 TL | 149.749 TL |
-| 8 dk | 35.547 TL | 135.668 TL |
+| 4 dk | 59.912 TL | 140.094 TL |
+| 6 dk | 37.174 TL | 136.906 TL |
+| 8 dk | 27.118 TL | 129.271 TL |
 
-## Atölye sensitivity
+## Balance yorumu — koda uygulanmadı
 
-| Atölye output | P50 Day 150 net servet |
-|---|---:|
-| LOW_OUTPUT | 60.711.647 TL |
-| BASE_OUTPUT | 60.345.379 TL |
-| HIGH_OUTPUT | 60.343.377 TL |
-
-## Day 30 / 100 / 150 baseline progression
-
-| Gün | Cash | Stok | Net Worth | HAS | Level | Başarılı işlem | Başarısız pazarlık | Müşteri | Ortalama kâr/işlem |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 30 | 123.455 TL | 239.870 TL | 363.851 TL | 0g | 16 | 287 | 315 | 600 | 916 TL |
-| 100 | 1.017.974 TL | 2.825.515 TL | 3.849.081 TL | 0g | 50 | 952 | 1.047 | 2.000 | 3.915 TL |
-| 150 | 4.915.906 TL | 13.908.576 TL | 18.799.297 TL | 0g | 50 | 1.430 | 1.571 | 3.002 | 13.051 TL |
-
-## Pasif yatırım alanı — analiz
-
-120K civarı bir 8 ayar başlangıç parçası baseline'da çok erken erişilebilir görünüyor; bu yüzden ciddi karar olması için nakit tamponu, çoklu parça maliyeti veya 30 günlük bağlama fırsat maliyeti önem kazanır. 2M civarı 22 ayar endgame parçası ise baseline'da daha uzun vadeli bir hedef olarak kalıyor.
-
-## Balance önerisi — koda uygulanmadı
-
-- Müşteri/gün: MEDIUM-HIGH aralığı iyi aday. LOW boş hissettirebilir, VERY_HIGH ekonomiyi ve ekran trafiğini hızlı şişiriyor.
-- Oyun günü süresi: 6-8 dakika aralığı daha kontrollü. 4 dakika, 30 gerçek dakikada fazla oyun günü kapattığı için pasif sistemleri büyütüyor.
-- 30 dakikalık session hedefi: oyuncuya hissedilir ama yeni yatırım eşiklerini bedava yapmayacak P50 net büyüme hedeflenmeli.
-- Early/mid/late progression: 120K erken karar, 500K mid-game hedef, 1M-2M daha büyük taahhüt olarak kalmalı.
-- Atölye üretimi: BASE_OUTPUT aktif ticareti tamamen gereksiz kılmıyorsa iyi başlangıç; HIGH_OUTPUT Day 150'de aktif ticaretin yerini almaya başlarsa düşürülmeli.
-- Atölye maliyeti: HAS gramına peg doğru; Lv1 kurulum 200g referansı simülasyondan sonra ayrıca tartışılmalı.
-- 8/14/18/22 pasif yatırım ROI: düşük ayarda kısa geri dönüş/öğretici, yüksek ayarda daha düşük ROI ama büyük prestij/sermaye sink mantığı daha güvenli görünüyor.
+- 8 dakikalık gün, pasif yatırım vadelerini 30 dakikalık oturumda aşırı hızlı büyütmeden test edilebilir tutuyor.
+- MEDIUM müşteri yoğunluğu ana aday; HIGH daha yoğun ve eğlenceli olabilir ama aktif gelir eğrisini şişiriyor.
+- Day 100/150 tarafında passive+workshop payı aktif ticareti ezmeye başlarsa ROI ya da atölye üretimi düşürülmeli; bu script yalnızca ölçer.
+- 8 ayar parçalar early-mid sermaye bağlama kararı, 22 ayar parçalar endgame sermaye sink’i olarak kalmalı.
