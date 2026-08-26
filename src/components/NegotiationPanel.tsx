@@ -409,6 +409,14 @@ export function NegotiationPanel({
     setResult('rejected');
   };
 
+  const dismissActiveCustomer = () => {
+    if (terminalActionStartedRef.current) return;
+    terminalActionStartedRef.current = true;
+    setPendingCounter(null);
+    setSaleCounter(null);
+    onClose();
+  };
+
   const canAct = isSale ? result === null && saleCounter === null : tested && !measuring && result === null && pendingCounter === null;
   const fullPriceShortfall = Math.max(0, product.marketValueTl - cashTl);
 
@@ -477,6 +485,12 @@ export function NegotiationPanel({
       )}
 
       {!isSale && <ScalePanel reading={reading} tested={tested} measuring={measuring} onTest={handleTest} />}
+
+      {!pendingCounter && !saleCounter && (
+        <Pressable style={styles.dismissCustomerButton} onPress={dismissActiveCustomer} hitSlop={8}>
+          <Text style={styles.dismissCustomerLabel}>Müşteriyi Gönder</Text>
+        </Pressable>
+      )}
 
       {pendingCounter && (
         <CounterOfferCard
@@ -629,6 +643,7 @@ function BulkLineNegotiationView({
   const [results, setResults] = useState<Record<number, { accepted: boolean; amountTl: number }>>({});
   const [testedMap, setTestedMap] = useState<Record<number, boolean>>({});
   const [done, setDone] = useState(false);
+  const dismissedRef = useRef(false);
 
   useEffect(() => {
     if (!done) return;
@@ -667,6 +682,12 @@ function BulkLineNegotiationView({
     }
   };
 
+  const dismissActiveCustomer = () => {
+    if (dismissedRef.current) return;
+    dismissedRef.current = true;
+    onClose();
+  };
+
   return (
     <View style={styles.stack}>
       {/* [DÜZELTME] Çok kalemli getiride yan yana dar şerit, kalem sayısı
@@ -692,6 +713,9 @@ function BulkLineNegotiationView({
           />
         </View>
       </View>
+      <Pressable style={styles.dismissCustomerButton} onPress={dismissActiveCustomer} hitSlop={8}>
+        <Text style={styles.dismissCustomerLabel}>Müşteriyi Gönder</Text>
+      </Pressable>
       {activeIndex === null && <Text style={styles.bulkSelectHint}>Pazarlığa başlamak için bir ürün seç.</Text>}
       {lines.map((line, index) => (
         <View key={index} style={index === activeIndex ? undefined : styles.hiddenLine}>
@@ -891,6 +915,20 @@ const styles = StyleSheet.create({
     color: colors.inkMutedOnDark,
     textAlign: 'center',
     paddingVertical: 6,
+  },
+  dismissCustomerButton: {
+    alignSelf: 'flex-end',
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: glass.borderSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+  },
+  dismissCustomerLabel: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 10,
+    color: colors.negative,
   },
   profitToggle: {
     flexDirection: 'row',

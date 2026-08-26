@@ -94,3 +94,55 @@ it('does not render another-offer control after a final price', async () => {
   expect(view.getByText('Kabul Et · 5.000₺')).toBeTruthy();
   expect(view.getByText('Reddet')).toBeTruthy();
 });
+
+it('allows dismissing an active customer before testing without economy side effects', async () => {
+  const closeActiveCustomer = jest.fn(() => useGameStore.getState().clearIncomingCustomer(customer.id));
+  const view = await render(<NegotiationPanel incomingCustomer={customer} onClose={closeActiveCustomer} />);
+  const before = useGameStore.getState();
+  const cashBefore = before.capital.cashTl;
+  const debtBefore = before.capital.debtTl;
+  const inventoryBefore = before.inventory;
+  const xpBefore = before.totalXp;
+  const offersBefore = before.offers;
+
+  const dismissButton = view.getByText('Müşteriyi Gönder');
+  await fireEvent.press(dismissButton);
+  await fireEvent.press(dismissButton);
+
+  const after = useGameStore.getState();
+  expect(closeActiveCustomer).toHaveBeenCalledTimes(1);
+  expect(after.incomingCustomer).toBeNull();
+  expect(after.capital.cashTl).toBe(cashBefore);
+  expect(after.capital.debtTl).toBe(debtBefore);
+  expect(after.inventory).toEqual(inventoryBefore);
+  expect(after.totalXp).toBe(xpBefore);
+  expect(after.offers).toEqual(offersBefore);
+});
+
+it('dismisses a multi-line customer as one active session before any line settlement', async () => {
+  const multiLineCustomer: IncomingCustomer = {
+    ...customer,
+    id: 'multi-line-dismiss-customer',
+    lines: [
+      { product: customer.product, scaleReading: { grams: 1, karat: 24, cleanliness: 'Temiz' } },
+      {
+        product: { ...customer.product, name: 'Çeyrek Altın', karat: 22, grams: 1.754 },
+        scaleReading: { grams: 1.754, karat: 22, cleanliness: 'Temiz' },
+      },
+    ],
+  };
+  useGameStore.setState({ incomingCustomer: multiLineCustomer });
+  const closeActiveCustomer = jest.fn(() => useGameStore.getState().clearIncomingCustomer(multiLineCustomer.id));
+  const offersBefore = useGameStore.getState().offers;
+  const inventoryBefore = useGameStore.getState().inventory;
+  const view = await render(<NegotiationPanel incomingCustomer={multiLineCustomer} onClose={closeActiveCustomer} />);
+
+  await fireEvent.press(view.getByText('Müşteriyi Gönder'));
+  await fireEvent.press(view.getByText('Müşteriyi Gönder'));
+
+  const after = useGameStore.getState();
+  expect(closeActiveCustomer).toHaveBeenCalledTimes(1);
+  expect(after.incomingCustomer).toBeNull();
+  expect(after.inventory).toEqual(inventoryBefore);
+  expect(after.offers).toEqual(offersBefore);
+});
