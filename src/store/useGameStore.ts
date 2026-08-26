@@ -611,6 +611,8 @@ interface GameState {
   firstSessionHintsDismissed: Record<string, boolean>;
   completeTutorial: () => void;
   dismissFirstSessionHint: (hintId: string) => void;
+  /** Playtest/debug: mevcut save'i tek new-game state kaynağına döndürür. */
+  resetGame: () => void;
 
   /** Kalıcı kayıt (AsyncStorage) yüklenene kadar false — bkz. App.tsx'teki yükleme ekranı. */
   hasHydrated: boolean;
@@ -622,6 +624,66 @@ const STARTING_MARKET_SPREAD_TL_PER_GRAM = randomInRange(
   MARKET_SPREAD_MAX_TL_PER_GRAM,
 );
 const STARTING_DAILY_CUSTOMER_TARGET = dailyCustomerTargetForDay(1, 50);
+
+function createNewGameState(): Partial<GameState> {
+  const marketSpreadTlPerGram = randomInRange(MARKET_SPREAD_MIN_TL_PER_GRAM, MARKET_SPREAD_MAX_TL_PER_GRAM);
+  return {
+    playerName: 'Oyuncu',
+    shopName: 'Kuyumcum',
+    capital: {
+      cashTl: STARTING_CASH_TL,
+      stockValueTl: 0,
+      debtTl: 0,
+    },
+    goldPrice: {
+      ...priceFromReferenceAndSpread(STARTING_REFERENCE_PRICE, marketSpreadTlPerGram),
+      dailyChangePercent: 0,
+      marketAssets: buildMarketAssets(STARTING_REFERENCE_PRICE, STARTING_REFERENCE_PRICE, STARTING_USD_TRY, STARTING_EUR_TRY),
+    },
+    reputation: { score: 50 },
+    inventory: [],
+    offers: [],
+    incomingCustomer: null,
+    waitingCustomers: [],
+    dailyCustomerTarget: dailyCustomerTargetForDay(1, 50),
+    dailyCustomersGenerated: 0,
+    customerRushUsedDay: null,
+    customerRushFeedback: null,
+    day: 1,
+    minuteOfDay: 0,
+    speed: 1,
+    preNegotiationSpeed: null,
+    referencePriceAtDayStart: STARTING_REFERENCE_PRICE,
+    marketSpreadTlPerGram,
+    wholesalerBuyMarginTlPerGram: randomInRange(WHOLESALER_MARGIN_MIN_TL_PER_GRAM, WHOLESALER_MARGIN_MAX_TL_PER_GRAM),
+    wholesalerSellMarginTlPerGram: randomInRange(WHOLESALER_MARGIN_MIN_TL_PER_GRAM, WHOLESALER_MARGIN_MAX_TL_PER_GRAM),
+    wholesalerTrust: STARTING_WHOLESALER_TRUST,
+    loanDueDay: null,
+    brokerDeal: null,
+    meltingJob: null,
+    workshop: {
+      unlocked: false,
+      level: 0,
+      totalHasProduced: 0,
+      lastProductionDay: null,
+    },
+    atolyeLevel: 0,
+    jewelryHoldings: {},
+    lastDaySettlementSummary: null,
+    fourXUnlockedUntilMs: null,
+    fourXUnlimited: false,
+    customerHypeUntilMs: null,
+    realizedTradingProfitTl: 0,
+    totalTradingCostBasisTl: 0,
+    totalXp: 0,
+    level: 1,
+    skillPoints: 0,
+    skillLevels: {},
+    hasCompletedTutorial: false,
+    firstSessionHintsDismissed: {},
+    hasHydrated: true,
+  };
+}
 
 export const useGameStore = create<GameState>()(
   persist(
@@ -1734,6 +1796,12 @@ export const useGameStore = create<GameState>()(
         [hintId]: true,
       },
     })),
+  resetGame: () => {
+    nextInventoryId = 1;
+    nextOfferId = 1;
+    nextIncomingCustomerId = 1;
+    set(createNewGameState());
+  },
 
   hasHydrated: false,
   setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),

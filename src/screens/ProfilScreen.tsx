@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
 import { ProfitAnalysisCard } from '../components/ProfitAnalysisCard';
@@ -18,6 +18,7 @@ export function ProfilScreen() {
   const totalTradingCostBasisTl = useGameStore((s) => s.totalTradingCostBasisTl);
   const inventory = useGameStore((s) => s.inventory);
   const goldPrice = useGameStore((s) => s.goldPrice);
+  const resetGame = useGameStore((s) => s.resetGame);
 
   const stockPotentialTl = useMemo(
     () =>
@@ -68,6 +69,18 @@ export function ProfilScreen() {
             ))}
           </View>
         </Card>
+
+        <Pressable
+          style={styles.resetButton}
+          onPress={() =>
+            Alert.alert('Oyunu sıfırla', 'Mevcut oyun ilerlemesi silinecek. Emin misin?', [
+              { text: 'İPTAL', style: 'cancel' },
+              { text: 'SIFIRLA', style: 'destructive', onPress: resetGame },
+            ])
+          }
+        >
+          <Text style={styles.resetButtonLabel}>OYUNU SIFIRLA</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -151,5 +164,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.inkMuted,
     marginTop: 1,
+  },
+  resetButton: {
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    opacity: 0.75,
+  },
+  resetButtonLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10,
+    color: colors.inkMutedOnDark,
+    letterSpacing: 0.8,
   },
 });
