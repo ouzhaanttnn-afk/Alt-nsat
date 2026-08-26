@@ -111,7 +111,7 @@ export function TradingPositionCard({
           )}
           <Pressable style={styles.sellButton} onPress={sellSelected}>
             <Text style={styles.sellButtonLabel}>
-              Sat · {formatTl(canPartialSell ? selectedSaleValueTl : currentValueTl)}
+              TOPTANCIYA SAT · {formatTl(canPartialSell ? selectedSaleValueTl : currentValueTl)}
             </Text>
           </Pressable>
         </View>

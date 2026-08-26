@@ -446,7 +446,7 @@ export function NegotiationPanel({
     setResult('rejected');
   };
 
-  const dismissActiveCustomer = () => {
+  const closeCustomerSession = () => {
     if (customerDismissStartedRef.current) return;
     customerDismissStartedRef.current = true;
     terminalActionStartedRef.current = true;
@@ -547,9 +547,11 @@ export function NegotiationPanel({
         </View>
       )}
 
-      <Pressable style={styles.dismissCustomerButton} onPress={dismissActiveCustomer} hitSlop={8}>
-        <Text style={styles.dismissCustomerLabel}>Müşteriyi Gönder</Text>
-      </Pressable>
+      {!pendingCounter && !saleCounter && !isSale && !tested && (
+        <Pressable style={styles.rejectCustomerButton} onPress={closeCustomerSession} hitSlop={8}>
+          <Text style={styles.rejectCustomerLabel}>Reddet</Text>
+        </Pressable>
+      )}
 
       {pendingCounter && (
         <CounterOfferCard
@@ -561,7 +563,7 @@ export function NegotiationPanel({
           isFinal={pendingCounter.isFinal}
           onAccept={acceptCounter}
           onContinueNegotiating={() => setPendingCounter(null)}
-          onWalkAway={rejectBuy}
+          onWalkAway={closeCustomerSession}
         />
       )}
       {saleCounter && (
@@ -574,7 +576,7 @@ export function NegotiationPanel({
           isFinal={saleCounter.isFinal}
           onAccept={acceptSaleCounter}
           onContinueNegotiating={() => setSaleCounter(null)}
-          onWalkAway={rejectSale}
+          onWalkAway={closeCustomerSession}
         />
       )}
 
@@ -639,14 +641,14 @@ export function NegotiationPanel({
             <SaleActions
               disabled={!canAct}
               onOfferPrice={() => runNegotiationAction(() => sendSaleAsk(offer, roundsUsed))}
-              onReject={rejectSale}
+              onReject={closeCustomerSession}
             />
           ) : (
             <NegotiationActions
               disabled={!canAct}
               onSendOffer={() => runNegotiationAction(() => sendBuyOffer(offer, roundsUsed))}
               onPayFull={() => completeDeal(product.marketValueTl, product.marketValueTl * customer.acceptanceThreshold, 0)}
-              onReject={rejectBuy}
+              onReject={closeCustomerSession}
               payFullHint={
                 fullPriceShortfall > 0 ? `Nakdin yetmiyor — ${formatTl(fullPriceShortfall)} borç alınacak` : undefined
               }
@@ -741,7 +743,7 @@ function BulkLineNegotiationView({
     }
   };
 
-  const dismissActiveCustomer = () => {
+  const rejectCustomerSession = () => {
     if (dismissedRef.current) return;
     dismissedRef.current = true;
     onClose();
@@ -772,8 +774,8 @@ function BulkLineNegotiationView({
           />
         </View>
       </View>
-      <Pressable style={styles.dismissCustomerButton} onPress={dismissActiveCustomer} hitSlop={8}>
-        <Text style={styles.dismissCustomerLabel}>Müşteriyi Gönder</Text>
+      <Pressable style={styles.rejectCustomerButton} onPress={rejectCustomerSession} hitSlop={8}>
+        <Text style={styles.rejectCustomerLabel}>Reddet</Text>
       </Pressable>
       {activeIndex === null && <Text style={styles.bulkSelectHint}>Pazarlığa başlamak için bir ürün seç.</Text>}
       {lines.map((line, index) => (
@@ -786,6 +788,7 @@ function BulkLineNegotiationView({
             onBack={() => setActiveIndex(null)}
             onTestedChange={(t) => setTestedMap((prev) => ({ ...prev, [index]: t }))}
             onSettled={(result) => handleSettled(index, result)}
+            onRejectSession={rejectCustomerSession}
           />
         </View>
       ))}
@@ -998,7 +1001,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.brass,
   },
-  dismissCustomerButton: {
+  rejectCustomerButton: {
     alignSelf: 'flex-end',
     borderRadius: radius.sm,
     borderWidth: 1,
@@ -1007,7 +1010,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     backgroundColor: 'rgba(239, 68, 68, 0.08)',
   },
-  dismissCustomerLabel: {
+  rejectCustomerLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: 10,
     color: colors.negative,

@@ -3,6 +3,7 @@ import { UZMAN_GORUSU_BASE_ERROR_PERCENT, UZMAN_GORUSU_ERROR_REDUCTION_PER_LEVEL
 import type { NegotiationProduct } from '../types/negotiation';
 import { fonts, fontSizes } from '../theme';
 import { glass } from '../theme/glass';
+import { formatTl } from '../utils/format';
 import { GlassCard } from './GlassCard';
 import { ProductIcon } from './icons/ProductIcon';
 import { SealIcon } from './icons/SealIcon';
@@ -26,6 +27,9 @@ export function NegotiationProductCard({
 }) {
   const hasQuantity = (product.quantity ?? 1) > 1;
   const isCraftedGood = product.category === 'iscilikli';
+  const unitPriceLabel = hasQuantity
+    ? `Birim fiyat: ${formatTl(product.marketValueTl / Math.max(1, product.quantity ?? 1))}/adet`
+    : `Birim fiyat: ${formatTl(product.marketValueTl / Math.max(0.01, product.grams))}/g`;
 
   let expertRange: { min: number; max: number } | null = null;
   if (isCraftedGood && uzmanGorusuLevel > 0 && product.actualKarat !== undefined) {
@@ -59,6 +63,7 @@ export function NegotiationProductCard({
           {product.karat} Ayar · {product.grams.toLocaleString('tr-TR')} g
           {hasQuantity ? '/adet' : ''}
         </Text>
+        <Text style={styles.compactUnitPrice} numberOfLines={1}>{unitPriceLabel}</Text>
         {isCraftedGood && (
           <Text style={styles.compactExpertHint} numberOfLines={1}>
             {expertRange ? `Tahmini: ${expertRange.min}–${expertRange.max} ayar` : 'Ayar beyana dayalı'}
@@ -99,6 +104,7 @@ export function NegotiationProductCard({
           </Text>
         </View>
       </View>
+      <Text style={styles.unitPrice} numberOfLines={1}>{unitPriceLabel}</Text>
 
       {isCraftedGood && (
         <View style={styles.expertBox}>
@@ -231,6 +237,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: glass.goldBright,
   },
+  compactUnitPrice: {
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    color: glass.inkMuted,
+  },
   compactExpertHint: {
     fontFamily: fonts.body,
     fontSize: 8.5,
@@ -244,5 +255,11 @@ const styles = StyleSheet.create({
     backgroundColor: glass.purpleSoft,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  unitPrice: {
+    marginTop: 5,
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: glass.inkMuted,
   },
 });

@@ -29,9 +29,8 @@ export function SaleActions({
       </Pressable>
 
       <Pressable
-        disabled={disabled}
         onPress={onReject}
-        style={[styles.secondaryButton, disabled && styles.disabled]}
+        style={styles.secondaryButton}
       >
         <Text style={styles.secondaryButtonLabel}>Satmak İstemiyorum</Text>
       </Pressable>

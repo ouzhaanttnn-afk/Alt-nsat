@@ -105,7 +105,7 @@ it('allows dismissing an active customer before testing without economy side eff
   const xpBefore = before.totalXp;
   const offersBefore = before.offers;
 
-  const dismissButton = view.getByText('Müşteriyi Gönder');
+  const dismissButton = view.getByText('Reddet');
   await fireEvent.press(dismissButton);
   await fireEvent.press(dismissButton);
 
@@ -135,8 +135,8 @@ it('dismisses the active customer even while a negotiation action is locked', as
     await jest.advanceTimersByTimeAsync(900);
   });
   await fireEvent.press(view.getByText('Teklifi Gönder'));
-  await fireEvent.press(view.getByText('Müşteriyi Gönder'));
-  await fireEvent.press(view.getByText('Müşteriyi Gönder'));
+  await fireEvent.press(view.getByText('Reddet'));
+  await fireEvent.press(view.getByText('Reddet'));
 
   const after = useGameStore.getState();
   expect(closeActiveCustomer).toHaveBeenCalledTimes(1);
@@ -167,8 +167,8 @@ it('dismisses a multi-line customer as one active session before any line settle
   const inventoryBefore = useGameStore.getState().inventory;
   const view = await render(<NegotiationPanel incomingCustomer={multiLineCustomer} onClose={closeActiveCustomer} />);
 
-  await fireEvent.press(view.getByText('Müşteriyi Gönder'));
-  await fireEvent.press(view.getByText('Müşteriyi Gönder'));
+  await fireEvent.press(view.getByText('Reddet'));
+  await fireEvent.press(view.getByText('Reddet'));
 
   const after = useGameStore.getState();
   expect(closeActiveCustomer).toHaveBeenCalledTimes(1);

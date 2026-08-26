@@ -57,6 +57,7 @@ export function LineItemNegotiation({
   onBack,
   onTestedChange,
   onSettled,
+  onRejectSession,
 }: {
   product: NegotiationProduct;
   reading: ScaleReading;
@@ -68,6 +69,7 @@ export function LineItemNegotiation({
   /** [YENİ] Bu kalemin test edilip edilmediğini üst listeye (mini kart rozeti için) bildirir. */
   onTestedChange?: (tested: boolean) => void;
   onSettled: (result: { accepted: boolean; amountTl: number }) => void;
+  onRejectSession?: () => void;
 }) {
   const reputationScore = useGameStore((s) => s.reputation.score);
   const skillLevels = useGameStore((s) => s.skillLevels);
@@ -179,6 +181,7 @@ export function LineItemNegotiation({
     });
     setResult({ accepted: false, amountTl: offer, borrowedTl: 0, xp: 0, reason: '' });
   };
+  const rejectSession = onRejectSession ?? rejectLine;
 
   const sendOffer = (amount: number, roundsUsedNow: number) => {
     setOffer(amount);
@@ -264,7 +267,7 @@ export function LineItemNegotiation({
           isFinal={pendingCounter.isFinal}
           onAccept={() => settleAccepted(pendingCounter.counterAmountTl, product.marketValueTl * customer.acceptanceThreshold, roundsUsed)}
           onContinueNegotiating={() => setPendingCounter(null)}
-          onWalkAway={rejectLine}
+          onWalkAway={rejectSession}
         />
       ) : tested ? (
         <>
@@ -309,7 +312,7 @@ export function LineItemNegotiation({
             disabled={!canAct}
             onSendOffer={() => sendOffer(offer, roundsUsed)}
             onPayFull={() => settleAccepted(product.marketValueTl, product.marketValueTl * customer.acceptanceThreshold, 0)}
-            onReject={rejectLine}
+            onReject={rejectSession}
           />
           </CollapsibleOfferCard>
         </>

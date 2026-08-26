@@ -39,9 +39,8 @@ export function NegotiationActions({
           {payFullHint && <Text style={styles.payFullHint} numberOfLines={1}>{payFullHint}</Text>}
         </View>
         <Pressable
-          disabled={disabled}
           onPress={onReject}
-          style={[styles.secondaryButton, styles.rejectButton, disabled && styles.disabled]}
+          style={[styles.secondaryButton, styles.rejectButton]}
         >
           <Text style={[styles.secondaryButtonLabel, styles.rejectLabel]}>Reddet</Text>
         </Pressable>
