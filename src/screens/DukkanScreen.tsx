@@ -11,7 +11,6 @@ import { MetalRing, RadialOrb } from '../components/icons/MetalRing';
 import { BankShortcutIcon, GemShortcutIcon, HammerShortcutIcon } from '../components/icons/ShortcutIcons';
 import { ShieldBadge } from '../components/icons/ShieldBadge';
 import { glass } from '../theme/glass';
-import { EMERGENCY_MICRO_LOAN_MAX_CASH_TL, EMERGENCY_MICRO_LOAN_TL } from '../config/economyConfig';
 import { BrokerDealBanner } from '../components/BrokerDealBanner';
 import { CapitalSummary } from '../components/CapitalSummary';
 import { CustomerHypeCard } from '../components/CustomerHypeCard';
@@ -93,7 +92,6 @@ export function DukkanScreen() {
   const firstSessionHintsDismissed = useGameStore((s) => s.firstSessionHintsDismissed);
   const completeTutorial = useGameStore((s) => s.completeTutorial);
   const dismissFirstSessionHint = useGameStore((s) => s.dismissFirstSessionHint);
-  const takeEmergencyMicroLoan = useGameStore((s) => s.takeEmergencyMicroLoan);
 
   const currentTotalMinutes = day * MINUTES_PER_DAY + minuteOfDay;
   const brokerMinutesLeft = brokerDeal ? brokerDeal.expiresAtTotalMinutes - currentTotalMinutes : 0;
@@ -139,12 +137,6 @@ export function DukkanScreen() {
   }, [offers]);
 
   const canCallNext = !incomingCustomer && waitingCustomers.length > 0;
-  const hasUsableLiquidInventory = inventory.some(
-    (item) => item.category !== 'pirlanta' && item.category !== 'iscilikli' && item.quantity > 0,
-  );
-  const canUseEmergencyLoan =
-    capital.cashTl <= EMERGENCY_MICRO_LOAN_MAX_CASH_TL && capital.debtTl > 0 && !hasUsableLiquidInventory;
-
   // [YENİ] Header zili — Müşteriler artık sekme değil, buradan açılan bir
   // modal. Badge, TekliflerScreen'in kendi tanımladığı "bekleyen" sayısıyla
   // birebir aynı metriği kullanıyor (offers, status:'bekleyen').
@@ -374,17 +366,6 @@ export function DukkanScreen() {
               hitSlop={8}
             >
               <Text style={styles.tutorialDismiss}>Kapat</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {canUseEmergencyLoan && (
-          <View style={styles.emergencyCard}>
-            <Text style={styles.emergencyText}>Kasan neredeyse boş — hiçbir işlem yapamayabilirsin.</Text>
-            <Pressable style={styles.emergencyButton} onPress={takeEmergencyMicroLoan}>
-              <Text style={styles.emergencyButtonLabel}>
-                Acil Mikro Kredi Al · +{formatTl(EMERGENCY_MICRO_LOAN_TL)}
-              </Text>
             </Pressable>
           </View>
         )}
@@ -893,27 +874,5 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     color: colors.brass,
     alignSelf: 'flex-end',
-  },
-  emergencyCard: {
-    backgroundColor: colors.negative,
-    borderRadius: 12,
-    padding: 10,
-    gap: 6,
-  },
-  emergencyText: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: fontSizes.sm,
-    color: colors.white,
-  },
-  emergencyButton: {
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  emergencyButtonLabel: {
-    fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.sm,
-    color: colors.negative,
   },
 });

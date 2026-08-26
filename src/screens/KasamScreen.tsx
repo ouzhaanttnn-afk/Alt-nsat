@@ -3,18 +3,18 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { MainTabsParamList, StokScrollTarget } from '../navigation/types';
+import { ActionToast, type ActionToastState } from '../components/ActionToast';
 import { AtolyeCard } from '../components/AtolyeCard';
-import { BrandStageCard, type BrandStageStatus } from '../components/BrandStageCard';
 import { Card } from '../components/Card';
 import { CraftedGoodCard } from '../components/CraftedGoodCard';
 import { JewelryTierCard } from '../components/JewelryTierCard';
 import { MeltingJobBanner } from '../components/MeltingJobBanner';
-import { PirlantaCard } from '../components/PirlantaCard';
 import { SectionLabel } from '../components/SectionLabel';
 import { StockCard } from '../components/StockCard';
 import { TradingPositionCard } from '../components/TradingPositionCard';
 import {
   JEWELRY_REQUIRED_LEVEL,
+  JEWELRY_TIER_REQUIRED_LEVELS,
   LOW_CASH_WARNING_THRESHOLD_TL,
   MINUTES_PER_DAY,
   WORKSHOP_CONFIG,
@@ -23,9 +23,7 @@ import {
   XP_PER_EQUIVALENT_GRAM_TRADED,
 } from '../config/economyConfig';
 import { XpToast } from '../components/XpToast';
-import { BRAND_STAGES } from '../data/brandStages';
 import { JEWELRY_PIECES, JEWELRY_TIERS } from '../data/jewelryInvestments';
-import { pirlantaCatalog } from '../data/mockPirlanta';
 import { computeJewelryPieceDailyReturnTl, computeJewelryPiecePriceTl, holdingKey, isJewelrySetComplete } from '../engine/jewelry';
 import { toptanciStock } from '../data/toptanciStock';
 import { currentPositionValueTl, equivalentGrams, useGameStore, workshopDailyHasOutput, workshopUpgradeCostTl } from '../store/useGameStore';
@@ -34,17 +32,15 @@ import { formatTl } from '../utils/format';
 
 const BANNER_VISIBLE_MS = 4000;
 
-// Bölüm 2/GDD: sarrafiye stoğu (gram/çeyrek altın + 22 ayar bilezik) tek
-// tip ağırlıklı ortalama maliyetle takip edilir — vitrin vadesi/pasif
-// gelir kavramı yok, hepsi güncel kurdan (mark-to-market) değerlenip
-// istenen an satılabilir. Pırlanta koleksiyonu ayrı, kalıcı bir raydır.
+// Bölüm 2/GDD: sarrafiye stoğu (gram/çeyrek altın + 22 ayar bilezik + HAS)
+// tek tip ağırlıklı ortalama maliyetle takip edilir — hepsi güncel kurdan
+// mark-to-market değerlenip Stok ekranından toptancıya satılabilir.
 export function KasamScreen() {
   const inventory = useGameStore((s) => s.inventory);
   const goldPrice = useGameStore((s) => s.goldPrice);
   const sellInventoryItem = useGameStore((s) => s.sellInventoryItem);
   const sellInvestmentUnits = useGameStore((s) => s.sellInvestmentUnits);
   const realizedTradingProfitTl = useGameStore((s) => s.realizedTradingProfitTl);
-  const purchasePirlanta = useGameStore((s) => s.purchasePirlanta);
   const meltingJob = useGameStore((s) => s.meltingJob);
   const meltCraftedGood = useGameStore((s) => s.meltCraftedGood);
   const day = useGameStore((s) => s.day);
@@ -58,14 +54,12 @@ export function KasamScreen() {
   const jewelryHoldings = useGameStore((s) => s.jewelryHoldings);
   const buyJewelryPiece = useGameStore((s) => s.buyJewelryPiece);
   const level = useGameStore((s) => s.level);
-  const highestBrandStageIndex = useGameStore((s) => s.highestBrandStageIndex);
-  const purchaseBrandStage = useGameStore((s) => s.purchaseBrandStage);
   const wholesalerBuyMarginTlPerGram = useGameStore((s) => s.wholesalerBuyMarginTlPerGram);
   const buyInvestmentUnits = useGameStore((s) => s.buyInvestmentUnits);
   const grantBonusXp = useGameStore((s) => s.grantBonusXp);
 
-  const [saleBanner, setSaleBanner] = useState<{ profitTl: number } | null>(null);
-  const saleBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [actionToast, setActionToast] = useState<ActionToastState | null>(null);
+  const actionToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [xpToast, setXpToast] = useState<{ amount: number; reason: string } | null>(null);
   // Bölüm 4: "Beklet" — satmayı erteleme kararını görünür kılan hafif bir
   // onay; hiçbir state'i değiştirmiyor, sadece kararın alındığını teyit ediyor.
@@ -73,6 +67,11 @@ export function KasamScreen() {
   const [craftedFeedback, setCraftedFeedback] = useState<string | null>(null);
   const holdHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const craftedFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showActionToast = (toast: ActionToastState) => {
+    setActionToast(toast);
+    if (actionToastTimer.current) clearTimeout(actionToastTimer.current);
+    actionToastTimer.current = setTimeout(() => setActionToast(null), BANNER_VISIBLE_MS);
+  };
   const showCraftedFeedback = (message: string) => {
     setCraftedFeedback(message);
     if (craftedFeedbackTimer.current) clearTimeout(craftedFeedbackTimer.current);
@@ -93,7 +92,7 @@ export function KasamScreen() {
 
   useEffect(
     () => () => {
-      if (saleBannerTimer.current) clearTimeout(saleBannerTimer.current);
+      if (actionToastTimer.current) clearTimeout(actionToastTimer.current);
       if (holdHintTimer.current) clearTimeout(holdHintTimer.current);
       if (craftedFeedbackTimer.current) clearTimeout(craftedFeedbackTimer.current);
     },
@@ -121,7 +120,7 @@ export function KasamScreen() {
     }
   }, [scrollTo, layoutTick]);
 
-  const sarrafiyeItems = inventory.filter((item) => item.category !== 'pirlanta' && item.category !== 'iscilikli');
+  const sarrafiyeItems = inventory.filter((item) => item.category !== 'iscilikli');
   const sarrafiyeCurrentValueTl = sarrafiyeItems.reduce(
     (sum, item) => sum + currentPositionValueTl(item, goldPrice.buyPricePerGram),
     0,
@@ -129,7 +128,6 @@ export function KasamScreen() {
   const sarrafiyeCostBasisTl = sarrafiyeItems.reduce((sum, item) => sum + item.costBasisTl, 0);
   const unrealizedTradingProfitTl = sarrafiyeCurrentValueTl - sarrafiyeCostBasisTl;
   const craftedGoodItems = inventory.filter((item) => item.category === 'iscilikli');
-  const pirlantaItems = inventory.filter((item) => item.category === 'pirlanta');
   const meltingMinutesLeft = meltingJob
     ? meltingJob.completesAtTotalMinutes - (day * MINUTES_PER_DAY + minuteOfDay)
     : 0;
@@ -140,9 +138,10 @@ export function KasamScreen() {
   const handleSell = (itemId: string) => {
     const result = sellInventoryItem(itemId);
     if (!result) return;
-    setSaleBanner({ profitTl: result.profitTl });
-    if (saleBannerTimer.current) clearTimeout(saleBannerTimer.current);
-    saleBannerTimer.current = setTimeout(() => setSaleBanner(null), BANNER_VISIBLE_MS);
+    showActionToast({
+      tone: 'success',
+      message: `✓ Toptancıya satış tamamlandı · +${formatTl(result.saleValueTl)}`,
+    });
 
     // Bölüm 6 (STOK→SATIŞ→KÂR): satış gerçekten kâr getirdiyse "Kârlı satış"
     // bonusu, getirmediyse yine de tamamlanmış bir işlem bonusu — oyuncu
@@ -159,9 +158,10 @@ export function KasamScreen() {
     if (!item) return;
     const result = sellInvestmentUnits(itemId, quantity);
     if (!result) return;
-    setSaleBanner({ profitTl: result.profitTl });
-    if (saleBannerTimer.current) clearTimeout(saleBannerTimer.current);
-    saleBannerTimer.current = setTimeout(() => setSaleBanner(null), BANNER_VISIBLE_MS);
+    showActionToast({
+      tone: 'success',
+      message: `✓ Toptancıya satış tamamlandı · +${formatTl(result.saleValueTl)}`,
+    });
 
     const bonus =
       result.profitTl > 0
@@ -228,19 +228,7 @@ export function KasamScreen() {
           );
         })}
 
-        {saleBanner && (
-          <View
-            style={[
-              styles.banner,
-              { backgroundColor: saleBanner.profitTl >= 0 ? colors.positive : colors.negative },
-            ]}
-          >
-            <Text style={styles.bannerText}>
-              Satış tamamlandı: {saleBanner.profitTl >= 0 ? '+' : ''}
-              {formatTl(saleBanner.profitTl)} {saleBanner.profitTl >= 0 ? 'kâr' : 'zarar'}
-            </Text>
-          </View>
-        )}
+        <ActionToast toast={actionToast} />
         {xpToast && (
           <XpToast amount={xpToast.amount} reason={xpToast.reason} onDone={() => setXpToast(null)} />
         )}
@@ -276,8 +264,8 @@ export function KasamScreen() {
 
         {sarrafiyeItems.length === 0 ? (
           <Text style={styles.emptyHint}>
-            Elinde henüz gram/çeyrek altın ya da bilezik yok. Piyasa'daki Toptancıdan Stok Al
-            bölümünden alınca burada listelenir, güncel kurdan istediğin an satabilirsin.
+            Elinde henüz HAS, gram/çeyrek altın ya da bilezik yok. Piyasa'daki Toptancıdan Stok Al
+            bölümünden alınca burada listelenir, güncel kurdan toptancıya satabilirsin.
           </Text>
         ) : (
           sarrafiyeItems.map((item) => (
@@ -348,89 +336,37 @@ export function KasamScreen() {
           style={styles.sectionAnchor}
           onLayout={(e) => recordSectionOffset('yatirimlar', e.nativeEvent.layout.y)}
         >
-        <SectionLabel>TAKI YATIRIMI</SectionLabel>
-        <Text style={styles.emptyHint}>
-          30 oyun günü sermaye bağla, günlük TL getirisi al. Vade sonunda ana para tam olarak geri döner.
-          Aynı ayardaki 4 parça birlikte aktifse yalnızca o setin günlük getirisine +%10 eklenir.
-        </Text>
-        {JEWELRY_TIERS.map((tier) => {
-          return (
-            <JewelryTierCard
-              key={tier.id}
-              tier={tier}
-              pieces={JEWELRY_PIECES}
-              positions={Object.fromEntries(
-                JEWELRY_PIECES.map((p) => [p.id, jewelryHoldings[holdingKey(tier.id, p.id)] ?? null]),
-              )}
-              piecePricesTl={Object.fromEntries(
-                JEWELRY_PIECES.map((p) => [p.id, computeJewelryPiecePriceTl(tier.id, goldPrice.buyPricePerGram, p.id)]),
-              )}
-              pieceDailyReturnsTl={Object.fromEntries(
-                JEWELRY_PIECES.map((p) => [p.id, computeJewelryPieceDailyReturnTl(tier.id, goldPrice.buyPricePerGram, p.id)]),
-              )}
-              hasSetBonus={isJewelrySetComplete(jewelryHoldings, tier.id)}
-              cashTl={cashTl}
-              currentDay={day}
-              locked={jewelryLocked}
-              requiredLevel={JEWELRY_REQUIRED_LEVEL}
-              onBuyPiece={(pieceId) => buyJewelryPiece(tier.id, pieceId as (typeof JEWELRY_PIECES)[number]['id'])}
-            />
-          );
-        })}
-
-        <SectionLabel>PIRLANTA KOLEKSİYONU</SectionLabel>
-        <Text style={styles.emptyHint}>
-          Gerçek para ile edinilen kalıcı vitrin parçaları — vadesi yok, sonsuza kadar sabit gelir üretir.
-        </Text>
-        {pirlantaItems.map((item) => (
-          <PirlantaCard
-            key={item.id}
-            name={item.name}
-            karat={item.karat}
-            grams={item.grams}
-            dailyIncomeTl={(item.dailyIncomeTl ?? 0) * item.quantity}
-            priceLabel={item.realMoneyPriceLabel ?? ''}
-            owned
-            quantity={item.quantity}
-          />
-        ))}
-        {pirlantaCatalog.map((catalogItem) => (
-          <PirlantaCard
-            key={catalogItem.id}
-            name={catalogItem.name}
-            karat={catalogItem.karat}
-            grams={catalogItem.grams}
-            dailyIncomeTl={catalogItem.dailyIncomeTl}
-            priceLabel={catalogItem.priceLabel}
-            owned={false}
-            onBuy={() => purchasePirlanta(catalogItem)}
-          />
-        ))}
-
-        <SectionLabel>KURUMSAL MARKA</SectionLabel>
-        <Text style={styles.emptyHint}>
-          Uç oyun merdiveni — Şubeleşme → Marka Yönetimi → Kurumsallaşma sırayla açılır, her
-          kademe seviye + nakit gerektirir ve kalıcı bir günlük gelir katar.
-        </Text>
-        {BRAND_STAGES.map((stage, index) => {
-          const status: BrandStageStatus =
-            index <= highestBrandStageIndex
-              ? 'owned'
-              : index !== highestBrandStageIndex + 1
-                ? 'sequence-locked'
-                : level < stage.requiredLevel
-                  ? 'level-locked'
-                  : 'available';
-          return (
-            <BrandStageCard
-              key={stage.id}
-              stage={stage}
-              status={status}
-              canAfford={stage.costTl <= cashTl}
-              onPurchase={() => purchaseBrandStage(stage.id)}
-            />
-          );
-        })}
+          <SectionLabel>TAKI YATIRIMI</SectionLabel>
+          <Text style={styles.emptyHint}>
+            30 oyun günü sermaye bağla, günlük TL getirisi al. Vade sonunda ana para tam olarak geri döner.
+            Aynı ayardaki 4 parça birlikte aktifse yalnızca o setin günlük getirisine +%10 eklenir.
+          </Text>
+          {JEWELRY_TIERS.map((tier) => {
+            const requiredLevel = JEWELRY_TIER_REQUIRED_LEVELS[tier.id] ?? JEWELRY_REQUIRED_LEVEL;
+            const tierLocked = level < requiredLevel;
+            return (
+              <JewelryTierCard
+                key={tier.id}
+                tier={tier}
+                pieces={JEWELRY_PIECES}
+                positions={Object.fromEntries(
+                  JEWELRY_PIECES.map((p) => [p.id, jewelryHoldings[holdingKey(tier.id, p.id)] ?? null]),
+                )}
+                piecePricesTl={Object.fromEntries(
+                  JEWELRY_PIECES.map((p) => [p.id, computeJewelryPiecePriceTl(tier.id, goldPrice.buyPricePerGram, p.id)]),
+                )}
+                pieceDailyReturnsTl={Object.fromEntries(
+                  JEWELRY_PIECES.map((p) => [p.id, computeJewelryPieceDailyReturnTl(tier.id, goldPrice.buyPricePerGram, p.id)]),
+                )}
+                hasSetBonus={isJewelrySetComplete(jewelryHoldings, tier.id)}
+                cashTl={cashTl}
+                currentDay={day}
+                locked={jewelryLocked || tierLocked}
+                requiredLevel={requiredLevel}
+                onBuyPiece={(pieceId) => buyJewelryPiece(tier.id, pieceId as (typeof JEWELRY_PIECES)[number]['id'])}
+              />
+            );
+          })}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -455,17 +391,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.headingBold,
     fontSize: fontSizes.xl,
     color: colors.inkOnDark,
-  },
-  banner: {
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-  },
-  bannerText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.sm,
-    color: colors.white,
-    textAlign: 'center',
   },
   summaryLabel: {
     fontFamily: fonts.bodyMedium,

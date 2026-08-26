@@ -32,12 +32,9 @@ export function currentPositionValueTl(
   return hasEquivalentGrams(item) * item.quantity * buyPricePerGram;
 }
 
-/** Stok değerini envanterden yeniden hesaplar: pırlanta/takı parçası sabit (sembolik) değerde, geri kalan (sarrafiye) güncel kurda mark-to-market. */
+/** Stok değerini envanterden yeniden hesaplar: sarrafiye güncel kurda mark-to-market, işçilikli ürün de has karşılığıyla değerlenir. */
 export function computeStockValueTl(inventory: InventoryItem[], buyPricePerGram: number): number {
   return inventory.reduce((sum, item) => {
-    if (item.category === 'pirlanta') {
-      return sum + item.costBasisTl;
-    }
     return sum + currentPositionValueTl(item, buyPricePerGram);
   }, 0);
 }

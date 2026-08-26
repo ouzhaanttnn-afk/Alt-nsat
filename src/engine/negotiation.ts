@@ -191,6 +191,10 @@ function counterAmount(
   return Math.floor(Math.max(thresholdTl, Math.min(roundedCounter, offerTl - 1)));
 }
 
+function pickReaction(options: string[], seed: number): string {
+  return options[Math.abs(Math.round(seed)) % options.length] ?? options[0] ?? '';
+}
+
 /**
  * Evaluates one active bargaining turn without randomness. The existing
  * threshold and Karizma math is reused; this layer adds visible patience,
@@ -205,7 +209,10 @@ export function evaluateNegotiationTurn(args: EvaluateNegotiationTurnArgs): Nego
       kind: 'accept',
       patienceAfter: args.patience,
       tone: 'accept',
-      reaction: args.direction === 'buy' ? 'Tamamdır, bu rakam olur.' : 'Peki, bu fiyattan alırım.',
+      reaction:
+        args.direction === 'buy'
+          ? pickReaction(['Tamamdır, bu rakam olur.', 'Peki, kabul.', 'Bu fiyata anlaştık.'], args.offerTl + args.roundsUsed)
+          : pickReaction(['Peki, bu fiyattan alırım.', 'Tamam, alıyorum.', 'Bu fiyat olur.'], args.offerTl + args.roundsUsed),
     };
   }
 
@@ -222,12 +229,23 @@ export function evaluateNegotiationTurn(args: EvaluateNegotiationTurnArgs): Nego
       kind: 'warning',
       patienceAfter: repeatedPatience,
       tone: 'repeat',
-      reaction: 'Az önce de aynı rakamı söylediniz.',
+      reaction: pickReaction(
+        ['Az önce de aynı rakamı söylediniz.', 'Rakam değişmedi ki.', 'Aynı teklifle ilerleyemeyiz.'],
+        args.offerTl + repeatedPatience,
+      ),
     };
   }
 
   if (patienceAfter === 0) {
-    return { kind: 'leave', patienceAfter: 0, tone: 'leave', reaction: 'Bu fiyata verecek değilim. İyi günler.' };
+    return {
+      kind: 'leave',
+      patienceAfter: 0,
+      tone: 'leave',
+      reaction:
+        args.direction === 'buy'
+          ? pickReaction(['Bu fiyata verecek değilim. İyi günler.', 'Olmayacak galiba, iyi günler.'], args.offerTl)
+          : pickReaction(['Bu fiyata alamam. İyi günler.', 'Olmayacak galiba, iyi günler.'], args.offerTl),
+    };
   }
 
   if (gapRatio >= NEGOTIATION_INSULTING_GAP_RATIO) {
@@ -235,11 +253,15 @@ export function evaluateNegotiationTurn(args: EvaluateNegotiationTurnArgs): Nego
       kind: 'warning',
       patienceAfter,
       tone: 'warning',
-      reaction: args.direction === 'buy' ? 'Bu rakama veremem.' : 'Bu fiyat fazla yüksek.',
+      reaction:
+        args.direction === 'buy'
+          ? pickReaction(['Bu rakama veremem.', 'Biraz daha ciddi bir teklif bekliyorum.'], args.offerTl)
+          : pickReaction(['Bu fiyat fazla yüksek.', 'Bu rakamı ödeyemem.'], args.offerTl),
     };
   }
 
   const finalRound = args.roundsUsed >= args.maxRounds - 1 || (urgent && args.roundsUsed >= 1) || patienceAfter === 1;
+  const hardeningRound = args.roundsUsed >= args.maxRounds - 2 || patienceAfter <= 2;
   const proposedCounter = counterAmount(
     args.direction,
     args.offerTl,
@@ -254,7 +276,7 @@ export function evaluateNegotiationTurn(args: EvaluateNegotiationTurnArgs): Nego
       counterAmountTl: proposedCounter,
       patienceAfter,
       tone: 'final',
-      reaction: 'Son fiyatım bu.',
+      reaction: args.direction === 'buy' ? 'Son fiyatım bu.' : 'Son teklifim bu.',
     };
   }
 
@@ -263,7 +285,10 @@ export function evaluateNegotiationTurn(args: EvaluateNegotiationTurnArgs): Nego
       kind: 'warning',
       patienceAfter,
       tone: 'warning',
-      reaction: args.direction === 'buy' ? 'Bu rakam bana düşük geldi.' : 'Biraz daha makul bir fiyat bekliyorum.',
+      reaction:
+        args.direction === 'buy'
+          ? pickReaction(['Bu rakam bana düşük geldi.', 'Bu rakama yaklaşamam.'], args.offerTl + patienceAfter)
+          : pickReaction(['Biraz daha makul bir fiyat bekliyorum.', 'Bu fiyat bana yüksek geldi.'], args.offerTl + patienceAfter),
     };
   }
 
@@ -273,7 +298,14 @@ export function evaluateNegotiationTurn(args: EvaluateNegotiationTurnArgs): Nego
       counterAmountTl: proposedCounter,
       patienceAfter,
       tone: 'counter',
-      reaction: args.direction === 'buy' ? 'Biraz daha çıkarsanız anlaşabiliriz.' : 'Biraz daha inerseniz anlaşabiliriz.',
+      reaction:
+        hardeningRound
+          ? args.direction === 'buy'
+            ? 'Yaklaştık, ama son sınıra geliyoruz.'
+            : 'Yaklaştık, ama fazla yukarıda kalıyor.'
+          : args.direction === 'buy'
+            ? pickReaction(['Biraz daha çıkarsanız anlaşabiliriz.', 'Yaklaştık ama biraz düşük.'], args.offerTl + args.roundsUsed)
+            : pickReaction(['Biraz daha inerseniz anlaşabiliriz.', 'Yaklaştık ama biraz yüksek.'], args.offerTl + args.roundsUsed),
     };
   }
 
@@ -281,7 +313,10 @@ export function evaluateNegotiationTurn(args: EvaluateNegotiationTurnArgs): Nego
     kind: 'warning',
     patienceAfter,
     tone: 'warning',
-    reaction: args.direction === 'buy' ? 'Biraz daha ciddi bir teklif bekliyorum.' : 'Bu fiyat bana yüksek geldi.',
+    reaction:
+      args.direction === 'buy'
+        ? pickReaction(['Biraz daha ciddi bir teklif bekliyorum.', 'Bu teklif beni ikna etmedi.'], args.offerTl)
+        : pickReaction(['Bu fiyat bana yüksek geldi.', 'Biraz daha inmeniz gerekir.'], args.offerTl),
   };
 }
 

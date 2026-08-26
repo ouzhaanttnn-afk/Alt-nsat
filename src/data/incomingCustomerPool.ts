@@ -11,6 +11,8 @@ export interface CustomerPersona {
   type: string;
   bargainingStyle: BargainingStyle;
   urgency: string;
+  /** Gün ilerledikçe daha zor/değerli müşteri tiplerinin havuza girmesi için. */
+  minDay?: number;
   /** Müşterinin dükkânda gerçekten bekleyeceği süre (oyun-dakikası) — Soğukkanlı/Güler Yüz bunun üstüne eklenir. */
   patienceMinutes: number;
   /** Bozdurma (dükkân müşteriden alıyor): müşterinin kabul edeceği, piyasa değerine göre asgari (taban) oran. */
@@ -78,5 +80,50 @@ export const CUSTOMER_PERSONAS: CustomerPersona[] = [
     patienceMinutes: 90,
     minAcceptRatio: 0.82,
     maxPayRatio: 1.02,
+  },
+  {
+    type: 'Fırsatçı',
+    bargainingStyle: 'sert',
+    urgency: 'Normal',
+    minDay: 8,
+    patienceMinutes: 85,
+    minAcceptRatio: 0.88,
+    maxPayRatio: 0.95,
+  },
+  {
+    type: 'Makul Alıcı',
+    bargainingStyle: 'dengeli',
+    urgency: 'Acelesi yok',
+    minDay: 12,
+    patienceMinutes: 120,
+    minAcceptRatio: 0.83,
+    maxPayRatio: 1.08,
+  },
+  {
+    type: 'Yüksek Bütçeli',
+    bargainingStyle: 'dengeli',
+    urgency: 'Normal',
+    minDay: 25,
+    patienceMinutes: 95,
+    minAcceptRatio: 0.86,
+    maxPayRatio: 1.18,
+  },
+  {
+    type: 'Değerini Bilen',
+    bargainingStyle: 'sert',
+    urgency: 'Acelesi yok',
+    minDay: 40,
+    patienceMinutes: 130,
+    minAcceptRatio: 0.93,
+    maxPayRatio: 1.02,
+  },
+  {
+    type: 'Nadir Koleksiyoncu',
+    bargainingStyle: 'sert',
+    urgency: 'Acelesi yok',
+    minDay: 70,
+    patienceMinutes: 140,
+    minAcceptRatio: 0.95,
+    maxPayRatio: 1.25,
   },
 ];

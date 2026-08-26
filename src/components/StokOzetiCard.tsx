@@ -21,7 +21,7 @@ function inventoryPreviewKey(item: InventoryItem, index: number): string {
 }
 
 export function StokOzetiCard({ items, onSeeAll }: { items: InventoryItem[]; onSeeAll: () => void }) {
-  const topItems = items.filter((i) => i.category !== 'pirlanta').slice(0, 4);
+  const topItems = items.slice(0, 4);
 
   return (
     <View>

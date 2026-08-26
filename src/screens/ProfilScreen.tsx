@@ -2,42 +2,27 @@ import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
-import { LevelProgressCard } from '../components/LevelProgressCard';
 import { ProfitAnalysisCard } from '../components/ProfitAnalysisCard';
-import { ReputationGauge } from '../components/ReputationGauge';
 import { ShopNameHeader } from '../components/ShopNameHeader';
-import { LEVEL_MAX } from '../config/economyConfig';
-import { currentPositionValueTl, useGameStore, xpRequiredForLevel } from '../store/useGameStore';
-import { colors, fonts, fontSizes } from '../theme';
+import { currentPositionValueTl, useGameStore } from '../store/useGameStore';
+import { colors, fonts, fontSizes, radius } from '../theme';
 
-// Bölüm 31: Profil — oyuncu/dükkân adı, seviye, XP, karizma, toplam kâr.
-// Yetenek ağacı artık ayrı bir sekmede (bkz. YeteneklerScreen).
+// Profil artık HUD bilgilerini tekrar etmez. Bu ekran oyuncu/dükkân adı,
+// gerçekleşen alım-satım kâr analizi ve ileride açılacak Market temelidir.
 export function ProfilScreen() {
   const playerName = useGameStore((s) => s.playerName);
   const setPlayerName = useGameStore((s) => s.setPlayerName);
   const shopName = useGameStore((s) => s.shopName);
   const setShopName = useGameStore((s) => s.setShopName);
-  const reputation = useGameStore((s) => s.reputation);
-  const wholesalerTrust = useGameStore((s) => s.wholesalerTrust);
-  const level = useGameStore((s) => s.level);
-  const totalXp = useGameStore((s) => s.totalXp);
-  const resetSkills = useGameStore((s) => s.resetSkills);
   const realizedTradingProfitTl = useGameStore((s) => s.realizedTradingProfitTl);
   const totalTradingCostBasisTl = useGameStore((s) => s.totalTradingCostBasisTl);
   const inventory = useGameStore((s) => s.inventory);
   const goldPrice = useGameStore((s) => s.goldPrice);
 
-  const isMaxLevel = level >= LEVEL_MAX;
-  const xpForCurrentLevel = xpRequiredForLevel(level);
-  const xpForNextLevel = xpRequiredForLevel(level + 1);
-
-  // Bölüm 6/7: elde tutulan (henüz SATILMAMIŞ) sarrafiye stoğunun şu anki
-  // kurdan potansiyel kâr/zararı — Gerçekleşen Kâr'dan kasıtlı olarak ayrı
-  // gösterilir, playtest'te en çok kafa karıştıran nokta buydu.
   const stockPotentialTl = useMemo(
     () =>
       inventory.reduce((sum, item) => {
-        if (item.category === 'pirlanta' || item.category === 'iscilikli') return sum;
+        if (item.category === 'iscilikli') return sum;
         return sum + (currentPositionValueTl(item, goldPrice.buyPricePerGram) - item.costBasisTl);
       }, 0),
     [inventory, goldPrice.buyPricePerGram],
@@ -48,23 +33,10 @@ export function ProfilScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Profil</Text>
 
-        <Card>
-          <Field label="OYUNCU ADI" value={playerName} onChange={setPlayerName} />
+        <Card style={styles.identityCard}>
+          <Field label="OYUNCU" value={playerName} onChange={setPlayerName} />
           <View style={styles.fieldDivider} />
-          <Field label="DÜKKÂN ADI" value={shopName} onChange={setShopName} />
-        </Card>
-
-        <LevelProgressCard
-          level={level}
-          isMaxLevel={isMaxLevel}
-          xpIntoLevel={totalXp - xpForCurrentLevel}
-          xpNeededForLevel={xpForNextLevel - xpForCurrentLevel}
-          onResetSkills={resetSkills}
-        />
-
-        <Card style={styles.gaugeCard}>
-          <ReputationGauge score={reputation.score} label="KARİZMA" align="flex-start" />
-          <ReputationGauge score={wholesalerTrust} label="TOPTANCI GÜVENİ" align="flex-start" />
+          <Field label="KUYUMCU" value={shopName} onChange={setShopName} />
         </Card>
 
         <ProfitAnalysisCard
@@ -74,13 +46,28 @@ export function ProfilScreen() {
           costTl={totalTradingCostBasisTl}
           profitTl={realizedTradingProfitTl}
           showSaleValue
-          tip="Gerçekleşen kâr, sadece SATILAN stoktan hesaplanır — elindeki stoğu satmadan kâr sayılmaz."
+          tip="Gerçekleşen kâr sadece satılan stoktan hesaplanır; eldeki stok nakit değildir."
           secondary={{
             label: 'Stok Potansiyeli',
             valueTl: stockPotentialTl,
-            caption: 'Şu an elindeki (henüz satılmamış) stoğu bugünkü kurdan satarsan oluşacak kâr/zarar.',
+            caption: 'Satılmamış likit stoğun bugünkü kurla olası kâr/zararı.',
           }}
         />
+
+        <Card style={styles.marketCard}>
+          <View>
+            <Text style={styles.marketTitle}>MARKET</Text>
+            <Text style={styles.marketHint}>Lüks, prestij ve kozmetik alanı için temel hazır. Gerçek ödeme yok.</Text>
+          </View>
+          <View style={styles.marketGrid}>
+            {['Lüks Vitrin', 'Prestij Paketi', 'Özel Tema'].map((item) => (
+              <View key={item} style={styles.marketChip}>
+                <Text style={styles.marketChipTitle}>{item}</Text>
+                <Text style={styles.marketChipStatus}>Yakında</Text>
+              </View>
+            ))}
+          </View>
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );
@@ -88,7 +75,7 @@ export function ProfilScreen() {
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
-    <View>
+    <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <ShopNameHeader name={value} onChange={onChange} onDark={false} />
     </View>
@@ -102,7 +89,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    gap: 14,
+    gap: 12,
   },
   title: {
     fontFamily: fonts.headingBold,
@@ -110,20 +97,59 @@ const styles = StyleSheet.create({
     color: colors.inkOnDark,
     marginBottom: 2,
   },
+  identityCard: {
+    gap: 8,
+  },
+  field: {
+    gap: 3,
+  },
   fieldLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: fontSizes.xs,
     color: colors.inkMuted,
     letterSpacing: 1,
-    marginBottom: 4,
   },
   fieldDivider: {
     height: 1,
     backgroundColor: colors.border,
-    marginVertical: 12,
   },
-  gaugeCard: {
+  marketCard: {
+    gap: 10,
+  },
+  marketTitle: {
+    fontFamily: fonts.headingBold,
+    fontSize: fontSizes.md,
+    color: colors.ink,
+  },
+  marketHint: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xs,
+    color: colors.inkMuted,
+    marginTop: 2,
+  },
+  marketGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  marketChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingVertical: 7,
+    paddingHorizontal: 9,
+    minWidth: 96,
+    backgroundColor: colors.surfaceSunken,
+  },
+  marketChipTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    color: colors.ink,
+  },
+  marketChipStatus: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11,
+    color: colors.inkMuted,
+    marginTop: 1,
   },
 });

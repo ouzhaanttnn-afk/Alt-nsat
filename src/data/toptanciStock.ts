@@ -8,13 +8,10 @@ export interface StockSpec {
   category: InventoryCategory;
 }
 
-// Piyasa: Toptancıdan Stok Al — sarrafiye stoğunun tamamı üç kalemden
-// oluşuyor. Gram/Çeyrek yatırım altını canlı kurdan değerlenir (yatirim),
-// bilezik işçilik değeri taşıdığı için sabit maliyet üzerinden tutulur
-// (taki). Yarım Altın ve Cumhuriyet (Tam) Altını ayrı bir stok kalemi
-// DEĞİL — değerce 2 ve 4 Çeyrek'e eşit olduğu için müşteri isteği bu
-// stoktan otomatik karşılanıyor (bkz. useGameStore'daki bileşik ürün
-// mantığı). Toptancıdan sadece alınır; müşteriye pazarlıkla satılır.
+// Piyasa: Toptancıdan Stok Al — standart sarrafiye stoğu tek valuation
+// motoruyla canlı kurdan değerlenir. Yarım Altın ve Cumhuriyet (Tam)
+// Altını ayrı bir stok kalemi DEĞİL — değerce 2 ve 4 Çeyrek'e eşit olduğu
+// için müşteri isteği bu stoktan otomatik karşılanıyor (bkz. useGameStore).
 //
 // Has altın orantılaması (araştırıldı, T.C. Darphane/piyasa standardı):
 // - Çeyrek Altın resmî nominal ağırlığı 1,754 g (halk arasında 1,75 g'a
@@ -29,5 +26,9 @@ export interface StockSpec {
 export const toptanciStock: StockSpec[] = [
   { id: 'gram-altin', name: 'Gram Altın (Has)', karat: 24, grams: 1, category: 'yatirim' },
   { id: 'ceyrek-altin', name: 'Çeyrek Altın', karat: 22, grams: 1.754, category: 'yatirim' },
+  { id: 'ata-lira', name: 'Ata Lira', karat: 22, grams: 7.216, category: 'yatirim' },
+  { id: '14-ayar-yuzuk', name: '14 Ayar Yüzük', karat: 14, grams: 3.2, category: 'taki' },
+  { id: '18-ayar-kupe', name: '18 Ayar Küpe', karat: 18, grams: 2.4, category: 'taki' },
   { id: '22-ayar-bilezik', name: '22 Ayar Bilezik', karat: 22, grams: 10, category: 'taki' },
+  { id: '22-ayar-kelepce', name: '22 Ayar Kelepçe', karat: 22, grams: 18, category: 'taki' },
 ];

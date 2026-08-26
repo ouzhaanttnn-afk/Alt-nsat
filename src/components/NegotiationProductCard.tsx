@@ -27,9 +27,8 @@ export function NegotiationProductCard({
 }) {
   const hasQuantity = (product.quantity ?? 1) > 1;
   const isCraftedGood = product.category === 'iscilikli';
-  const unitPriceLabel = hasQuantity
-    ? `Birim fiyat: ${formatTl(product.marketValueTl / Math.max(1, product.quantity ?? 1))}/adet`
-    : `Birim fiyat: ${formatTl(product.marketValueTl / Math.max(0.01, product.grams))}/g`;
+  const totalGrossGrams = product.grams * (product.quantity ?? 1);
+  const unitPriceLabel = `Birim fiyat: ${formatTl(product.marketValueTl / Math.max(0.01, totalGrossGrams))}/g`;
 
   let expertRange: { min: number; max: number } | null = null;
   if (isCraftedGood && uzmanGorusuLevel > 0 && product.actualKarat !== undefined) {

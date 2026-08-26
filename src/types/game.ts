@@ -32,15 +32,12 @@ export interface WorkshopState {
 
 // "taki"/"yatirim": sarrafiye stoğu (gram/çeyrek altın, 22 ayar bilezik) —
 // fungible, güncel kurdan mark-to-market, doğrudan satılabilir.
-// "pirlanta": gerçek para (mağaza içi satın alma) ile edinilen kalıcı,
-// vadesiz vitrin parçası — oyun içi altın ekonomisine (nakit/borç) hiç
-// dokunmaz, ayrı bir satın alma yoluyla (bkz. purchasePirlanta) eklenir.
 // "iscilikli": Bölüm 11/16 — müşteriden bozdurma yoluyla alınan kolye/
 // yüzük/küpe/taşlı gibi benzersiz işçilikli parçalar. Fungible DEĞİL,
 // asla başka bir müşteriye satılmaz — tek çıkış yolu eritme (bkz.
 // meltCraftedGood). Bu yüzden sellInventoryItem/sellInvestmentUnits bu
 // kategoriyi kasıtlı olarak reddeder.
-export type InventoryCategory = 'taki' | 'yatirim' | 'pirlanta' | 'iscilikli';
+export type InventoryCategory = 'taki' | 'yatirim' | 'iscilikli';
 
 // Aynı ürün (ör. "Çeyrek Altın") farklı fiyatlardan birden fazla kez
 // alınabilir — bunlar tek bir pozisyonda toplanır, maliyet ortalaması
@@ -66,10 +63,6 @@ export interface InventoryItem {
    * kullanılmıyor (o zaten canlı kurdan, istenen an satılabiliyor).
    */
   estimatedValueTl?: number;
-  /** Sadece pırlanta: kalıcı, sabit günlük gelir (birim başına). */
-  dailyIncomeTl?: number;
-  /** Sadece pırlanta: mağaza fiyat etiketi (ör. "₺99,99"), bilgi amaçlı. */
-  realMoneyPriceLabel?: string;
   /**
    * Sadece işçilikli ürün: gerçek ayar — `karat` alanı müşterinin BEYAN
    * ettiği ayarı taşır (Uzman Görüşü olmadan bilinen tek değer); bu alan

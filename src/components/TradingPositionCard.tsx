@@ -40,8 +40,12 @@ export function TradingPositionCard({
   const isProfit = profitTl >= 0;
   const daysHeld = Math.max(0, currentDay - item.acquiredDay);
   const canPartialSell = !!onSellQuantity && item.quantity > initialSellQuantity;
+  const isHasBalance = item.name.toLocaleLowerCase('tr-TR').includes('has') && item.grams === 1 && item.karat === 24;
   const changeSellQuantity = (delta: number) => {
     setSellQuantity((current) => Math.min(item.quantity, Math.max(initialSellQuantity, current + delta)));
+  };
+  const setQuantityRatio = (ratio: number) => {
+    setSellQuantity(Math.max(initialSellQuantity, Math.min(item.quantity, item.quantity * ratio)));
   };
   const sellSelected = () => {
     if (!onSellQuantity) {
@@ -79,22 +83,33 @@ export function TradingPositionCard({
       </View>
 
       {canPartialSell && (
-        <View style={styles.sellQuantityRow}>
-          <Text style={styles.priceLabel}>Satılacak adet</Text>
-          <View style={styles.stepper}>
-            <Pressable style={styles.stepperButton} onPress={() => changeSellQuantity(-1)}>
-              <Text style={styles.stepperButtonLabel}>−</Text>
-            </Pressable>
-            <Text style={styles.stepperValue}>
-              {selectedQuantity.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}
-            </Text>
-            <Pressable style={styles.stepperButton} onPress={() => changeSellQuantity(1)}>
-              <Text style={styles.stepperButtonLabel}>+</Text>
-            </Pressable>
-            <Pressable style={styles.allButton} onPress={() => setSellQuantity(item.quantity)}>
-              <Text style={styles.allButtonLabel}>Tümü</Text>
-            </Pressable>
+        <View style={styles.sellQuantityBlock}>
+          <View style={styles.sellQuantityRow}>
+            <Text style={styles.priceLabel}>{isHasBalance ? 'Satılacak HAS' : 'Satılacak adet'}</Text>
+            <View style={styles.stepper}>
+              <Pressable style={styles.stepperButton} onPress={() => changeSellQuantity(isHasBalance ? -10 : -1)}>
+                <Text style={styles.stepperButtonLabel}>−</Text>
+              </Pressable>
+              <Text style={styles.stepperValue}>
+                {selectedQuantity.toLocaleString('tr-TR', { maximumFractionDigits: isHasBalance ? 2 : 0 })}
+              </Text>
+              <Pressable style={styles.stepperButton} onPress={() => changeSellQuantity(isHasBalance ? 10 : 1)}>
+                <Text style={styles.stepperButtonLabel}>+</Text>
+              </Pressable>
+              <Pressable style={styles.allButton} onPress={() => setSellQuantity(item.quantity)}>
+                <Text style={styles.allButtonLabel}>MAX</Text>
+              </Pressable>
+            </View>
           </View>
+          {isHasBalance && (
+            <View style={styles.quickRow}>
+              {[0.25, 0.5, 1].map((ratio) => (
+                <Pressable key={ratio} style={styles.quickButton} onPress={() => setQuantityRatio(ratio)}>
+                  <Text style={styles.quickButtonLabel}>{ratio === 1 ? 'MAX' : `%${Math.round(ratio * 100)}`}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
       )}
 
@@ -155,7 +170,7 @@ const styles = StyleSheet.create({
   },
   priceRow: {
     flexDirection: 'row',
-    marginTop: 10,
+    marginTop: 8,
   },
   priceColumn: {
     flex: 1,
@@ -180,15 +195,35 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  sellQuantityRow: {
-    marginTop: 10,
-    paddingTop: 10,
+  sellQuantityBlock: {
+    marginTop: 8,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    gap: 6,
+  },
+  sellQuantityRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 10,
+  },
+  quickRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  quickButton: {
+    flex: 1,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 5,
+    alignItems: 'center',
+  },
+  quickButtonLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    color: colors.inkMuted,
   },
   stepper: {
     flexDirection: 'row',

@@ -21,7 +21,10 @@ export const MAX_REAL_SECONDS_PER_TICK = 5;
 // v0.2 Aşama 5: başlangıç artık hedeflenen erken oyun karar döngüsüne
 // dönüyor — 100.000 TL nakit, 0 stok, 0 borç. Sadece YENİ oyunları etkiler,
 // mevcut kayıtlı kasa bakiyesini değiştirmez.
-export const STARTING_CASH_TL = 100000;
+// PLAYTEST/BALANCE ADAYI: yeni oyun başlangıç nakdi geçici olarak 2M TL.
+// Mevcut save'ler merge sırasında resetlenmez; sadece sıfırdan başlayan
+// kayıtlar bu değeri kullanır.
+export const STARTING_CASH_TL = 2000000;
 export const STARTING_REFERENCE_PRICE = 6845; // TL, gram altın referans (orta) fiyatı — sadece piyasa başlangıcı için, sermaye artık buna bağlı değil.
 // Bölüm 2: Sermaye Kademeleri — her yeni kademe bir Yetenek Ağacı puanı kazandırır.
 export const CAPITAL_TIERS = [100000, 500000, 2000000, 10000000, 50000000, 250000000];
@@ -233,18 +236,18 @@ export const WORKSHOP_CONFIG = {
   simulationTuningRequired: true,
   requiredLevel: 7,
   maxLevel: 10,
-  unlockCostEquivalentHasGrams: 15,
+  unlockCostEquivalentHasGrams: 25,
   levels: [
-    { level: 1, upgradeCostEquivalentHasGrams: 15, dailyHasOutput: 0.35 },
-    { level: 2, upgradeCostEquivalentHasGrams: 25, dailyHasOutput: 0.7 },
-    { level: 3, upgradeCostEquivalentHasGrams: 30, dailyHasOutput: 1.2 },
-    { level: 4, upgradeCostEquivalentHasGrams: 45, dailyHasOutput: 1.9 },
-    { level: 5, upgradeCostEquivalentHasGrams: 50, dailyHasOutput: 2.4 },
-    { level: 6, upgradeCostEquivalentHasGrams: 65, dailyHasOutput: 3 },
-    { level: 7, upgradeCostEquivalentHasGrams: 75, dailyHasOutput: 3.5 },
-    { level: 8, upgradeCostEquivalentHasGrams: 100, dailyHasOutput: 4.5 },
-    { level: 9, upgradeCostEquivalentHasGrams: 140, dailyHasOutput: 5.8 },
-    { level: 10, upgradeCostEquivalentHasGrams: 320, dailyHasOutput: 7.5 },
+    { level: 1, upgradeCostEquivalentHasGrams: 25, dailyHasOutput: 0.45 },
+    { level: 2, upgradeCostEquivalentHasGrams: 40, dailyHasOutput: 0.85 },
+    { level: 3, upgradeCostEquivalentHasGrams: 60, dailyHasOutput: 1.35 },
+    { level: 4, upgradeCostEquivalentHasGrams: 90, dailyHasOutput: 2 },
+    { level: 5, upgradeCostEquivalentHasGrams: 130, dailyHasOutput: 2.8 },
+    { level: 6, upgradeCostEquivalentHasGrams: 190, dailyHasOutput: 3.8 },
+    { level: 7, upgradeCostEquivalentHasGrams: 280, dailyHasOutput: 5 },
+    { level: 8, upgradeCostEquivalentHasGrams: 420, dailyHasOutput: 6.4 },
+    { level: 9, upgradeCostEquivalentHasGrams: 650, dailyHasOutput: 8 },
+    { level: 10, upgradeCostEquivalentHasGrams: 1000, dailyHasOutput: 10 },
   ],
 } as const;
 
@@ -255,6 +258,12 @@ export const ATOLYE_MAX_LEVEL = WORKSHOP_CONFIG.maxLevel;
 
 // ---- Takı Yatırımı — 30 Günlük Sermaye Bağlama (v0.2 Faz 6) ---------------
 export const JEWELRY_REQUIRED_LEVEL = 7;
+export const JEWELRY_TIER_REQUIRED_LEVELS = {
+  ayar8: 7,
+  ayar14: 12,
+  ayar18: 18,
+  ayar22: 28,
+} as const;
 export const PASSIVE_INVESTMENT_TERM_DAYS = 30;
 export const JEWELRY_SET_BONUS_PCT = 0.1;
 export const PASSIVE_INVESTMENT_CONFIG = {
@@ -266,7 +275,8 @@ export const PASSIVE_INVESTMENT_CONFIG = {
       id: 'ayar8',
       label: '8 Ayar',
       karat: 8,
-      roi30Days: 0.24,
+      requiredLevel: JEWELRY_TIER_REQUIRED_LEVELS.ayar8,
+      roi30Days: 0.18,
       pieces: [
         { id: 'yuzuk', label: 'Yüzük', principalTl: 120000 },
         { id: 'kupe', label: 'Küpe', principalTl: 150000 },
@@ -278,7 +288,8 @@ export const PASSIVE_INVESTMENT_CONFIG = {
       id: 'ayar14',
       label: '14 Ayar',
       karat: 14,
-      roi30Days: 0.27,
+      requiredLevel: JEWELRY_TIER_REQUIRED_LEVELS.ayar14,
+      roi30Days: 0.21,
       pieces: [
         { id: 'yuzuk', label: 'Yüzük', principalTl: 300000 },
         { id: 'kupe', label: 'Küpe', principalTl: 380000 },
@@ -290,7 +301,8 @@ export const PASSIVE_INVESTMENT_CONFIG = {
       id: 'ayar18',
       label: '18 Ayar',
       karat: 18,
-      roi30Days: 0.3,
+      requiredLevel: JEWELRY_TIER_REQUIRED_LEVELS.ayar18,
+      roi30Days: 0.24,
       pieces: [
         { id: 'yuzuk', label: 'Yüzük', principalTl: 700000 },
         { id: 'kupe', label: 'Küpe', principalTl: 850000 },
@@ -302,7 +314,8 @@ export const PASSIVE_INVESTMENT_CONFIG = {
       id: 'ayar22',
       label: '22 Ayar',
       karat: 22,
-      roi30Days: 0.34,
+      requiredLevel: JEWELRY_TIER_REQUIRED_LEVELS.ayar22,
+      roi30Days: 0.28,
       pieces: [
         { id: 'yuzuk', label: 'Yüzük', principalTl: 2000000 },
         { id: 'kupe', label: 'Küpe', principalTl: 2400000 },
@@ -371,16 +384,6 @@ export const XP_BONUS_PROFITABLE_SALE = 15;
 export const XP_BONUS_GOOD_BARGAIN = 10; // teklif, eşiğin altında ama karşı teklif turlarıyla kapandıysa
 export const XP_BONUS_RARE_ITEM = 20; // işçilikli/nadir ürün ya da büyük (çoklu adet) işlem
 
-// ---- Soft-Lock Koruması (v3 — kritik) -------------------------------------
-// Kasa 0 TL'ye düştüğünde (ve elde satılabilir stok da yoksa) oyuncu hiçbir
-// işlem yapamaz hale gelebilir (toptancıdan alamaz, borç eşiği altındaysa
-// kredi de alamaz). Bu, normal wholesalerTrust kredi kontrolünü BİLİNÇLİ
-// OLARAK atlayan, her zaman kullanılabilir bir acil çıkış: küçük bir borç
-// karşılığında oyunu yeniden hareket ettirecek kadar nakit sağlar.
-export const EMERGENCY_MICRO_LOAN_TL = 20000;
-// Aynı acil krediyi arka arkaya spam'lemeyi anlamsızlaştırmak için: sadece
-// kasa bu eşiğin altındayken kullanılabilir.
-export const EMERGENCY_MICRO_LOAN_MAX_CASH_TL = 500;
 // Büyük alım/yatırım sonrası kasa bunun altına düşerse UI oyuncuyu uyarır;
 // işlem engellenmez, sadece "nakit tamponun eriyor" sinyali verilir.
 export const LOW_CASH_WARNING_THRESHOLD_TL = 10000;
